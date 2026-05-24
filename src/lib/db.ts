@@ -1,134 +1,76 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-const dbPath = path.join(process.cwd(), 'procurement.db');
-const db = new Database(dbPath);
+// Helpers that turn raw Postgres rows into the camelCase shape the client expects.
 
-export function initDb() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      full_name TEXT NOT NULL,
-      role TEXT DEFAULT 'user',
-      can_edit INTEGER DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY,
-      name TEXT UNIQUE NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS projects (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      client TEXT,
-      budget REAL DEFAULT 0,
-      status TEXT DEFAULT 'Active',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS packages (
-      id TEXT PRIMARY KEY,
-      project_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT,
-      category TEXT,
-      origin TEXT DEFAULT 'Domestic',
-      currency TEXT DEFAULT 'INR',
-      current_stage TEXT DEFAULT 'Spec Received',
-      rfq_float_date TEXT,
-      award_date TEXT,
-      award_value REAL,
-      awarded_vendor_id TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS vendors (
-      id TEXT PRIMARY KEY,
-      package_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      quoted_amount REAL DEFAULT 0,
-      revised_amount REAL DEFAULT 0,
-      FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS remarks (
-      id TEXT PRIMARY KEY,
-      package_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      text TEXT NOT NULL,
-      timestamp TEXT NOT NULL,
-      FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS documents (
-      id TEXT PRIMARY KEY,
-      package_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      size TEXT,
-      type TEXT,
-      uploaded_by TEXT NOT NULL,
-      uploaded_at TEXT NOT NULL,
-      FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE CASCADE,
-      FOREIGN KEY (uploaded_by) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS audit_trail (
-      id TEXT PRIMARY KEY,
-      package_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      field TEXT NOT NULL,
-      old_value TEXT,
-      new_value TEXT,
-      timestamp TEXT NOT NULL,
-      FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-  `);
-
-  // Migrate existing users if can_edit column is missing (SQLite doesn't support IF NOT EXISTS for columns)
-  try {
-    db.prepare("SELECT can_edit FROM users LIMIT 1").get();
-  } catch (e) {
-    db.exec("ALTER TABLE users ADD COLUMN can_edit INTEGER DEFAULT 0");
-  }
-
-  const count = db.prepare('SELECT count(*) as count FROM categories').get() as { count: number };
-  if (count.count === 0) {
-    const categories = ['Civil', 'Electrical', 'Mechanical', 'Instrumentation', 'Services'];
-    const insert = db.prepare('INSERT OR IGNORE INTO categories (id, name) VALUES (?, ?)');
-    categories.forEach(name => insert.run(uuidv4(), name));
-  }
-  
-  const existingAdmin = db.prepare('SELECT * FROM users WHERE username = ?').get('admin') as any;
-  if (!existingAdmin) {
-    const salt = bcrypt.genSaltSync(10);
-    const hashedPassword = bcrypt.hashSync('admin123', salt);
-    const insertAdmin = db.prepare('INSERT INTO users (id, username, password, full_name, role, can_edit) VALUES (?, ?, ?, ?, ?, ?)');
-    insertAdmin.run(uuidv4(), 'admin', hashedPassword, 'Admin User', 'admin', 1);
-  } else if (existingAdmin.can_edit === 0) {
-    db.prepare("UPDATE users SET can_edit = 1 WHERE username = 'admin'").run();
-  }
+export async function addAuditEntry(
+  supabase: SupabaseClient,
+  pkgId: string,
+  username: string,
+  field: string,
+  oldValue: string,
+  newValue: string
+) {
+  await supabase.from('audit_trail').insert({
+    package_id: pkgId,
+    username,
+    field,
+    old_value: oldValue,
+    new_value: newValue,
+  });
 }
 
-export function toCamel(obj: any): any {
-  if (Array.isArray(obj)) return obj.map(toCamel);
-  if (obj !== null && typeof obj === 'object') {
-    return Object.keys(obj).reduce((acc: any, key: string) => {
-      const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-      acc[camelKey] = toCamel(obj[key]);
-      return acc;
-    }, {});
-  }
-  return obj;
+export async function assemblePackage(supabase: SupabaseClient, row: any) {
+  const [vendorsRes, remarksRes, docsRes, auditRes] = await Promise.all([
+    supabase.from('vendors').select('id, name, quoted_amount, revised_amount').eq('package_id', row.id),
+    supabase.from('remarks').select('id, username, text, timestamp').eq('package_id', row.id).order('timestamp'),
+    supabase.from('documents').select('id, name, size, type, username, uploaded_at').eq('package_id', row.id).order('uploaded_at'),
+    supabase.from('audit_trail').select('id, username, field, old_value, new_value, timestamp').eq('package_id', row.id).order('timestamp'),
+  ]);
+
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description || '',
+    category: row.category || '',
+    origin: row.origin,
+    currency: row.currency,
+    currentStage: row.current_stage,
+    rfqFloatDate: row.rfq_float_date || undefined,
+    awardDate: row.award_date || undefined,
+    awardValue: row.award_value ?? undefined,
+    awardedVendorId: row.awarded_vendor_id || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    vendors: (vendorsRes.data || []).map((v: any) => ({
+      id: v.id, name: v.name, quotedAmount: Number(v.quoted_amount), revisedAmount: Number(v.revised_amount),
+    })),
+    remarks: (remarksRes.data || []).map((r: any) => ({
+      id: r.id, user: r.username, text: r.text, timestamp: r.timestamp,
+    })),
+    documents: (docsRes.data || []).map((d: any) => ({
+      id: d.id, name: d.name, size: d.size || '', type: d.type || '', uploadedBy: d.username, uploadedAt: d.uploaded_at,
+    })),
+    auditTrail: (auditRes.data || []).map((a: any) => ({
+      id: a.id, user: a.username, field: a.field, oldValue: a.old_value || '', newValue: a.new_value || '', timestamp: a.timestamp,
+    })),
+  };
 }
 
-export default db;
+export async function assembleProject(supabase: SupabaseClient, row: any) {
+  const { data: pkgRows } = await supabase
+    .from('packages')
+    .select('*')
+    .eq('project_id', row.id)
+    .order('created_at');
+  const packages = await Promise.all((pkgRows || []).map(p => assemblePackage(supabase, p)));
+  return {
+    id: row.id,
+    name: row.name,
+    client: row.client || '',
+    budget: Number(row.budget) || 0,
+    status: row.status,
+    packages,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}

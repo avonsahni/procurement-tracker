@@ -2,115 +2,182 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
-import { fetchAllData, getCompanyInfo, CompanyInfo } from "@/lib/store";
-import { Briefcase, Lock, User, ShieldCheck, Eye, ArrowRight, Building2, Terminal } from "lucide-react";
+import { getCompanyInfo, CompanyInfo } from "@/lib/store";
+import { Lock, Mail, User, ArrowRight, CheckCircle2 } from "lucide-react";
+
+type Mode = "login" | "signup";
 
 export default function LoginForm() {
   const [company, setCompany] = useState<CompanyInfo>({ name: "Procurement Tracker", tagline: "Enterprise Access" });
-  const [username, setUsername] = useState("");
+  const [mode, setMode] = useState<Mode>("login");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
+  const [confirmMessage, setConfirmMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, signup } = useAuth();
 
   useEffect(() => {
-      fetchAllData();
-      setCompany(getCompanyInfo());
+    getCompanyInfo().then(setCompany).catch(() => {});
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const switchMode = (m: Mode) => {
+    setMode(m);
+    setError("");
+    setConfirmMessage("");
+    setPassword("");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setConfirmMessage("");
     setLoading(true);
     try {
-      await login(username, password);
+      if (mode === "login") {
+        await login(email, password);
+      } else {
+        const { needsConfirmation } = await signup(email, password, fullName);
+        if (needsConfirmation) {
+          setConfirmMessage(`Check ${email} to confirm your account, then sign in.`);
+          setMode("login");
+          setPassword("");
+        }
+      }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
-  const tryRole = async (role: "admin" | "viewer") => {
-    const u = role === "admin" ? "admin" : "viewer";
-    setUsername(u); setPassword("admin123");
-    setLoading(true);
-    try { await login(u, "admin123"); } 
-    catch (err: any) { setError(err.message); setLoading(false); }
-  };
-
   return (
-    <div className="min-h-screen bg-[#0a0a0b] flex flex-col font-sans selection:bg-blue-500 selection:text-white">
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
-            <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px]"></div>
-            <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-emerald-600/10 rounded-full blur-[120px]"></div>
-        </div>
-
-        <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
-          <div className="space-y-10 text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.3em] text-blue-400">
-              <Terminal className="w-3 h-3" /> Core Infrastructure
-            </div>
-            <div>
-              <h1 className="text-7xl sm:text-8xl font-black text-white uppercase tracking-tighter leading-[0.8] mb-8">
-                {company.name.split(' ').map((w,i) => <span key={i} className="block">{w}</span>)}
-              </h1>
-              <p className="text-xl text-gray-500 font-bold leading-tight uppercase tracking-tight max-w-sm mx-auto lg:mx-0">
-                {company.tagline}
-              </p>
-            </div>
-            <div className="pt-10 space-y-6">
-                <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.5em]">System Access Entry</p>
-                <div className="flex flex-wrap justify-center lg:justify-start gap-4">
-                    <button onClick={() => tryRole("admin")} className="flex items-center gap-4 px-8 py-5 bg-white text-black rounded-3xl hover:bg-blue-500 hover:text-white transition-all shadow-2xl active:scale-95 group">
-                        <ShieldCheck className="w-6 h-6 text-blue-600 group-hover:text-white transition-colors" />
-                        <div className="text-left"><p className="text-[9px] font-black uppercase tracking-tighter opacity-50 mb-0.5 leading-none">Access as</p><p className="font-black text-lg leading-none uppercase">Admin</p></div>
-                    </button>
-                    <button onClick={() => tryRole("viewer")} className="flex items-center gap-4 px-8 py-5 bg-white/5 text-white rounded-3xl border border-white/10 hover:bg-white/10 transition-all shadow-xl active:scale-95 group">
-                        <Eye className="w-6 h-6 text-gray-500 group-hover:text-white transition-colors" />
-                        <div className="text-left"><p className="text-[9px] font-black uppercase tracking-tighter opacity-50 mb-0.5 leading-none">Access as</p><p className="font-black text-lg leading-none uppercase">Viewer</p></div>
-                    </button>
-                </div>
-            </div>
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-10">
+            <h1 className="text-3xl font-semibold text-slate-900 tracking-tight mb-2">{company.name}</h1>
+            <p className="text-sm text-slate-500">{company.tagline}</p>
           </div>
-          <div className="bg-white rounded-[4rem] p-10 lg:p-16 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border border-gray-100">
-            <div className="mb-12">
-                <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">Sign In</h2>
-                <div className="h-1.5 w-10 bg-blue-600 rounded-full mt-3"></div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+            <div className="flex items-center gap-1 p-1 mb-6 bg-slate-100 rounded-lg">
+              <button
+                type="button"
+                onClick={() => switchMode("login")}
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition ${
+                  mode === "login" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode("signup")}
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition ${
+                  mode === "signup" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                Create account
+              </button>
             </div>
-            <form onSubmit={handleLogin} className="space-y-6">
-              {error && <div className="bg-red-50 text-red-600 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-red-100">{error}</div>}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 leading-none">Username</label>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">
+                  {error}
+                </div>
+              )}
+              {confirmMessage && (
+                <div className="bg-emerald-50 text-emerald-700 px-4 py-3 rounded-lg text-sm border border-emerald-200 flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>{confirmMessage}</span>
+                </div>
+              )}
+
+              {mode === "signup" && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Full Name</label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      required
+                      value={fullName}
+                      onChange={e => setFullName(e.target.value)}
+                      placeholder="Jane Smith"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 text-sm text-slate-900 placeholder-slate-400 transition"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Email</label>
                 <div className="relative">
-                  <User className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
-                  <input required value={username} onChange={e => setUsername(e.target.value)} className="w-full pl-14 pr-6 py-5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-gray-900" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    required
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 text-sm text-slate-900 placeholder-slate-400 transition"
+                  />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 leading-none">Password</label>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
-                  <input required type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-14 pr-6 py-5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-gray-900" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    required
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder={mode === "signup" ? "Min 8 characters" : ""}
+                    minLength={mode === "signup" ? 8 : undefined}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 text-sm text-slate-900 placeholder-slate-400 transition"
+                  />
                 </div>
               </div>
-              <button disabled={loading} className="w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-[0.25em] text-[10px] shadow-2xl shadow-blue-200 hover:bg-blue-700 hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50 mt-4 flex items-center justify-center gap-3">
-                {loading ? "Authorizing..." : "Enter Tracking Suite"}
-                <ArrowRight className="w-5 h-5" />
+
+              <button
+                disabled={loading}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+              >
+                {loading ? (mode === "login" ? "Signing in..." : "Creating account...") : (
+                  <>
+                    {mode === "login" ? "Enter Tracking Suite" : "Create Account"}
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
+
+            {mode === "login" && (
+              <p className="text-center text-xs text-slate-500 mt-6">
+                New here?{" "}
+                <button onClick={() => switchMode("signup")} className="text-blue-600 hover:text-blue-700 font-medium">
+                  Create an account
+                </button>
+              </p>
+            )}
+            {mode === "signup" && (
+              <p className="text-center text-xs text-slate-500 mt-6">
+                Already registered?{" "}
+                <button onClick={() => switchMode("login")} className="text-blue-600 hover:text-blue-700 font-medium">
+                  Sign in
+                </button>
+              </p>
+            )}
           </div>
         </div>
       </div>
-      <footer className="py-10 px-8 bg-[#0a0a0b] border-t border-white/5">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-            <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900"><Briefcase className="w-4 h-4 text-white" /></div>
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-600">{company.name} Enterprise</span>
-            </div>
-            <p className="text-[9px] font-bold text-gray-700 uppercase tracking-widest">© 2026 Internal Use Only • Protected Infrastructure</p>
-        </div>
+
+      <footer className="py-6 px-6 border-t border-slate-200 bg-white">
+        <p className="text-center text-xs text-slate-400">© 2026 {company.name} · Internal Use Only</p>
       </footer>
     </div>
   );

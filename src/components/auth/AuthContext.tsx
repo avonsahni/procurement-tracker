@@ -1,14 +1,15 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getUsers, UserAccount } from "@/lib/store";
+import { UserAccount } from "@/lib/store";
 
 interface AuthContextType {
   user: UserAccount | null;
   loading: boolean;
   editMode: boolean;
   setEditMode: (mode: boolean) => void;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, fullName: string) => Promise<{ needsConfirmation: boolean }>;
   logout: () => Promise<void>;
 }
 
@@ -20,35 +21,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("procurement_session_active");
-    if (saved) {
-        const users = getUsers();
-        const found = users.find(u => u.id === saved);
-        if (found) setUser(found);
-    }
-    setLoading(false);
+    let cancelled = false;
+    fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then(r => r.ok ? r.json() : { user: null })
+      .then(data => { if (!cancelled) setUser(data.user ?? null); })
+      .catch(() => { if (!cancelled) setUser(null); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
-  const login = async (username: string, password: string) => {
-    const users = getUsers();
-    const found = users.find(u => u.username === username && u.password === password);
-    
-    if (found) {
-      setUser(found);
-      localStorage.setItem("procurement_session_active", found.id);
-    } else {
-      throw new Error("Invalid credentials");
+  const login = async (email: string, password: string) => {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || 'Invalid credentials');
     }
+    const userData: UserAccount = await res.json();
+    setUser(userData);
+  };
+
+  const signup = async (email: string, password: string, fullName: string) => {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, fullName }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Sign up failed');
+    if (body.needsConfirmation) {
+      return { needsConfirmation: true };
+    }
+    setUser(body as UserAccount);
+    return { needsConfirmation: false };
   };
 
   const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
     setUser(null);
     setEditMode(false);
-    localStorage.removeItem("procurement_session_active");
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, editMode, setEditMode, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, editMode, setEditMode, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

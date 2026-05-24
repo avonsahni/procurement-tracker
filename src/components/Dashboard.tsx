@@ -1,28 +1,83 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchProjects, addProject, deleteProject, updateProject, fetchCategories, addCategory, deleteCategory, updateCategory, resetTrackerData, getUsers, addUser, deleteUser, updateUserRights, getCompanyInfo, updateCompanyInfo, CompanyInfo, UserAccount } from "@/lib/store";
-import { STAGES, formatCurrency } from "@/lib/types";
+import {
+  fetchProjects,
+  addProject,
+  deleteProject,
+  updateProject,
+  fetchCategories,
+  addCategory,
+  deleteCategory,
+  resetTrackerData,
+  seedTrackerData,
+  getUsers,
+  addUser,
+  deleteUser,
+  updateUserRights,
+  getCompanyInfo,
+  updateCompanyInfo,
+  CompanyInfo,
+  UserAccount
+} from "@/lib/store";
+import { formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
-  Plus, Briefcase, Package, ChevronRight, Search, Trash2, Edit2, Building2, X, FolderOpen, Activity, Clock, Settings, Tag, Save, LogOut, Lock, Unlock, UserPlus, Users, Trash, Globe, Shield, CheckCircle2, Box, Layers
+  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
-  Active: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  "On Hold": "bg-amber-50 text-amber-700 ring-amber-600/20",
-  Completed: "bg-blue-50 text-blue-700 ring-blue-600/20",
+  Active: "bg-blue-50 text-blue-700 ring-blue-200",
+  "On Hold": "bg-amber-50 text-amber-700 ring-amber-200",
+  Completed: "bg-slate-100 text-slate-600 ring-slate-200",
 };
 
-export default function Dashboard({ onSelectProject }: any) {
+function ProjectBudgetCell({ project, onUpdate, editMode }: { project: any; onUpdate: (val: number) => void; editMode: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(project.budget.toString());
+
+  useEffect(() => {
+    setVal(project.budget.toString());
+  }, [project.budget]);
+
+  if (editMode && editing) {
+    return (
+      <div onClick={e => e.stopPropagation()} className="flex items-center gap-1 w-full">
+        <input
+          type="number"
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          onBlur={() => { onUpdate(parseFloat(val) || 0); setEditing(false); }}
+          onKeyDown={e => { if (e.key === "Enter") { onUpdate(parseFloat(val) || 0); setEditing(false); } }}
+          className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 font-mono text-sm text-blue-700 outline-none focus:ring-1 focus:ring-blue-500"
+          autoFocus
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-1 w-full">
+      <p className="text-sm font-mono font-semibold text-blue-700 leading-none">{formatCurrency(project.budget)}</p>
+      {editMode && (
+        <button onClick={(e) => { e.stopPropagation(); setEditing(true); }} className="p-1 text-slate-400 hover:text-blue-600 transition-colors">
+          <Edit2 className="w-3 h-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function Dashboard({ onSelectProject, onShowBudgetAnalytics, onShowUserManagement }: any) {
   const { user, logout, editMode, setEditMode } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddProject, setShowAddProject] = useState(false);
-  const [showSettings, setShowAddSettings] = useState(false);
-  
-  // Settings state
+  const [showSettings, setShowSettings] = useState(false);
+  const [expandedCard, setExpandedCard] = useState<number | null>(null);
+  const [expandedProject, setExpandedProject] = useState<string | null>(null);
+
   const [company, setCompany] = useState<CompanyInfo>({ name: "", tagline: "" });
   const [userList, setUserList] = useState<UserAccount[]>([]);
   const [newUserName, setNewUserName] = useState("");
@@ -36,7 +91,7 @@ export default function Dashboard({ onSelectProject }: any) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [p, c, ci, u] = await Promise.all([fetchProjects(), fetchCategories(), getCompanyInfo(), getUsers()]);
+      const [p, c, ci, u] = await Promise.all([fetchProjects(), fetchCategories(), getCompanyInfo(), getUsers().catch(() => [])]);
       setProjects(p);
       setCategories(c);
       setCompany(ci);
@@ -65,7 +120,17 @@ export default function Dashboard({ onSelectProject }: any) {
     }
   };
 
-  const filteredProjects = projects.filter(p => 
+  const handleUpdateProjectStatus = async (id: string, status: string) => {
+    await updateProject(id, { status: status as "Active" | "On Hold" | "Completed" });
+    loadData();
+  };
+
+  const handleUpdateProjectBudget = async (id: string, budget: number) => {
+    await updateProject(id, { budget });
+    loadData();
+  };
+
+  const filteredProjects = projects.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.client.toLowerCase().includes(search.toLowerCase())
   );
@@ -74,195 +139,527 @@ export default function Dashboard({ onSelectProject }: any) {
     total: projects.length,
     packages: projects.reduce((s, p) => s + p.packages.length, 0),
     budget: projects.reduce((s, p) => s + p.budget, 0),
-    awarded: projects.reduce((s, p) => s + p.packages.reduce((ss:any, pk:any) => ss + (pk.awardValue || 0), 0), 0)
+    awarded: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.awardValue || 0), 0), 0)
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center font-black uppercase tracking-[0.3em] text-gray-300">Syncing Systems...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+        <div className="text-xs text-slate-500">Loading…</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb]">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-100 transform -rotate-3 transition-transform hover:rotate-0">
-              <Building2 className="w-7 h-7 text-white" />
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
+
+      {/* HEADER */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-gray-900 tracking-tighter uppercase leading-none">{company.name}</h1>
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em] mt-1">{company.tagline}</p>
+              <h1 className="text-sm font-semibold text-slate-900 leading-none">{company.name}</h1>
+              <p className="text-[11px] text-slate-500 mt-1">{company.tagline}</p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input 
-                placeholder="Quick Search..." 
-                value={search} 
-                onChange={e => setSearch(e.target.value)} 
-                className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all w-64"
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                placeholder="Search projects..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition w-60"
               />
             </div>
-            
+
+            <button
+              onClick={onShowBudgetAnalytics}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
+            >
+              <BarChart3 className="w-4 h-4" /> Analytics
+            </button>
+
             {user?.canEdit && (
-                <button 
-                    onClick={() => setEditMode(!editMode)}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border-2 ${
-                        editMode 
-                        ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100 scale-105" 
-                        : "bg-white border-gray-200 text-gray-400 hover:border-blue-500 hover:text-blue-600"
-                    }`}
-                >
-                    {editMode ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                    {editMode ? "Edit Mode ON" : "Enter Edit Mode"}
-                </button>
+              <button
+                onClick={() => setEditMode(!editMode)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border transition ${
+                  editMode
+                    ? "bg-blue-600 border-blue-600 text-white"
+                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {editMode ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                {editMode ? "Edit Mode ON" : "Enter Edit Mode"}
+              </button>
             )}
 
             {user?.role === 'admin' && (
-                <button onClick={() => setShowAddSettings(true)} className="p-3 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-blue-600 hover:border-blue-500 transition-all">
-                    <Settings className="w-5 h-5" />
-                </button>
+              <button
+                onClick={onShowUserManagement}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
+              >
+                <Users className="w-4 h-4" /> Users
+              </button>
             )}
 
-            <button onClick={logout} className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-red-600 transition-colors font-bold text-[10px] uppercase tracking-widest">
+            {user?.role === 'admin' && (
+              <button onClick={() => setShowSettings(true)} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition">
+                <Settings className="w-4 h-4" />
+              </button>
+            )}
+
+            <button onClick={logout} className="flex items-center gap-1.5 px-3 py-2 text-slate-600 hover:text-red-600 transition text-xs font-medium">
               <LogOut className="w-4 h-4" /> Sign Out
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          {[ 
-            { label: "Projects", val: stats.total, icon: FolderOpen, color: "text-blue-600", bg: "bg-blue-50" },
-            { label: "Active Packages", val: stats.packages, icon: Box, color: "text-purple-600", bg: "bg-purple-50" },
-            { label: "Total Budget", val: formatCurrency(stats.budget), icon: Activity, color: "text-emerald-600", bg: "bg-emerald-50" },
-            { label: "Awarded Value", val: formatCurrency(stats.awarded), icon: Shield, color: "text-amber-600", bg: "bg-amber-50" }
-          ].map((s, i) => (
-            <div key={i} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-transform hover:-translate-y-1">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`${s.bg} p-3 rounded-2xl`}><s.icon className={`w-6 h-6 ${s.color}`} /></div>
-                <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Real-time</span>
+      <main className="max-w-7xl mx-auto px-6 py-8">
+
+        {/* PORTFOLIO SUMMARY */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="flex-1 space-y-3">
+              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Portfolio Summary</p>
+              <h2 className="text-xl font-semibold text-slate-900">Financial Allocation</h2>
+              <p className="text-sm text-slate-500 max-w-xl">
+                Real-time mapping of capital allocation across all current projects.
+              </p>
+              <div className="flex flex-wrap gap-6 pt-2">
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Available Capital</p>
+                  <p className="text-lg font-mono font-semibold text-blue-700">
+                    {formatCurrency(Math.max(0, stats.budget - stats.awarded))}
+                  </p>
+                </div>
+                <div className="border-l border-slate-200 pl-6">
+                  <p className="text-xs text-slate-500 mb-1">Awarded Rate</p>
+                  <p className="text-lg font-mono font-semibold text-slate-900">
+                    {stats.budget > 0 ? ((stats.awarded / stats.budget) * 100).toFixed(1) : "0.0"}%
+                  </p>
+                </div>
+                <div className="border-l border-slate-200 pl-6">
+                  <p className="text-xs text-slate-500 mb-1">Total Packages</p>
+                  <p className="text-lg font-mono font-semibold text-slate-900">{stats.packages}</p>
+                </div>
               </div>
-              <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1">{s.label}</p>
-              <p className="text-2xl font-black text-gray-900 leading-none">{s.val}</p>
             </div>
-          ))}
+
+            <div className="flex items-center gap-5 bg-slate-50 p-5 rounded-xl border border-slate-200">
+              <div className="relative w-24 h-24 flex items-center justify-center">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="40" stroke="#e2e8f0" strokeWidth="8" fill="transparent" />
+                  <circle
+                    cx="50" cy="50" r="40"
+                    stroke="#2563eb"
+                    strokeWidth="8"
+                    fill="transparent"
+                    strokeDasharray={2 * Math.PI * 40}
+                    strokeDashoffset={2 * Math.PI * 40 * (1 - (stats.budget > 0 ? Math.min(1, stats.awarded / stats.budget) : 0))}
+                    strokeLinecap="round"
+                    className="transition-all duration-700 ease-out"
+                  />
+                </svg>
+                <div className="absolute text-center">
+                  <p className="text-[10px] text-slate-500">Awarded</p>
+                  <p className="text-sm font-mono font-semibold text-slate-900">{stats.budget > 0 ? ((stats.awarded / stats.budget) * 100).toFixed(0) : 0}%</p>
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 bg-blue-600 rounded-full" />
+                  <div>
+                    <p className="text-[10px] text-slate-500 leading-none">Awarded</p>
+                    <p className="text-xs font-mono font-semibold text-slate-900 mt-0.5">{formatCurrency(stats.awarded)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 bg-slate-300 rounded-full" />
+                  <div>
+                    <p className="text-[10px] text-slate-500 leading-none">Remaining</p>
+                    <p className="text-xs font-mono font-semibold text-slate-700 mt-0.5">{formatCurrency(Math.max(0, stats.budget - stats.awarded))}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-3">
+        {/* STAT CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          {([
+            {
+              label: "Active Projects", icon: FolderOpen, accent: "text-blue-600",
+              val: stats.total,
+              rows: projects.map((p: any) => ({ label: p.name, sub: p.client, val: p.status }))
+            },
+            {
+              label: "Total Packages", icon: Box, accent: "text-slate-900",
+              val: stats.packages,
+              rows: projects.map((p: any) => ({ label: p.name, sub: `${p.packages.length} packages`, val: p.packages.length }))
+            },
+            {
+              label: "Total Budget", icon: Activity, accent: "text-slate-900",
+              val: formatCurrency(stats.budget),
+              rows: projects.map((p: any) => ({ label: p.name, sub: p.client, val: formatCurrency(p.budget) }))
+            },
+            {
+              label: "Awarded Pipeline", icon: Shield, accent: "text-blue-700",
+              val: formatCurrency(stats.awarded),
+              rows: projects.map((p: any) => { const aw = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0); return { label: p.name, sub: `${p.packages.filter((pk: any) => pk.currentStage === 'Award').length} awarded`, val: formatCurrency(aw) }; })
+            },
+          ] as any[]).map((s, i) => {
+            const isOpen = expandedCard === i;
+            return (
+              <div
+                key={i}
+                onClick={() => setExpandedCard(isOpen ? null : i)}
+                className={`bg-white border rounded-xl transition cursor-pointer select-none ${
+                  isOpen ? 'border-blue-300 shadow-sm' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+                      <s.icon className={`w-4 h-4 ${s.accent}`} />
+                    </div>
+                    <span className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-1">{s.label}</p>
+                  <p className={`text-xl font-semibold leading-none ${s.accent}`}>{s.val}</p>
+                </div>
+
+                {isOpen && (
+                  <div className="border-t border-slate-100 px-5 pb-4 pt-3 space-y-1">
+                    {s.rows.map((row: any, ri: number) => (
+                      <div key={ri} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-slate-700 truncate leading-none">{row.label}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{row.sub}</p>
+                        </div>
+                        <span className="text-xs font-mono font-medium text-slate-700 ml-3 flex-shrink-0">{row.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* PIPELINE */}
+        {(() => {
+          const stageConfig = [
+            { key: "Spec Received", label: "Spec Received", color: "bg-slate-400" },
+            { key: "RFQ Float", label: "RFQ Float", color: "bg-blue-400" },
+            { key: "Technical Negotiation", label: "Tech Neg.", color: "bg-blue-500" },
+            { key: "Commercial Negotiation", label: "Comm. Neg.", color: "bg-blue-600" },
+            { key: "Award", label: "Awarded", color: "bg-emerald-500" },
+          ];
+
+          const allPkgs = projects.flatMap((p: any) => p.packages);
+          const total = allPkgs.length;
+
+          const stageCounts = stageConfig.map(s => ({
+            ...s,
+            count: allPkgs.filter((pk: any) => pk.currentStage === s.key).length,
+            pct: total > 0 ? (allPkgs.filter((pk: any) => pk.currentStage === s.key).length / total) * 100 : 0,
+          }));
+
+          const cumulativeCompleted = total > 0 ? (stageCounts[4].count / total) * 100 : 0;
+
+          return (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Procurement Pipeline</p>
+                  <h3 className="text-base font-semibold text-slate-900">Package Stage Distribution</h3>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500">Total Packages</p>
+                    <p className="text-xl font-mono font-semibold text-slate-900">{total}</p>
+                  </div>
+                  <div className="w-px h-8 bg-slate-200" />
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500">Awarded</p>
+                    <p className="text-xl font-mono font-semibold text-emerald-600">{cumulativeCompleted.toFixed(1)}%</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <div className="flex h-6 w-full rounded-full overflow-hidden bg-slate-100">
+                  {stageCounts.map((s) => (
+                    s.pct > 0 && (
+                      <div
+                        key={s.key}
+                        className={`${s.color} relative flex items-center justify-center transition-all duration-500`}
+                        style={{ width: `${s.pct}%`, minWidth: s.pct > 0 ? '2px' : '0' }}
+                        title={`${s.label}: ${s.count} packages (${s.pct.toFixed(1)}%)`}
+                      >
+                        {s.pct > 8 && (
+                          <span className="text-[10px] font-medium text-white">{s.pct.toFixed(0)}%</span>
+                        )}
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {stageCounts.map(s => (
+                  <div key={s.key} className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full ${s.color} flex-shrink-0`} />
+                    <span className="text-xs text-slate-700">{s.label}</span>
+                    <span className="text-xs font-mono text-slate-500">{s.count}</span>
+                    <span className="text-xs text-slate-400">({s.pct.toFixed(1)}%)</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* SECTION TITLE */}
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-3">
             Project Portfolio
-            <span className="bg-gray-100 text-gray-500 text-[10px] px-3 py-1 rounded-full">{filteredProjects.length} Total</span>
+            <span className="bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-0.5 rounded-full">{filteredProjects.length} total</span>
           </h2>
           {editMode && (
-            <button onClick={() => setShowAddProject(true)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2 shadow-xl shadow-blue-100 hover:bg-blue-700 hover:scale-105 transition-all active:scale-95">
-                <Plus className="w-4 h-4" /> New Project
+            <button onClick={() => setShowAddProject(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
+              <Plus className="w-4 h-4" /> New Project
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* PORTFOLIO GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredProjects.length === 0 ? (
-            <div className="col-span-full py-32 text-center bg-white rounded-[40px] border border-dashed border-gray-200">
-              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6"><Layers className="w-10 h-10 text-gray-200" /></div>
-              <p className="text-gray-400 font-black uppercase tracking-widest">Empty Portfolio</p>
+            <div className="col-span-full py-20 text-center bg-white rounded-2xl border-2 border-dashed border-slate-200">
+              <div className="w-12 h-12 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Layers className="w-6 h-6 text-slate-400" />
+              </div>
+              <p className="text-slate-500 text-sm font-medium">No projects found</p>
             </div>
           ) : (
-            filteredProjects.map((p: any) => (
-              <div key={p.id} className="group bg-white rounded-[32px] border border-gray-100 p-8 shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all cursor-pointer relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50/50 rounded-bl-[100px] -mr-10 -mt-10 group-hover:scale-110 transition-transform" />
-                
-                <div className="relative">
-                    <div className="flex justify-between items-start mb-6">
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ring-1 ring-inset ${statusColors[p.status]}`}>{p.status}</span>
-                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Updated {new Date(p.updatedAt).toLocaleDateString()}</span>
-                            </div>
-                            <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">{p.name}</h3>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{p.client}</p>
-                        </div>
-                        {editMode && (
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id); }}
-                                className="p-3 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
+            filteredProjects.map((p: any) => {
+              const isExpanded = expandedProject === p.id;
+              const stageOrder = ["Spec Received", "RFQ Float", "Technical Negotiation", "Commercial Negotiation", "Award"];
+              const stageMeta: Record<string, { color: string; dot: string }> = {
+                "Spec Received": { color: "text-slate-600", dot: "bg-slate-400" },
+                "RFQ Float": { color: "text-blue-600", dot: "bg-blue-500" },
+                "Technical Negotiation": { color: "text-blue-700", dot: "bg-blue-600" },
+                "Commercial Negotiation": { color: "text-blue-700", dot: "bg-blue-700" },
+                "Award": { color: "text-emerald-700", dot: "bg-emerald-500" },
+              };
+              const stagePkgs = stageOrder.map(stage => ({
+                stage,
+                pkgs: p.packages.filter((pk: any) => pk.currentStage === stage),
+                ...stageMeta[stage]
+              }));
+              const awarded = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
+              const totalBudget = p.budget;
+              const awardedPct = totalBudget > 0 ? Math.min(100, (awarded / totalBudget) * 100) : 0;
+
+              return (
+                <div key={p.id} className={`group bg-white rounded-2xl border transition ${
+                  isExpanded
+                    ? 'border-blue-300 shadow-sm col-span-1 lg:col-span-2'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}>
+                  <div className="p-6 cursor-pointer" onClick={() => setExpandedProject(isExpanded ? null : p.id)}>
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          {editMode ? (
+                            <select
+                              value={p.status}
+                              onClick={e => e.stopPropagation()}
+                              onChange={async (e) => { e.stopPropagation(); await handleUpdateProjectStatus(p.id, e.target.value); }}
+                              className="bg-white border border-slate-200 rounded text-xs text-slate-700 px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-500"
                             >
-                                <Trash2 className="w-5 h-5" />
-                            </button>
+                              <option value="Active">Active</option>
+                              <option value="On Hold">On Hold</option>
+                              <option value="Completed">Completed</option>
+                            </select>
+                          ) : (
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ring-1 ring-inset ${statusColors[p.status]}`}>
+                              {p.status}
+                            </span>
+                          )}
+                          <span className="text-xs text-slate-400">Modified {new Date(p.updatedAt).toLocaleDateString()}</span>
+                        </div>
+                        <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">{p.name}</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">{p.client}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 ml-3">
+                        {editMode && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id); }}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
+                        <div className={`p-2 rounded-lg border transition ${
+                          isExpanded ? 'border-blue-300 text-blue-600' : 'border-slate-200 text-slate-400'
+                        }`}>
+                          <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 mb-8">
-                        <div className="bg-gray-50/80 p-4 rounded-2xl">
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Budget</p>
-                            <p className="text-sm font-black text-gray-900">{formatCurrency(p.budget)}</p>
-                        </div>
-                        <div className="bg-gray-50/80 p-4 rounded-2xl">
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Items</p>
-                            <p className="text-sm font-black text-gray-900">{p.packages.length}</p>
-                        </div>
-                        <div className="bg-gray-50/80 p-4 rounded-2xl">
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Awarded</p>
-                            <p className="text-sm font-black text-emerald-600">{formatCurrency(p.packages.reduce((s:any, pk:any) => s + (pk.awardValue||0), 0))}</p>
-                        </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                        <p className="text-xs text-slate-500 mb-1">Budget</p>
+                        <ProjectBudgetCell project={p} onUpdate={(val) => handleUpdateProjectBudget(p.id, val)} editMode={editMode} />
+                      </div>
+                      <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                        <p className="text-xs text-slate-500 mb-1">Packages</p>
+                        <p className="text-sm font-mono font-semibold text-slate-700 leading-none">{p.packages.length}</p>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                        <p className="text-xs text-slate-500 mb-1">Awarded</p>
+                        <p className="text-sm font-mono font-semibold text-emerald-600 leading-none">{formatCurrency(awarded)}</p>
+                      </div>
                     </div>
+                  </div>
 
-                    <button 
-                        onClick={() => onSelectProject(p.id)}
-                        className="w-full py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-2 group-hover:bg-blue-600 transition-all shadow-xl shadow-gray-200"
-                    >
+                  {isExpanded && (
+                    <div className="border-t border-slate-100 px-6 pb-6">
+                      <div className="py-5 border-b border-slate-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <p className="text-xs text-slate-500">Budget Utilisation</p>
+                          <p className="text-xs font-mono font-medium text-emerald-600">{awardedPct.toFixed(1)}%</p>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${awardedPct}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="pt-5">
+                        <p className="text-xs text-slate-500 mb-3">Package Breakdown by Stage</p>
+                        <div className="space-y-3">
+                          {stagePkgs.map(({ stage, pkgs, color, dot }) => (
+                            <div key={stage}>
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <div className={`w-2 h-2 rounded-full ${dot}`} />
+                                <span className={`text-xs font-medium ${color}`}>{stage}</span>
+                                <span className="text-xs text-slate-400 ml-auto">{pkgs.length} pkg{pkgs.length !== 1 ? 's' : ''}</span>
+                              </div>
+
+                              {pkgs.length > 0 ? (
+                                <div className="ml-4 space-y-1">
+                                  {pkgs.map((pk: any) => (
+                                    <div
+                                      key={pk.id}
+                                      onClick={(e) => { e.stopPropagation(); onSelectProject(p.id); }}
+                                      className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 hover:bg-white hover:border-slate-200 cursor-pointer transition group/pkg"
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+                                        <span className="text-xs font-medium text-slate-700 truncate group-hover/pkg:text-slate-900 transition">{pk.name}</span>
+                                        <span className="text-[10px] text-slate-400 flex-shrink-0">{pk.category}</span>
+                                      </div>
+                                      <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+                                        {pk.awardValue ? (
+                                          <span className="text-xs font-mono font-medium text-emerald-600">{formatCurrency(pk.awardValue)}</span>
+                                        ) : (
+                                          <span className="text-xs text-slate-300">—</span>
+                                        )}
+                                        <ChevronRight className="w-3 h-3 text-slate-300 group-hover/pkg:text-slate-500" />
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="ml-4 py-1.5 text-xs text-slate-400">No packages at this stage</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSelectProject(p.id); }}
+                        className="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition"
+                      >
+                        Open Full Repository <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {!isExpanded && (
+                    <div className="px-6 pb-6">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSelectProject(p.id); }}
+                        className="w-full py-2.5 bg-slate-50 border border-slate-200 text-slate-700 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition mt-3"
+                      >
                         Access Repository <ChevronRight className="w-4 h-4" />
-                    </button>
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </main>
 
+      {/* NEW PROJECT MODAL */}
       {showAddProject && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-6" onClick={() => setShowAddProject(false)}>
-          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-lg p-10 animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-10">
-              <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">New Project</h2>
-              <button onClick={() => setShowAddProject(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X className="w-6 h-6 text-gray-400" /></button>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={() => setShowAddProject(false)}>
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-lg p-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-slate-900">New Repository</h2>
+              <button onClick={() => setShowAddProject(false)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"><X className="w-4 h-4" /></button>
             </div>
-            
-            <div className="space-y-6">
+
+            <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Project Identity</label>
-                <input 
-                  value={newProj.name} 
-                  onChange={e => setNewProj({...newProj, name: e.target.value})} 
-                  className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none font-bold"
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Project Name</label>
+                <input
+                  value={newProj.name}
+                  onChange={e => setNewProj({ ...newProj, name: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400"
                   placeholder="e.g. SKYLINE RESIDENCY"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Client Representative</label>
-                <input 
-                  value={newProj.client} 
-                  onChange={e => setNewProj({...newProj, client: e.target.value})} 
-                  className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none font-bold"
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Client</label>
+                <input
+                  value={newProj.client}
+                  onChange={e => setNewProj({ ...newProj, client: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400"
                   placeholder="e.g. DLF INFRASTRUCTURE"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Allocation Budget (INR)</label>
-                <input 
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Budget (INR)</label>
+                <input
                   type="number"
-                  value={newProj.budget} 
-                  onChange={e => setNewProj({...newProj, budget: e.target.value})} 
-                  className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none font-black"
+                  value={newProj.budget}
+                  onChange={e => setNewProj({ ...newProj, budget: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none font-mono text-sm text-slate-900 placeholder-slate-400"
                   placeholder="50,00,000"
                 />
               </div>
             </div>
 
-            <button 
-              onClick={handleAddProject} 
-              className="w-full mt-10 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.3em] text-xs shadow-2xl shadow-blue-200 hover:bg-blue-700 hover:scale-[1.02] transition-all"
+            <button
+              onClick={handleAddProject}
+              className="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition"
             >
               Initialize Project
             </button>
@@ -270,95 +667,107 @@ export default function Dashboard({ onSelectProject }: any) {
         </div>
       )}
 
+      {/* SETTINGS MODAL */}
       {showSettings && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-6" onClick={() => setShowAddSettings(false)}>
-             <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-4xl p-10 max-h-[90vh] overflow-y-auto animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-10">
-                  <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter flex items-center gap-4"><Settings className="w-8 h-8 text-blue-600"/> System Control</h2>
-                  <button onClick={() => setShowAddSettings(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X className="w-6 h-6 text-gray-400" /></button>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={() => setShowSettings(false)}>
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-4xl p-8 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2"><Settings className="w-5 h-5 text-blue-600" /> System Settings</h2>
+              <button onClick={() => setShowSettings(false)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <section className="space-y-8">
+                <div>
+                  <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-3 flex items-center gap-2"><Globe className="w-4 h-4" /> Branding</h3>
+                  <div className="space-y-3 bg-slate-50 border border-slate-200 p-5 rounded-xl">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Company Name</label>
+                      <input value={company.name} onChange={e => setCompany({ ...company, name: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Tagline</label>
+                      <input value={company.tagline} onChange={e => setCompany({ ...company, tagline: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+                    </div>
+                    <button onClick={async () => { await updateCompanyInfo(company); loadData(); }} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium mt-2 transition">Save Configuration</button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                    <section>
-                        <h3 className="text-[11px] font-black text-blue-600 uppercase tracking-[0.3em] mb-6 flex items-center gap-2"><Globe className="w-4 h-4"/> Branding & Identity</h3>
-                        <div className="space-y-4 bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                            <div>
-                                <label className="block text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest">Company Name</label>
-                                <input value={company.name} onChange={e => setCompany({...company, name: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl font-bold" />
-                            </div>
-                            <div>
-                                <label className="block text-[9px] font-black text-gray-400 mb-2 uppercase tracking-widest">Slogan / Tagline</label>
-                                <input value={company.tagline} onChange={e => setCompany({...company, tagline: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl font-bold" />
-                            </div>
-                            <button onClick={async () => { await updateCompanyInfo(company); loadData(); }} className="w-full py-3 bg-gray-900 text-white rounded-xl font-black uppercase tracking-widest text-[10px] mt-4 hover:bg-blue-600 transition-colors">Save Configuration</button>
+                <div>
+                  <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-3 flex items-center gap-2"><Tag className="w-4 h-4" /> Categories</h3>
+                  <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl">
+                    <div className="flex gap-2 mb-3">
+                      <input value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="New Category..." className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+                      <button onClick={async () => { if (newCatName) { await addCategory(newCatName); setNewCatName(""); loadData(); } }} className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"><Plus className="w-4 h-4" /></button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {categories.map(c => (
+                        <div key={c} className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-700">
+                          {c}
+                          <button onClick={async () => { await deleteCategory(c); loadData(); }} className="text-slate-400 hover:text-red-600"><X className="w-3 h-3" /></button>
                         </div>
-
-                        <h3 className="text-[11px] font-black text-blue-600 uppercase tracking-[0.3em] mt-10 mb-6 flex items-center gap-2"><Tag className="w-4 h-4"/> Category Management</h3>
-                        <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                            <div className="flex gap-2 mb-4">
-                                <input value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="New Category..." className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold" />
-                                <button onClick={async () => { if(newCatName) { await addCategory(newCatName); setNewCatName(""); loadData(); } }} className="p-2 bg-blue-600 text-white rounded-xl"><Plus className="w-5 h-5"/></button>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {categories.map(c => (
-                                    <div key={c} className="group flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-200 text-[10px] font-black uppercase tracking-widest">
-                                        {c}
-                                        <button onClick={async () => { await deleteCategory(c); loadData(); }} className="text-gray-300 hover:text-red-600 transition-colors"><X className="w-3 h-3"/></button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-
-                    <section>
-                        <h3 className="text-[11px] font-black text-blue-600 uppercase tracking-[0.3em] mb-6 flex items-center gap-2"><Users className="w-4 h-4"/> Access Control</h3>
-                        <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                            <div className="space-y-4 mb-6">
-                                {userList.map(u => (
-                                    <div key={u.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
-                                        <div>
-                                            <p className="font-black text-gray-900 text-xs uppercase">{u.fullName}</p>
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase">@{u.username} • {u.role}</p>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-[8px] font-black uppercase tracking-tighter text-gray-400 mb-1">Edit Rights</span>
-                                                <button 
-                                                    onClick={async () => { await updateUserRights(u.id, !u.canEdit); loadData(); }}
-                                                    className={`w-12 h-6 rounded-full p-1 transition-colors ${u.canEdit ? 'bg-emerald-500' : 'bg-gray-300'}`}
-                                                >
-                                                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${u.canEdit ? 'translate-x-6' : 'translate-x-0'}`} />
-                                                </button>
-                                            </div>
-                                            {u.role !== 'admin' && (
-                                                <button onClick={async () => { await deleteUser(u.id); loadData(); }} className="p-2 text-gray-300 hover:text-red-600 transition-colors"><Trash className="w-4 h-4"/></button>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="border-t border-gray-200 pt-6">
-                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Create New Account</p>
-                                <div className="space-y-3">
-                                    <input value={newUserFull} onChange={e => setNewUserFull(e.target.value)} placeholder="Full Name" className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold bg-white" />
-                                    <div className="flex gap-3">
-                                        <input value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="Username" className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold bg-white" />
-                                        <input type="password" value={newUserPass} onChange={e => setNewUserPass(e.target.value)} placeholder="Pass" className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold bg-white" />
-                                    </div>
-                                    <button onClick={async () => { if(newUserName && newUserPass) { await addUser({ username: newUserName, fullName: newUserFull, password: newUserPass, role: "user", canEdit: false }); setNewUserName(""); setNewUserFull(""); setNewUserPass(""); loadData(); } }} className="w-full py-3 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-100">Provision User</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-10">
-                            <h3 className="text-[11px] font-black text-red-600 uppercase tracking-[0.3em] mb-4">Danger Zone</h3>
-                            <button onClick={async () => { if(confirm("ABORT: This will wipe ALL database records. Proceed?")) { await resetTrackerData(); loadData(); } }} className="w-full py-4 border-2 border-red-100 text-red-600 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-red-50 transition-colors">Wipe System Database</button>
-                        </div>
-                    </section>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-             </div>
+              </section>
+
+              <section className="space-y-8">
+                <div>
+                  <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-3 flex items-center gap-2"><Users className="w-4 h-4" /> Access</h3>
+                  <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl">
+                    <div className="space-y-2 max-h-56 overflow-y-auto mb-4 pr-1">
+                      {userList.map(u => (
+                        <div key={u.id} className="bg-white border border-slate-200 p-3 rounded-lg flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-slate-900 text-sm">{u.fullName}</p>
+                            <p className="text-xs text-slate-500">@{u.username} · {u.role}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] text-slate-500 mb-1">Edit</span>
+                              <button
+                                onClick={async () => { await updateUserRights(u.id, !u.canEdit); loadData(); }}
+                                className={`w-9 h-5 rounded-full p-0.5 transition ${u.canEdit ? 'bg-blue-600' : 'bg-slate-300'}`}
+                              >
+                                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${u.canEdit ? 'translate-x-4' : 'translate-x-0'}`} />
+                              </button>
+                            </div>
+                            {u.role !== 'admin' && (
+                              <button onClick={async () => { await deleteUser(u.id); loadData(); }} className="p-1.5 text-slate-400 hover:text-red-600 transition"><Trash className="w-3.5 h-3.5" /></button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-slate-200 pt-4">
+                      <p className="text-xs font-medium text-slate-600 mb-3">Add User</p>
+                      <div className="space-y-2">
+                        <input value={newUserFull} onChange={e => setNewUserFull(e.target.value)} placeholder="Full Name" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+                        <div className="flex gap-2">
+                          <input value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="Username" className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+                          <input type="password" value={newUserPass} onChange={e => setNewUserPass(e.target.value)} placeholder="Password" className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+                        </div>
+                        <button onClick={async () => { if (newUserName && newUserPass) { await addUser({ username: newUserName, fullName: newUserFull, password: newUserPass, role: "user", canEdit: false }); setNewUserName(""); setNewUserFull(""); setNewUserPass(""); loadData(); } }} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">Provision User</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-medium text-slate-600 uppercase tracking-wide mb-3">Database Seeding</h3>
+                  <button onClick={async () => { await seedTrackerData(); loadData(); }} className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition">Load 5 Projects (21 Pkgs Each)</button>
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-medium text-red-600 uppercase tracking-wide mb-3">Danger Zone</h3>
+                  <button onClick={async () => { if (confirm("ABORT: This will wipe ALL database records. Proceed?")) { await resetTrackerData(); loadData(); } }} className="w-full py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition">Wipe System Database</button>
+                </div>
+              </section>
+            </div>
           </div>
+        </div>
       )}
     </div>
   );

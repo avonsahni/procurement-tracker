@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# sqlite database (local data, never commit)
+procurement.db
+procurement.db-shm
+procurement.db-wal
+
+# playwright
+/playwright-report
+/test-results
+/.upload
+
+# Claude Code agent memory
+/memory/

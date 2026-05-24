@@ -1,36 +1,58 @@
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
-import db from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { createServerSupabase } from '@/lib/supabase/server';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-12345';
+export type AuthUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  role: 'admin' | 'user';
+  canEdit: boolean;
+};
 
-export function signToken(payload: object) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
-}
-
-export function verifyToken(token: string) {
-  try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch (e) {
-    return null;
-  }
-}
-
-export async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('token')?.value;
-  if (!token) return null;
-  const decoded = verifyToken(token) as any;
-  if (!decoded) return null;
-  
-  const user = db.prepare('SELECT id, username, full_name, role, can_edit FROM users WHERE id = ?').get(decoded.id) as any;
+/**
+ * Returns the current authenticated user with their profile, or null.
+ * Pulls session from the Supabase auth cookie set by login.
+ */
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, can_edit')
+    .eq('id', user.id)
+    .single();
 
   return {
     id: user.id,
-    username: user.username,
-    fullName: user.full_name,
-    role: user.role,
-    canEdit: user.can_edit === 1
+    email: user.email ?? '',
+    fullName: profile?.full_name || user.email?.split('@')[0] || 'User',
+    // Every user is admin of their own workspace (single-tenant-per-user model)
+    role: 'admin',
+    canEdit: profile?.can_edit ?? true,
   };
+}
+
+/**
+ * Route guard. Returns the user, or a NextResponse to short-circuit the handler.
+ *
+ *   const auth = await guard('editor');
+ *   if (auth instanceof NextResponse) return auth;
+ *   // auth is AuthUser here
+ *
+ * Roles:
+ *   - 'user'   — any authenticated user
+ *   - 'editor' — must have can_edit=true (personal edit-mode lock)
+ *   - 'admin'  — every user is admin of their own workspace, so same as 'user'
+ */
+export async function guard(role: 'user' | 'editor' | 'admin'): Promise<NextResponse | AuthUser> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+  if (role === 'editor' && !user.canEdit) {
+    return NextResponse.json({ error: 'Edit permission required' }, { status: 403 });
+  }
+  return user;
 }

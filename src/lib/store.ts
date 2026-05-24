@@ -1,165 +1,124 @@
-"use client";
-
-import { v4 as uuidv4 } from "uuid";
-import type { Project, Package, Vendor, AuditEntry, Remark, Document, Stage, Origin, Currency } from "./types";
-
-function ts(): string { return new Date().toISOString(); }
-const DATA_KEY = "procurement_tracker_v4_data";
-const CATS_KEY = "procurement_tracker_v4_categories";
-const COMPANY_KEY = "procurement_tracker_v4_company";
-const USERS_KEY = "procurement_tracker_v4_users";
+import type { Project } from "./types";
 
 export interface CompanyInfo {
-    name: string;
-    tagline: string;
-    logoUrl?: string;
-    contactEmail?: string;
-    primaryColor?: string;
+  name: string;
+  tagline: string;
+  logoUrl?: string;
+  contactEmail?: string;
+  primaryColor?: string;
 }
 
 export interface UserAccount {
-    id: string;
-    username: string;
-    fullName: string;
-    role: "admin" | "user";
-    canEdit: boolean;
-    password?: string;
+  id: string;
+  username: string;
+  fullName: string;
+  role: "admin" | "user";
+  canEdit: boolean;
+  password?: string;
 }
 
-let projects: Project[] = [];
-let categories: string[] = [];
-let companyInfo: CompanyInfo = { name: "Procurement Tracker", tagline: "Enterprise Source of Truth" };
-let userAccounts: UserAccount[] = [];
-
-function persist() {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(DATA_KEY, JSON.stringify(projects));
-    localStorage.setItem(CATS_KEY, JSON.stringify(categories));
-    localStorage.setItem(COMPANY_KEY, JSON.stringify(companyInfo));
-    localStorage.setItem(USERS_KEY, JSON.stringify(userAccounts));
-  }
-}
-
-export function fetchAllData() {
-    if (typeof window === "undefined") return;
-    const savedProjects = localStorage.getItem(DATA_KEY);
-    projects = savedProjects ? JSON.parse(savedProjects) : [];
-    const savedCats = localStorage.getItem(CATS_KEY);
-    categories = savedCats ? JSON.parse(savedCats) : ["Civil", "Electrical", "Mechanical", "Instrumentation", "Services"];
-    const savedCompany = localStorage.getItem(COMPANY_KEY);
-    companyInfo = savedCompany ? JSON.parse(savedCompany) : { name: "Procurement Tracker", tagline: "Enterprise Source of Truth" };
-    const savedUsers = localStorage.getItem(USERS_KEY);
-    userAccounts = savedUsers ? JSON.parse(savedUsers) : [
-        { id: "admin-1", username: "admin", fullName: "System Admin", role: "admin", canEdit: true, password: "admin123" },
-        { id: "viewer-1", username: "viewer", fullName: "Guest Viewer", role: "user", canEdit: false, password: "admin123" }
-    ];
+async function api(path: string, opts?: RequestInit) {
+  const res = await fetch(path, opts);
+  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
+  return res.json();
 }
 
 // Company & Users
-export function getCompanyInfo() { fetchAllData(); return companyInfo; }
-export function updateCompanyInfo(info: CompanyInfo) { companyInfo = info; persist(); }
-export function getUsers() { fetchAllData(); return userAccounts; }
-export function addUser(user: Omit<UserAccount, 'id'>) { userAccounts.push({ ...user, id: uuidv4() }); persist(); }
-export function updateUserRights(id: string, canEdit: boolean) { const u = userAccounts.find(x => x.id === id); if(u) { u.canEdit = canEdit; persist(); } }
-export function deleteUser(id: string) { userAccounts = userAccounts.filter(u => u.id !== id); persist(); }
+export async function getCompanyInfo(): Promise<CompanyInfo> {
+  return api('/api/company');
+}
+export async function updateCompanyInfo(info: CompanyInfo): Promise<void> {
+  await api('/api/company', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(info) });
+}
+export async function getUsers(): Promise<UserAccount[]> {
+  return api('/api/users');
+}
+export async function addUser(user: Omit<UserAccount, 'id'>): Promise<void> {
+  await api('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(user) });
+}
+export async function updateUserRights(id: string, canEdit: boolean): Promise<void> {
+  await api(`/api/users/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canEdit }) });
+}
+export async function updateUser(id: string, updates: { fullName?: string; role?: string; canEdit?: boolean; password?: string }): Promise<void> {
+  await api(`/api/users/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
+}
+export async function deleteUser(id: string): Promise<void> {
+  await api(`/api/users/${id}`, { method: 'DELETE' });
+}
 
-// Core Entities
-export function fetchProjects() { fetchAllData(); return projects; }
-export function fetchProject(id: string) { fetchAllData(); return projects.find(p => p.id === id); }
-export function addProject(name: string, client: string, budget: number) { 
-    projects.push({ id: uuidv4(), name, client, budget, status: "Active", packages: [], createdAt: ts(), updatedAt: ts() }); 
-    persist(); 
+// Projects
+export async function fetchProjects(): Promise<Project[]> {
+  return api('/api/projects');
 }
-export function updateProject(id: string, updates: any) { 
-    const p = projects.find(x => x.id === id); 
-    if(p) { Object.assign(p, updates); p.updatedAt = ts(); persist(); } 
+export async function fetchProject(id: string): Promise<Project | undefined> {
+  try { return await api(`/api/projects/${id}`); } catch { return undefined; }
 }
-export function deleteProject(id: string) { projects = projects.filter(p => p.id !== id); persist(); }
+export async function addProject(name: string, client: string, budget: number): Promise<void> {
+  await api('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, client, budget }) });
+}
+export async function updateProject(id: string, updates: Partial<Project>): Promise<void> {
+  await api(`/api/projects/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
+}
+export async function deleteProject(id: string): Promise<void> {
+  await api(`/api/projects/${id}`, { method: 'DELETE' });
+}
 
-export function fetchCategories() { fetchAllData(); return categories; }
-export function addCategory(name: string) { if(!categories.includes(name)) { categories.push(name); persist(); } }
-export function updateCategory(old: string, next: string) { 
-    const i = categories.indexOf(old); 
-    if(i !== -1) { 
-        categories[i] = next; 
-        projects.forEach(p => p.packages.forEach(pkg => { if(pkg.category === old) pkg.category = next; }));
-        persist(); 
-    } 
+// Categories
+export async function fetchCategories(): Promise<string[]> {
+  return api('/api/categories');
 }
-export function deleteCategory(name: string) { categories = categories.filter(c => c !== name); persist(); }
+export async function addCategory(name: string): Promise<void> {
+  await api('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+}
+export async function updateCategory(oldName: string, newName: string): Promise<void> {
+  await api(`/api/categories/${encodeURIComponent(oldName)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName }) });
+}
+export async function deleteCategory(name: string): Promise<void> {
+  await api(`/api/categories/${encodeURIComponent(name)}`, { method: 'DELETE' });
+}
 
 // Packages
-export function addPackage(projectId: string, data: any) {
-    const p = projects.find(x => x.id === projectId);
-    if(!p) return;
-    p.packages.push({
-        id: uuidv4(), name: data.name, description: "", category: data.category, origin: data.origin, currency: data.currency,
-        currentStage: "Spec Received", vendors: [], auditTrail: [], remarks: [], documents: [], createdAt: ts(), updatedAt: ts()
-    });
-    persist();
+export async function addPackage(projectId: string, data: { name: string; category: string; origin: string; currency: string }): Promise<void> {
+  await api('/api/packages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, ...data }) });
 }
-export function updatePackage(pkgId: string, updates: any) {
-    projects.forEach(p => {
-        const pkg = p.packages.find(pk => pk.id === pkgId);
-        if(pkg) {
-            if(updates.currentStage) pkg.currentStage = updates.currentStage;
-            if(updates.awardValue) pkg.awardValue = updates.awardValue;
-            if(updates.awardedVendorId) pkg.awardedVendorId = updates.awardedVendorId;
-            pkg.updatedAt = ts();
-        }
-    });
-    persist();
+export async function updatePackage(pkgId: string, updates: any, user?: string): Promise<void> {
+  await api(`/api/packages/${pkgId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updates, user }) });
 }
-export function punchAward(projectId: string, pkgId: string, val: number, vendor: string) {
-    updatePackage(pkgId, { awardValue: val, awardedVendorId: vendor, currentStage: "Award" });
+export async function punchAward(_projectId: string, pkgId: string, val: number, vendor: string, user?: string): Promise<void> {
+  await api(`/api/packages/${pkgId}/award`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ awardValue: val, awardedVendor: vendor, user }) });
 }
-export function deletePackage(pkgId: string) {
-    projects.forEach(p => { p.packages = p.packages.filter(pk => pk.id !== pkgId); });
-    persist();
+export async function deletePackage(pkgId: string): Promise<void> {
+  await api(`/api/packages/${pkgId}`, { method: 'DELETE' });
 }
 
-// Package Details
-export function addVendor(pkgId: string, v: any) {
-    projects.forEach(p => {
-        const pkg = p.packages.find(pk => pk.id === pkgId);
-        if(pkg) pkg.vendors.push({ id: uuidv4(), name: v.name, quotedAmount: v.quoted, revisedAmount: v.revised });
-    });
-    persist();
+// Vendors
+export async function addVendor(pkgId: string, v: { name: string; quoted: number; revised: number }, user: string = 'System'): Promise<void> {
+  await api(`/api/packages/${pkgId}/vendors`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...v, user }) });
 }
-export function updateVendor(pkgId: string, vid: string, updates: any) {
-    projects.forEach(p => {
-        const pkg = p.packages.find(pk => pk.id === pkgId);
-        if(pkg) { const v = pkg.vendors.find(x => x.id === vid); if(v) Object.assign(v, updates); }
-    });
-    persist();
+export async function updateVendor(pkgId: string, vid: string, updates: any): Promise<void> {
+  await api(`/api/packages/${pkgId}/vendors/${vid}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
 }
-export function deleteVendor(pkgId: string, vid: string) {
-    projects.forEach(p => {
-        const pkg = p.packages.find(pk => pk.id === pkgId);
-        if(pkg) pkg.vendors = pkg.vendors.filter(v => v.id !== vid);
-    });
-    persist();
-}
-export function addRemark(pkgId: string, text: string) {
-    projects.forEach(p => {
-        const pkg = p.packages.find(pk => pk.id === pkgId);
-        if(pkg) pkg.remarks.push({ id: uuidv4(), user: "Current User", text, timestamp: ts() });
-    });
-    persist();
-}
-export function addDocument(pkgId: string, d: any) {
-    projects.forEach(p => {
-        const pkg = p.packages.find(pk => pk.id === pkgId);
-        if(pkg) pkg.documents.push({ id: uuidv4(), name: d.name, size: d.size, type: d.type, uploadedBy: "User", uploadedAt: ts() });
-    });
-    persist();
-}
-export function deleteDocument(pkgId: string, did: string) {
-    projects.forEach(p => {
-        const pkg = p.packages.find(pk => pk.id === pkgId);
-        if(pkg) pkg.documents = pkg.documents.filter(d => d.id !== did);
-    });
-    persist();
+export async function deleteVendor(pkgId: string, vid: string, user: string = 'System'): Promise<void> {
+  await api(`/api/packages/${pkgId}/vendors/${vid}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user }) });
 }
 
-export function resetTrackerData() { projects = []; persist(); }
+// Remarks
+export async function addRemark(pkgId: string, text: string, user: string = 'User'): Promise<void> {
+  await api(`/api/packages/${pkgId}/remarks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, user }) });
+}
+
+// Documents
+export async function addDocument(pkgId: string, d: { name: string; size: string; type: string }, user: string = 'User'): Promise<void> {
+  await api(`/api/packages/${pkgId}/documents`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, user }) });
+}
+export async function deleteDocument(pkgId: string, did: string, user: string = 'System'): Promise<void> {
+  await api(`/api/packages/${pkgId}/documents/${did}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user }) });
+}
+
+// Admin
+export async function resetTrackerData(): Promise<void> {
+  await api('/api/reset', { method: 'POST' });
+}
+export async function seedTrackerData(): Promise<void> {
+  await api('/api/seed', { method: 'POST' });
+}

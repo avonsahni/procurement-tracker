@@ -1,0 +1,74 @@
+"use client";
+
+import { useState } from "react";
+import { MessageSquare, Send } from "lucide-react";
+import { Remark } from "@/lib/types";
+
+interface RemarksSectionProps {
+  remarks: Remark[];
+  onAddRemark: (text: string) => void;
+  readonly?: boolean;
+}
+
+export default function RemarksSection({ remarks, onAddRemark, readonly }: RemarksSectionProps) {
+  const [text, setText] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    onAddRemark(text);
+    setText("");
+  };
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", {
+      month: "short", day: "numeric", year: "numeric",
+      hour: "2-digit", minute: "2-digit"
+    });
+  };
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col">
+      <div className="px-5 py-3.5 border-b border-slate-200 flex items-center gap-2 bg-slate-50">
+        <MessageSquare className="w-4 h-4 text-blue-600" />
+        <h3 className="font-semibold text-slate-900 text-sm">Remarks & Notes</h3>
+        <span className="text-xs text-slate-400 ml-1">({remarks.length})</span>
+      </div>
+
+      <div className="flex-1 max-h-[300px] overflow-y-auto p-4 space-y-3">
+        {remarks.length === 0 ? (
+          <div className="text-center text-slate-400 text-sm py-8 italic">No remarks posted yet.</div>
+        ) : (
+          remarks.map((remark) => (
+            <div key={remark.id} className="flex flex-col gap-1.5 bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-medium text-blue-700">{remark.user}</span>
+                <span className="text-slate-400">{formatDate(remark.timestamp)}</span>
+              </div>
+              <p className="text-sm text-slate-700 leading-relaxed">{remark.text}</p>
+            </div>
+          ))
+        )}
+      </div>
+
+      {!readonly && (
+        <form onSubmit={handleSubmit} className="p-3 border-t border-slate-200 bg-slate-50 flex gap-2">
+          <input
+            type="text"
+            placeholder="Add internal remark..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 text-slate-900 placeholder-slate-400"
+          />
+          <button
+            type="submit"
+            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center justify-center"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
