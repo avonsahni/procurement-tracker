@@ -24,8 +24,9 @@ import {
 import { formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
+import HelpGuide from "@/components/HelpGuide";
 import {
-  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight, Receipt
+  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight, Receipt, HelpCircle
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
@@ -78,6 +79,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
   const [loading, setLoading] = useState(true);
   const [showAddProject, setShowAddProject] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
 
   const [company, setCompany] = useState<CompanyInfo>({ name: "", tagline: "" });
@@ -216,10 +218,18 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
             )}
 
             {user?.role === 'admin' && (
-              <button onClick={() => setShowSettings(true)} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition">
+              <button onClick={() => setShowSettings(true)} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition" title="Settings">
                 <Settings className="w-4 h-4" />
               </button>
             )}
+
+            <button
+              onClick={() => setShowHelp(true)}
+              className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition"
+              title="Help & User Guide"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
 
             <UserMenu />
           </div>
@@ -748,6 +758,9 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
           </div>
         </div>
       )}
+
+      {/* ── HELP GUIDE ─────────────────────────────────────────────────────── */}
+      {showHelp && <HelpGuide onClose={() => setShowHelp(false)} />}
     </div>
   );
 }
