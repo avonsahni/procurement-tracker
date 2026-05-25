@@ -103,9 +103,10 @@ export async function assemblePackage(supabase: SupabaseClient, row: any) {
 }
 
 /**
- * Lightweight project summary — only fetches package basics (no vendors /
- * remarks / documents / audit / invoices).  Used by GET /api/projects so the
- * dashboard list loads with just 2 queries per project instead of N×5+1.
+ * Lightweight project summary — fetches package basics + invoice totals per
+ * package (no vendors / remarks / documents / audit trail / full invoice rows).
+ * Used by GET /api/projects so the dashboard and analytics load fast: just 3
+ * queries per project instead of N×5+1.
  */
 export async function assembleProjectSummary(supabase: SupabaseClient, row: any) {
   const { data: pkgRows } = await supabase
@@ -114,7 +115,23 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     .eq('project_id', row.id)
     .order('created_at');
 
-  const packages = (pkgRows || []).map((p: any) => ({
+  const pkgs = pkgRows || [];
+
+  // Fetch invoice amounts for all packages in one query so analytics can show
+  // billed totals without loading full invoice rows.
+  let billedByPkg: Record<string, number> = {};
+  if (pkgs.length > 0) {
+    const ids = pkgs.map((p: any) => p.id);
+    const { data: invRows } = await supabase
+      .from('invoices')
+      .select('package_id, amount')
+      .in('package_id', ids);
+    for (const inv of invRows || []) {
+      billedByPkg[inv.package_id] = (billedByPkg[inv.package_id] || 0) + Number(inv.amount);
+    }
+  }
+
+  const packages = pkgs.map((p: any) => ({
     id: p.id,
     name: p.name,
     description: '',
@@ -128,6 +145,7 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     awardedVendorId: p.awarded_vendor_id || undefined,
     createdAt: p.created_at,
     updatedAt: p.updated_at,
+    billedAmount: billedByPkg[p.id] || 0,
     vendors: [],
     remarks: [],
     documents: [],
