@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { assembleProject } from '@/lib/db';
+import { assembleProject, assembleProjectSummary } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { ProjectCreateSchema, parseBody } from '@/lib/validation';
 
@@ -16,7 +16,9 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const projects = await Promise.all((rows || []).map(r => assembleProject(supabase, r)));
+  // Use the slim summary (no vendors/remarks/docs/audit/invoices) — the
+  // dashboard only needs stage, awardValue, and category per package.
+  const projects = await Promise.all((rows || []).map(r => assembleProjectSummary(supabase, r)));
   return NextResponse.json(projects);
 }
 
@@ -36,5 +38,5 @@ export async function POST(req: NextRequest) {
 
   if (error || !row) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
 
-  return NextResponse.json(await assembleProject(supabase, row), { status: 201 });
+  return NextResponse.json(await assembleProjectSummary(supabase, row), { status: 201 });
 }
