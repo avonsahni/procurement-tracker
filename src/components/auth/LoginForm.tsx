@@ -8,7 +8,7 @@ import { Lock, Mail, User, ArrowRight, CheckCircle2 } from "lucide-react";
 type Mode = "login" | "signup";
 
 export default function LoginForm() {
-  const [company, setCompany] = useState<CompanyInfo>({ name: "Procurement Tracker", tagline: "Enterprise Access" });
+  const [company, setCompany] = useState<CompanyInfo>({ name: "Procurement Dashboard", tagline: "Enterprise Access" });
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

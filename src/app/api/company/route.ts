@@ -8,7 +8,7 @@ export async function GET() {
   // Public default for the login screen; per-user once authenticated.
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ name: 'Procurement Tracker', tagline: 'Enterprise Source of Truth' });
+    return NextResponse.json({ name: 'Procurement Dashboard', tagline: 'Enterprise Source of Truth' });
   }
   const supabase = await createServerSupabase();
   const { data: row } = await supabase
@@ -17,7 +17,7 @@ export async function GET() {
     .eq('user_id', user.id)
     .single();
 
-  if (!row) return NextResponse.json({ name: 'Procurement Tracker', tagline: 'Enterprise Source of Truth' });
+  if (!row) return NextResponse.json({ name: 'Procurement Dashboard', tagline: 'Enterprise Source of Truth' });
   return NextResponse.json({
     name: row.name,
     tagline: row.tagline || '',

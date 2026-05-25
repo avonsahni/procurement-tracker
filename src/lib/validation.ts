@@ -108,7 +108,7 @@ export const CategoryUpdateSchema = z.object({
 });
 
 export const CompanyUpdateSchema = z.object({
-  name: trimmedString('name').optional().default('Procurement Tracker'),
+  name: trimmedString('name').optional().default('Procurement Dashboard'),
   tagline: z.string().max(200).optional().default(''),
   logoUrl: z.string().max(500).optional().nullable(),
   contactEmail: z.string().email().optional().nullable().or(z.literal('')),

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Procurement Tracker",
+  title: "Procurement Dashboard",
   description: "Professional Procurement Lifecycle Management",
 };
 
