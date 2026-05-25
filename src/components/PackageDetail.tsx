@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   fetchPackage,
   fetchProject,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
+import UserMenu from "@/components/UserMenu";
 import StageStepper from "@/components/StageStepper";
 import VendorMatrix from "@/components/VendorMatrix";
 import AuditTrail from "@/components/AuditTrail";
@@ -37,6 +39,7 @@ export default function PackageDetail({
   onBack: () => void;
 }) {
   const { user, editMode, setEditMode } = useAuth();
+  const router = useRouter();
   const [pkg, setPkg]         = useState<any>(null);
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -162,9 +165,13 @@ export default function PackageDetail({
             <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition flex-shrink-0">
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <button
+              onClick={() => router.push("/")}
+              className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-700 transition flex-shrink-0"
+              title="Home"
+            >
               <Package className="w-5 h-5 text-white" />
-            </div>
+            </button>
             {/* Breadcrumb */}
             <nav className="flex items-center gap-1.5 text-sm min-w-0 overflow-hidden">
               <span className="text-slate-400 truncate hidden sm:block max-w-[120px]">{project?.name}</span>
@@ -189,9 +196,7 @@ export default function PackageDetail({
                 <span className="hidden sm:inline">{editMode ? "Edit ON" : "Edit Mode"}</span>
               </button>
             )}
-            <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center text-blue-700 font-semibold text-xs border border-blue-200">
-              {user?.fullName?.charAt(0)}
-            </div>
+            <UserMenu />
           </div>
         </div>
       </header>

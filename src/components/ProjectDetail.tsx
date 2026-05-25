@@ -10,6 +10,7 @@ import {
 } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
+import UserMenu from "@/components/UserMenu";
 import {
   ArrowLeft, Plus, Briefcase, Package, Trash2, X,
   Clock, CheckCircle2, Lock, Unlock, Search, Zap, Wrench, Hammer,
@@ -176,9 +177,13 @@ export default function ProjectDetail({ projectId, onBack, initialCategory }: an
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+            <button
+              onClick={() => router.push("/")}
+              className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-700 transition flex-shrink-0"
+              title="Home"
+            >
               <Briefcase className="w-5 h-5 text-white" />
-            </div>
+            </button>
             <div>
               <h1 className="text-sm font-semibold text-slate-900 leading-none">{project.name}</h1>
               <p className="text-xs text-slate-500 mt-1">
@@ -201,9 +206,7 @@ export default function ProjectDetail({ projectId, onBack, initialCategory }: an
                 {editMode ? "Edit Mode ON" : "Enter Edit Mode"}
               </button>
             )}
-            <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center text-blue-700 font-semibold text-xs border border-blue-200">
-              {user?.fullName.charAt(0)}
-            </div>
+            <UserMenu />
           </div>
         </div>
       </header>

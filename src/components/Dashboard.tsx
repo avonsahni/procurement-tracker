@@ -23,6 +23,7 @@ import {
 } from "@/lib/store";
 import { formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
+import UserMenu from "@/components/UserMenu";
 import {
   Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight
 } from "lucide-react";
@@ -159,9 +160,13 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+            <button
+              onClick={() => router.push("/")}
+              className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-700 transition"
+              title="Home"
+            >
               <Building2 className="w-5 h-5 text-white" />
-            </div>
+            </button>
             <div>
               <h1 className="text-sm font-semibold text-slate-900 leading-none">{company.name}</h1>
               <p className="text-[11px] text-slate-500 mt-1">{company.tagline}</p>
@@ -215,9 +220,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
               </button>
             )}
 
-            <button onClick={logout} className="flex items-center gap-1.5 px-3 py-2 text-slate-600 hover:text-red-600 transition text-xs font-medium">
-              <LogOut className="w-4 h-4" /> Sign Out
-            </button>
+            <UserMenu />
           </div>
         </div>
       </header>
