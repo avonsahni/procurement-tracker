@@ -237,11 +237,24 @@ export default function ProjectDetail({ projectId, onBack }: any) {
         {/* ── PROJECT ANALYTICS ──────────────────────────────────────────── */}
         {(() => {
           const total = project.packages.length;
-          const awardedCount  = project.packages.filter((p: any) => p.currentStage === "Award").length;
+          const awardedCount    = project.packages.filter((p: any) => p.currentStage === "Award").length;
           const inProgressCount = total - awardedCount;
-          const awardedPct = total > 0 ? (awardedCount / total) * 100 : 0;
+          const awardedPct      = total > 0 ? (awardedCount / total) * 100 : 0;
 
-          // Stage distribution for the bar
+          // Billed = sum of all invoices across all packages
+          const billedTotal = project.packages.reduce(
+            (s: number, pkg: any) => s + (pkg.invoices || []).reduce((ss: number, inv: any) => ss + inv.amount, 0), 0
+          );
+          const awardedNotBilled = Math.max(0, awardedTotal - billedTotal);
+          const balance          = Math.max(0, project.budget - awardedTotal);
+          const overrun          = awardedTotal > project.budget ? awardedTotal - project.budget : 0;
+          const barBase          = overrun > 0 ? awardedTotal : project.budget; // denominator for bar widths
+
+          const billedPct           = barBase > 0 ? Math.min(100, (billedTotal / barBase) * 100) : 0;
+          const awardedNotBilledPct = barBase > 0 ? Math.min(100 - billedPct, (awardedNotBilled / barBase) * 100) : 0;
+          const balancePct          = barBase > 0 ? Math.max(0, (balance / barBase) * 100) : 100;
+
+          // Stage distribution
           const stageDist = STAGES.map(s => ({
             label: s,
             count: project.packages.filter((p: any) => p.currentStage === s).length,
@@ -253,94 +266,143 @@ export default function ProjectDetail({ projectId, onBack }: any) {
           }));
 
           return (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex-1 space-y-4">
-            <div className="flex items-center gap-3">
-              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Project Analytics</p>
-              <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">{project.status}</span>
-            </div>
-            <h2 className="text-xl font-semibold text-slate-900">Contract Execution</h2>
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 space-y-6">
 
-            {/* Award status — 4 key numbers */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
-                <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Total Packages</p>
-                <p className="text-2xl font-mono font-bold text-slate-900 leading-none">{total}</p>
+          {/* Top row: label + status */}
+          <div className="flex items-center gap-3">
+            <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Project Analytics</p>
+            <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">{project.status}</span>
+          </div>
+
+          {/* Two-column layout */}
+          <div className="flex flex-col lg:flex-row gap-6">
+
+            {/* LEFT: package status tiles + stage bar */}
+            <div className="flex-1 space-y-4">
+              <h2 className="text-lg font-semibold text-slate-900">Package Status</h2>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Total</p>
+                  <p className="text-2xl font-mono font-bold text-slate-900 leading-none">{total}</p>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                  <p className="text-[10px] text-emerald-600 uppercase tracking-wide mb-1">Awarded</p>
+                  <p className="text-2xl font-mono font-bold text-emerald-700 leading-none">{awardedCount}</p>
+                  <p className="text-[10px] text-emerald-500 mt-1">{awardedPct.toFixed(0)}% of total</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                  <p className="text-[10px] text-blue-600 uppercase tracking-wide mb-1">In Progress</p>
+                  <p className="text-2xl font-mono font-bold text-blue-700 leading-none">{inProgressCount}</p>
+                  <p className="text-[10px] text-blue-400 mt-1">{total > 0 ? (100 - awardedPct).toFixed(0) : 0}% of total</p>
+                </div>
+                <div className={`border rounded-xl p-3 ${remainingBudget < 0 ? "bg-red-50 border-red-100" : "bg-slate-50 border-slate-100"}`}>
+                  <p className={`text-[10px] uppercase tracking-wide mb-1 ${remainingBudget < 0 ? "text-red-500" : "text-slate-500"}`}>Budget Left</p>
+                  <p className={`text-sm font-mono font-bold leading-none mt-1 ${remainingBudget < 0 ? "text-red-600" : "text-slate-800"}`}>
+                    {formatCurrency(Math.abs(remainingBudget))}
+                  </p>
+                  {remainingBudget < 0 && <p className="text-[10px] text-red-400 mt-1">over budget</p>}
+                </div>
               </div>
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
-                <p className="text-[10px] text-emerald-600 uppercase tracking-wide mb-1">Awarded</p>
-                <p className="text-2xl font-mono font-bold text-emerald-700 leading-none">{awardedCount}</p>
-                <p className="text-[10px] text-emerald-500 mt-1">{awardedPct.toFixed(0)}% of total</p>
-              </div>
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
-                <p className="text-[10px] text-blue-600 uppercase tracking-wide mb-1">In Progress</p>
-                <p className="text-2xl font-mono font-bold text-blue-700 leading-none">{inProgressCount}</p>
-                <p className="text-[10px] text-blue-400 mt-1">{total > 0 ? (100 - awardedPct).toFixed(0) : 0}% of total</p>
-              </div>
-              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
-                <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Budget Left</p>
-                <p className={`text-base font-mono font-bold leading-none mt-1 ${remainingBudget < 0 ? "text-red-600" : "text-slate-800"}`}>
-                  {formatCurrency(remainingBudget)}
-                </p>
+
+              {/* Stage distribution bar */}
+              <div>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-2">Stage Distribution</p>
+                <div className="flex h-2 w-full rounded-full overflow-hidden bg-slate-100 gap-px">
+                  {stageDist.map(s => s.count > 0 && (
+                    <div key={s.label} className={`${s.color} transition-all duration-500`}
+                      style={{ width: `${(s.count / total) * 100}%` }}
+                      title={`${s.label}: ${s.count}`}
+                    />
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                  {stageDist.filter(s => s.count > 0).map(s => (
+                    <div key={s.label} className="flex items-center gap-1.5">
+                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.color}`} />
+                      <span className="text-[10px] text-slate-500">{s.label}</span>
+                      <span className="text-[10px] font-mono font-semibold text-slate-700">{s.count}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Stage distribution bar */}
-            <div>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-2">Stage Distribution</p>
-              <div className="flex h-2.5 w-full rounded-full overflow-hidden gap-px bg-slate-100">
-                {stageDist.map(s => s.count > 0 && (
-                  <div
-                    key={s.label}
-                    className={`${s.color} transition-all duration-500`}
-                    style={{ width: `${(s.count / total) * 100}%` }}
-                    title={`${s.label}: ${s.count}`}
-                  />
-                ))}
+            {/* RIGHT: Budget breakdown chart */}
+            <div className="lg:w-80 xl:w-96 bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4 flex-shrink-0">
+              <h2 className="text-sm font-semibold text-slate-900">Budget Breakdown</h2>
+
+              {/* Stacked horizontal bar */}
+              <div>
+                <div className="flex h-5 w-full rounded-lg overflow-hidden gap-px">
+                  {/* Billed segment */}
+                  {billedPct > 0 && (
+                    <div
+                      className="bg-blue-700 flex items-center justify-center transition-all duration-700"
+                      style={{ width: `${billedPct}%` }}
+                      title={`Billed: ${formatCurrency(billedTotal)}`}
+                    >
+                      {billedPct > 8 && <span className="text-[9px] font-semibold text-white">{billedPct.toFixed(0)}%</span>}
+                    </div>
+                  )}
+                  {/* Awarded-not-billed segment */}
+                  {awardedNotBilledPct > 0 && (
+                    <div
+                      className="bg-emerald-500 flex items-center justify-center transition-all duration-700"
+                      style={{ width: `${awardedNotBilledPct}%` }}
+                      title={`Awarded (unbilled): ${formatCurrency(awardedNotBilled)}`}
+                    >
+                      {awardedNotBilledPct > 8 && <span className="text-[9px] font-semibold text-white">{awardedNotBilledPct.toFixed(0)}%</span>}
+                    </div>
+                  )}
+                  {/* Balance segment */}
+                  {balancePct > 0 && (
+                    <div
+                      className="bg-slate-200 flex items-center justify-center transition-all duration-700"
+                      style={{ width: `${balancePct}%` }}
+                      title={`Balance: ${formatCurrency(balance)}`}
+                    >
+                      {balancePct > 8 && <span className="text-[9px] font-medium text-slate-500">{balancePct.toFixed(0)}%</span>}
+                    </div>
+                  )}
+                  {/* Overrun indicator */}
+                  {overrun > 0 && (
+                    <div className="bg-red-500 w-2 flex-shrink-0" title="Over budget" />
+                  )}
+                </div>
+
+                {/* Legend */}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-blue-700" /><span className="text-[10px] text-slate-500">Billed</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-emerald-500" /><span className="text-[10px] text-slate-500">Awarded (unbilled)</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-slate-200 border border-slate-300" /><span className="text-[10px] text-slate-500">Balance</span></div>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-                {stageDist.filter(s => s.count > 0).map(s => (
-                  <div key={s.label} className="flex items-center gap-1.5">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.color}`} />
-                    <span className="text-[10px] text-slate-600">{s.label}</span>
-                    <span className="text-[10px] font-mono font-semibold text-slate-700">{s.count}</span>
+
+              {/* 4 stat rows */}
+              <div className="space-y-2.5 pt-1 border-t border-slate-200">
+                {[
+                  { label: "Budget",          value: project.budget,  sub: "Total contract budget",                        dot: "bg-slate-400",  valClass: "text-slate-800" },
+                  { label: "Awarded",         value: awardedTotal,    sub: `${awardPercent > 0 ? (awardPercent*100).toFixed(1) : 0}% of budget`,          dot: "bg-emerald-500", valClass: "text-emerald-700" },
+                  { label: "Billed",          value: billedTotal,     sub: awardedTotal > 0 ? `${((billedTotal/awardedTotal)*100).toFixed(1)}% of awarded` : "No invoices yet", dot: "bg-blue-700",   valClass: "text-blue-700" },
+                  { label: "Balance",         value: balance,         sub: overrun > 0 ? `⚠ ${formatCurrency(overrun)} over budget` : "Available budget",  dot: overrun > 0 ? "bg-red-500" : "bg-slate-300", valClass: overrun > 0 ? "text-red-600" : "text-slate-700" },
+                ].map(row => (
+                  <div key={row.label} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${row.dot}`} />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-slate-700 leading-none">{row.label}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5 truncate">{row.sub}</p>
+                      </div>
+                    </div>
+                    <p className={`text-sm font-mono font-semibold flex-shrink-0 ${row.valClass}`}>
+                      {formatCurrency(row.value)}
+                    </p>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-          {/* Budget ring */}
-          <div className="flex items-center gap-5 bg-slate-50 p-5 rounded-xl border border-slate-200 w-full md:w-auto flex-shrink-0">
-            <div className="relative w-20 h-20 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="40" stroke="#e2e8f0" strokeWidth="8" fill="transparent" />
-                <circle cx="50" cy="50" r="40" stroke="#2563eb" strokeWidth="8" fill="transparent"
-                  strokeDasharray={2 * Math.PI * 40}
-                  strokeDashoffset={2 * Math.PI * 40 * (1 - Math.min(1, awardPercent))}
-                  strokeLinecap="round" className="transition-all duration-700 ease-out"
-                />
-              </svg>
-              <div className="absolute text-center">
-                <p className="text-[10px] text-slate-500">Used</p>
-                <p className="text-xs font-mono font-semibold text-slate-900">{(awardPercent * 100).toFixed(0)}%</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 bg-blue-600 rounded-full" />
-                <div>
-                  <p className="text-[10px] text-slate-500 leading-none">Awarded</p>
-                  <p className="text-xs font-mono font-semibold text-slate-900 mt-0.5">{formatCurrency(awardedTotal)}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 bg-slate-300 rounded-full" />
-                <div>
-                  <p className="text-[10px] text-slate-500 leading-none">Budget</p>
-                  <p className="text-xs font-mono font-semibold text-slate-700 mt-0.5">{formatCurrency(project.budget)}</p>
-                </div>
-              </div>
-            </div>
+
           </div>
         </div>
           );
