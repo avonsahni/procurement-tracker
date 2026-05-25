@@ -91,6 +91,13 @@ export const DocumentCreateSchema = z.object({
   type: z.string().max(200).optional().default(''),
 });
 
+export const InvoiceCreateSchema = z.object({
+  amount: nonNegNumber('amount'),
+  invoiceNumber: z.string().trim().max(100).optional().default(''),
+  invoiceDate: z.string().optional(),
+  notes: z.string().trim().max(1000).optional().default(''),
+});
+
 export const CategoryCreateSchema = z.object({
   name: trimmedString('name', 1, 100),
 });

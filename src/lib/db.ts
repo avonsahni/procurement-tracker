@@ -20,11 +20,12 @@ export async function addAuditEntry(
 }
 
 export async function assemblePackage(supabase: SupabaseClient, row: any) {
-  const [vendorsRes, remarksRes, docsRes, auditRes] = await Promise.all([
+  const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes] = await Promise.all([
     supabase.from('vendors').select('id, name, quoted_amount, revised_amount').eq('package_id', row.id),
     supabase.from('remarks').select('id, username, text, timestamp').eq('package_id', row.id).order('timestamp'),
     supabase.from('documents').select('id, name, size, type, username, uploaded_at').eq('package_id', row.id).order('uploaded_at'),
     supabase.from('audit_trail').select('id, username, field, old_value, new_value, timestamp').eq('package_id', row.id).order('timestamp'),
+    supabase.from('invoices').select('id, amount, invoice_number, invoice_date, notes, username, created_at').eq('package_id', row.id).order('invoice_date'),
   ]);
 
   return {
@@ -52,6 +53,15 @@ export async function assemblePackage(supabase: SupabaseClient, row: any) {
     })),
     auditTrail: (auditRes.data || []).map((a: any) => ({
       id: a.id, user: a.username, field: a.field, oldValue: a.old_value || '', newValue: a.new_value || '', timestamp: a.timestamp,
+    })),
+    invoices: (invoicesRes.data || []).map((i: any) => ({
+      id: i.id,
+      amount: Number(i.amount),
+      invoiceNumber: i.invoice_number || '',
+      invoiceDate: i.invoice_date,
+      notes: i.notes || '',
+      user: i.username,
+      createdAt: i.created_at,
     })),
   };
 }

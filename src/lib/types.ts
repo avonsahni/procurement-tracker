@@ -55,6 +55,16 @@ export interface Document {
   type: string;
 }
 
+export interface Invoice {
+  id: string;
+  amount: number;
+  invoiceNumber: string;
+  invoiceDate: string;
+  notes: string;
+  user: string;
+  createdAt: string;
+}
+
 export interface Package {
   id: string;
   name: string;
@@ -71,6 +81,7 @@ export interface Package {
   auditTrail: AuditEntry[];
   remarks: Remark[];
   documents: Document[];
+  invoices: Invoice[];
   createdAt: string;
   updatedAt: string;
 }

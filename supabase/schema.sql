@@ -103,6 +103,19 @@ create table if not exists public.documents (
 );
 create index if not exists documents_package_id_idx on public.documents(package_id);
 
+-- ─────────────────────── invoices (billing) ───────────────────────
+create table if not exists public.invoices (
+  id uuid primary key default uuid_generate_v4(),
+  package_id uuid not null references public.packages(id) on delete cascade,
+  amount numeric not null check (amount >= 0),
+  invoice_number text default '',
+  invoice_date timestamptz not null default now(),
+  notes text default '',
+  username text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists invoices_package_id_idx on public.invoices(package_id);
+
 -- ─────────────────────── audit_trail ───────────────────────
 create table if not exists public.audit_trail (
   id uuid primary key default uuid_generate_v4(),
@@ -155,6 +168,7 @@ alter table public.packages enable row level security;
 alter table public.vendors enable row level security;
 alter table public.remarks enable row level security;
 alter table public.documents enable row level security;
+alter table public.invoices enable row level security;
 alter table public.audit_trail enable row level security;
 
 -- profiles: each user manages their own row
@@ -232,6 +246,22 @@ create policy "documents_via_package" on public.documents
       select 1 from public.packages pk
       join public.projects p on p.id = pk.project_id
       where pk.id = documents.package_id and p.owner_id = auth.uid()
+    )
+  );
+
+drop policy if exists "invoices_via_package" on public.invoices;
+create policy "invoices_via_package" on public.invoices
+  for all using (
+    exists (
+      select 1 from public.packages pk
+      join public.projects p on p.id = pk.project_id
+      where pk.id = invoices.package_id and p.owner_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1 from public.packages pk
+      join public.projects p on p.id = pk.project_id
+      where pk.id = invoices.package_id and p.owner_id = auth.uid()
     )
   );
 

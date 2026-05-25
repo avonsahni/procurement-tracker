@@ -115,6 +115,21 @@ export async function deleteDocument(pkgId: string, did: string, user: string = 
   await api(`/api/packages/${pkgId}/documents/${did}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user }) });
 }
 
+// Invoices (billing)
+export async function addInvoice(
+  pkgId: string,
+  inv: { amount: number; invoiceNumber?: string; invoiceDate?: string; notes?: string }
+): Promise<void> {
+  await api(`/api/packages/${pkgId}/invoices`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(inv),
+  });
+}
+export async function deleteInvoice(pkgId: string, iid: string): Promise<void> {
+  await api(`/api/packages/${pkgId}/invoices/${iid}`, { method: 'DELETE' });
+}
+
 // Admin
 export async function resetTrackerData(): Promise<void> {
   await api('/api/reset', { method: 'POST' });

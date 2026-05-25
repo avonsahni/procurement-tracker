@@ -13,6 +13,8 @@ import {
   addRemark,
   addDocument,
   deleteDocument,
+  addInvoice,
+  deleteInvoice,
   fetchCategories
 } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, formatCurrency } from "@/lib/types";
@@ -22,6 +24,7 @@ import VendorMatrix from "@/components/VendorMatrix";
 import AuditTrail from "@/components/AuditTrail";
 import RemarksSection from "@/components/RemarksSection";
 import DocumentsSection from "@/components/DocumentsSection";
+import BillingSection from "@/components/BillingSection";
 import {
   ArrowLeft, Plus, Briefcase, Package, ChevronDown, Trash2, X, Clock, CheckCircle2, Lock, Unlock, Search, Zap, Wrench, Hammer, Monitor, HardDrive
 } from "lucide-react";
@@ -369,6 +372,16 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                           <RemarksSection remarks={pkg.remarks} readonly={!editMode} onAddRemark={async (t: any) => { await addRemark(pkg.id, t, user?.fullName); await loadData(); }} />
                           <DocumentsSection documents={pkg.documents} readonly={!editMode} onAddDocument={async (name, size, type) => { await addDocument(pkg.id, { name, size, type }, user?.fullName); await loadData(); }} onDeleteDocument={async (did: any) => { await deleteDocument(pkg.id, did, user?.fullName); await loadData(); }} />
                         </div>
+                        {isAwarded && (
+                          <BillingSection
+                            invoices={pkg.invoices || []}
+                            awardValue={pkg.awardValue || 0}
+                            currency={pkg.currency}
+                            readonly={!editMode}
+                            onAddInvoice={async (inv) => { await addInvoice(pkg.id, inv); await loadData(); }}
+                            onDeleteInvoice={async (iid) => { await deleteInvoice(pkg.id, iid); await loadData(); }}
+                          />
+                        )}
                         <AuditTrail entries={pkg.auditTrail} />
                       </div>
                     </div>
