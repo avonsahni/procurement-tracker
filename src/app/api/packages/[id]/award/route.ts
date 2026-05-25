@@ -3,6 +3,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { assemblePackage, addAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { AwardSchema, parseBody } from '@/lib/validation';
+import { formatCurrency } from '@/lib/types';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
@@ -13,8 +14,43 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { awardValue, awardedVendor } = parsed.data;
 
   const supabase = await createServerSupabase();
-  const { data: pkg } = await supabase.from('packages').select('*').eq('id', pkgId).single();
-  if (!pkg) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Fetch the package (need project_id)
+  const { data: pkg } = await supabase
+    .from('packages')
+    .select('id, project_id, current_stage, award_value')
+    .eq('id', pkgId)
+    .single();
+  if (!pkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+
+  // ── HARD CONSTRAINT: total awarded across project ≤ project budget ──────
+  const [{ data: project }, { data: otherAwarded }] = await Promise.all([
+    supabase.from('projects').select('budget').eq('id', pkg.project_id).single(),
+    supabase
+      .from('packages')
+      .select('award_value')
+      .eq('project_id', pkg.project_id)
+      .eq('current_stage', 'Award')
+      .neq('id', pkgId),           // exclude this package (handles re-awards too)
+  ]);
+
+  if (project) {
+    const budget = Number(project.budget);
+    const otherTotal = (otherAwarded || []).reduce((s, p) => s + Number(p.award_value || 0), 0);
+    const available = budget - otherTotal;
+
+    if (awardValue > available) {
+      return NextResponse.json(
+        {
+          error: `Award value ${formatCurrency(awardValue)} exceeds available budget. ` +
+                 `Available: ${formatCurrency(available)} ` +
+                 `(Budget ${formatCurrency(budget)} − already awarded ${formatCurrency(otherTotal)})`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────────
 
   const now = new Date().toISOString();
   const { data: row, error } = await supabase

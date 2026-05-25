@@ -19,7 +19,14 @@ export interface UserAccount {
 
 async function api(path: string, opts?: RequestInit) {
   const res = await fetch(path, opts);
-  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch { /* ignore parse errors */ }
+    throw new Error(message);
+  }
   return res.json();
 }
 

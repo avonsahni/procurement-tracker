@@ -80,6 +80,7 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   const [punchingAward, setPunchingAward] = useState<any>(null);
   const [awardVal, setAwardVal] = useState("");
   const [awardVendor, setAwardVendor] = useState("");
+  const [awardError, setAwardError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -159,9 +160,14 @@ export default function ProjectDetail({ projectId, onBack }: any) {
 
   const handlePunchAward = async () => {
     if (!punchingAward || !awardVal || !awardVendor) return;
-    await punchAward(projectId, punchingAward.id, parseFloat(awardVal), awardVendor, user?.fullName);
-    setPunchingAward(null); setAwardVal(""); setAwardVendor("");
-    loadData();
+    setAwardError(null);
+    try {
+      await punchAward(projectId, punchingAward.id, parseFloat(awardVal), awardVendor, user?.fullName);
+      setPunchingAward(null); setAwardVal(""); setAwardVendor(""); setAwardError(null);
+      loadData();
+    } catch (e: any) {
+      setAwardError(e.message || "Award failed");
+    }
   };
 
   const handleUpdateStage = async (pkgId: string, stage: string) => {
@@ -742,11 +748,35 @@ export default function ProjectDetail({ projectId, onBack }: any) {
       )}
 
       {/* ── AWARD MODAL ────────────────────────────────────────────────────── */}
-      {punchingAward && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setPunchingAward(null)}>
+      {punchingAward && (() => {
+        // Available budget = project budget − all OTHER awarded packages
+        const otherAwarded = project.packages
+          .filter((p: any) => p.currentStage === "Award" && p.id !== punchingAward.id)
+          .reduce((s: number, p: any) => s + (p.awardValue || 0), 0);
+        const availableBudget = project.budget - otherAwarded;
+        const enteredVal = parseFloat(awardVal) || 0;
+        const wouldExceed = enteredVal > availableBudget;
+
+        return (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setPunchingAward(null); setAwardError(null); }}>
           <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
             <h2 className="text-base font-semibold text-slate-900 mb-1">Award Package</h2>
-            <p className="text-xs text-slate-500 mb-5">Enter final award details for <span className="font-medium">{punchingAward.name}</span></p>
+            <p className="text-xs text-slate-500 mb-4">
+              Final award details for <span className="font-medium">{punchingAward.name}</span>
+            </p>
+
+            {/* Budget availability banner */}
+            <div className={`flex items-center justify-between rounded-lg px-3 py-2.5 mb-4 text-xs ${
+              availableBudget <= 0
+                ? "bg-red-50 border border-red-200 text-red-700"
+                : "bg-emerald-50 border border-emerald-200 text-emerald-700"
+            }`}>
+              <span>Available budget</span>
+              <span className="font-mono font-semibold">
+                {availableBudget <= 0 ? "Budget fully committed" : formatCurrency(availableBudget)}
+              </span>
+            </div>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">
@@ -755,10 +785,19 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                 <input
                   type="number"
                   value={awardVal}
-                  onChange={e => setAwardVal(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 font-mono"
+                  onChange={e => { setAwardVal(e.target.value); setAwardError(null); }}
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 font-mono transition ${
+                    wouldExceed
+                      ? "border-red-400 focus:ring-red-400/30 focus:border-red-500"
+                      : "border-slate-200 focus:ring-blue-500/30 focus:border-blue-500"
+                  }`}
                   autoFocus
                 />
+                {wouldExceed && (
+                  <p className="text-xs text-red-600 mt-1.5 flex items-center gap-1">
+                    ⚠ Exceeds available budget by {formatCurrency(enteredVal - availableBudget)}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Awarded Vendor</label>
@@ -772,14 +811,33 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                 </select>
               </div>
             </div>
-            <div className="mt-6 flex justify-end">
-              <button onClick={handlePunchAward} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition">
+
+            {/* Server-side error */}
+            {awardError && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                {awardError}
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => { setPunchingAward(null); setAwardError(null); }}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePunchAward}
+                disabled={wouldExceed || availableBudget <= 0}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition"
+              >
                 Confirm Award
               </button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

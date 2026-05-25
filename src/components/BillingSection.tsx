@@ -8,8 +8,8 @@ interface BillingSectionProps {
   invoices: Invoice[];
   awardValue: number;
   currency: Currency;
-  onAddInvoice: (inv: { amount: number; invoiceNumber: string; invoiceDate: string; notes: string }) => void;
-  onDeleteInvoice: (iid: string) => void;
+  onAddInvoice: (inv: { amount: number; invoiceNumber: string; invoiceDate: string; notes: string }) => Promise<void>;
+  onDeleteInvoice: (iid: string) => Promise<void>;
   readonly?: boolean;
 }
 
@@ -26,6 +26,8 @@ export default function BillingSection({
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
   const totalInvoiced = invoices.reduce((s, i) => s + i.amount, 0);
   const remaining = Math.max(0, awardValue - totalInvoiced);
@@ -33,19 +35,31 @@ export default function BillingSection({
   const overbilled = totalInvoiced > awardValue && awardValue > 0;
   const fullyBilled = !overbilled && awardValue > 0 && totalInvoiced >= awardValue;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Warn in-modal if the entered amount would exceed remaining
+  const enteredAmt = parseFloat(amount) || 0;
+  const wouldExceedAward = awardValue > 0 && enteredAmt > remaining;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return;
-    onAddInvoice({
-      amount: amt,
-      invoiceNumber: invoiceNumber.trim(),
-      invoiceDate: invoiceDate ? new Date(invoiceDate).toISOString() : new Date().toISOString(),
-      notes: notes.trim(),
-    });
-    setAmount(""); setInvoiceNumber(""); setNotes("");
-    setInvoiceDate(new Date().toISOString().slice(0, 10));
-    setShowAdd(false);
+    setInvoiceError(null);
+    setSubmitting(true);
+    try {
+      await onAddInvoice({
+        amount: amt,
+        invoiceNumber: invoiceNumber.trim(),
+        invoiceDate: invoiceDate ? new Date(invoiceDate).toISOString() : new Date().toISOString(),
+        notes: notes.trim(),
+      });
+      setAmount(""); setInvoiceNumber(""); setNotes("");
+      setInvoiceDate(new Date().toISOString().slice(0, 10));
+      setShowAdd(false);
+    } catch (e: any) {
+      setInvoiceError(e.message || "Failed to record invoice");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const formatDate = (iso: string) => {
@@ -150,14 +164,26 @@ export default function BillingSection({
 
       {/* Add-invoice modal */}
       {showAdd && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowAdd(false)}>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setShowAdd(false); setInvoiceError(null); }}>
           <form
             onSubmit={handleSubmit}
             onClick={(e) => e.stopPropagation()}
             className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-md p-6"
           >
             <h2 className="text-base font-semibold text-slate-900 mb-1">Record Invoice</h2>
-            <p className="text-xs text-slate-500 mb-5">Logged against awarded value of {formatCurrency(awardValue, currency)}</p>
+
+            {/* Remaining billable */}
+            <div className={`flex items-center justify-between rounded-lg px-3 py-2 mb-4 text-xs ${
+              fullyBilled
+                ? "bg-amber-50 border border-amber-200 text-amber-700"
+                : "bg-blue-50 border border-blue-200 text-blue-700"
+            }`}>
+              <span>Remaining billable (this package)</span>
+              <span className="font-mono font-semibold">
+                {fullyBilled ? "Fully billed" : formatCurrency(remaining, currency)}
+              </span>
+            </div>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Amount ({currency}) *</label>
@@ -167,11 +193,20 @@ export default function BillingSection({
                   step="0.01"
                   min="0"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 font-mono"
+                  onChange={(e) => { setAmount(e.target.value); setInvoiceError(null); }}
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 font-mono transition ${
+                    wouldExceedAward
+                      ? "border-red-400 focus:ring-red-400/30 focus:border-red-500"
+                      : "border-slate-200 focus:ring-blue-500/30 focus:border-blue-500"
+                  }`}
                   placeholder="0.00"
                   autoFocus
                 />
+                {wouldExceedAward && (
+                  <p className="text-xs text-red-600 mt-1.5">
+                    ⚠ Exceeds remaining award value by {formatCurrency(enteredAmt - remaining, currency)}
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -204,15 +239,26 @@ export default function BillingSection({
                 />
               </div>
             </div>
+
+            {/* Server error */}
+            {invoiceError && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                {invoiceError}
+              </div>
+            )}
+
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setShowAdd(false)}
+                onClick={() => { setShowAdd(false); setInvoiceError(null); }}
                 className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition"
               >
                 Cancel
               </button>
-              <button type="submit" className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition">
                 Record
               </button>
             </div>
