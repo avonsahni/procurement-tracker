@@ -235,28 +235,82 @@ export default function ProjectDetail({ projectId, onBack }: any) {
       <main className="max-w-7xl mx-auto px-6 py-8">
 
         {/* ── PROJECT ANALYTICS ──────────────────────────────────────────── */}
+        {(() => {
+          const total = project.packages.length;
+          const awardedCount  = project.packages.filter((p: any) => p.currentStage === "Award").length;
+          const inProgressCount = total - awardedCount;
+          const awardedPct = total > 0 ? (awardedCount / total) * 100 : 0;
+
+          // Stage distribution for the bar
+          const stageDist = STAGES.map(s => ({
+            label: s,
+            count: project.packages.filter((p: any) => p.currentStage === s).length,
+            color: s === "Award" ? "bg-emerald-500"
+              : s === "Commercial Negotiation" ? "bg-blue-700"
+              : s === "Technical Negotiation"  ? "bg-blue-500"
+              : s === "RFQ Float"              ? "bg-blue-400"
+              : "bg-slate-300",
+          }));
+
+          return (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex-1 space-y-3">
-            <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Project Analytics</p>
+          <div className="flex-1 space-y-4">
+            <div className="flex items-center gap-3">
+              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Project Analytics</p>
+              <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">{project.status}</span>
+            </div>
             <h2 className="text-xl font-semibold text-slate-900">Contract Execution</h2>
-            <div className="grid grid-cols-3 gap-4 pt-1">
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Status</p>
-                <span className="text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">{project.status}</span>
+
+            {/* Award status — 4 key numbers */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Total Packages</p>
+                <p className="text-2xl font-mono font-bold text-slate-900 leading-none">{total}</p>
               </div>
-              <div className="border-l border-slate-200 pl-4">
-                <p className="text-xs text-slate-500 mb-1">Packages</p>
-                <p className="text-base font-mono font-semibold text-slate-900">{project.packages.length}</p>
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                <p className="text-[10px] text-emerald-600 uppercase tracking-wide mb-1">Awarded</p>
+                <p className="text-2xl font-mono font-bold text-emerald-700 leading-none">{awardedCount}</p>
+                <p className="text-[10px] text-emerald-500 mt-1">{awardedPct.toFixed(0)}% of total</p>
               </div>
-              <div className="border-l border-slate-200 pl-4">
-                <p className="text-xs text-slate-500 mb-1">Remaining</p>
-                <p className={`text-base font-mono font-semibold ${remainingBudget < 0 ? "text-red-600" : "text-emerald-600"}`}>
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                <p className="text-[10px] text-blue-600 uppercase tracking-wide mb-1">In Progress</p>
+                <p className="text-2xl font-mono font-bold text-blue-700 leading-none">{inProgressCount}</p>
+                <p className="text-[10px] text-blue-400 mt-1">{total > 0 ? (100 - awardedPct).toFixed(0) : 0}% of total</p>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Budget Left</p>
+                <p className={`text-base font-mono font-bold leading-none mt-1 ${remainingBudget < 0 ? "text-red-600" : "text-slate-800"}`}>
                   {formatCurrency(remainingBudget)}
                 </p>
               </div>
             </div>
+
+            {/* Stage distribution bar */}
+            <div>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-2">Stage Distribution</p>
+              <div className="flex h-2.5 w-full rounded-full overflow-hidden gap-px bg-slate-100">
+                {stageDist.map(s => s.count > 0 && (
+                  <div
+                    key={s.label}
+                    className={`${s.color} transition-all duration-500`}
+                    style={{ width: `${(s.count / total) * 100}%` }}
+                    title={`${s.label}: ${s.count}`}
+                  />
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                {stageDist.filter(s => s.count > 0).map(s => (
+                  <div key={s.label} className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.color}`} />
+                    <span className="text-[10px] text-slate-600">{s.label}</span>
+                    <span className="text-[10px] font-mono font-semibold text-slate-700">{s.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-5 bg-slate-50 p-5 rounded-xl border border-slate-200 w-full md:w-auto">
+          {/* Budget ring */}
+          <div className="flex items-center gap-5 bg-slate-50 p-5 rounded-xl border border-slate-200 w-full md:w-auto flex-shrink-0">
             <div className="relative w-20 h-20 flex items-center justify-center">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="40" stroke="#e2e8f0" strokeWidth="8" fill="transparent" />
@@ -289,6 +343,8 @@ export default function ProjectDetail({ projectId, onBack }: any) {
             </div>
           </div>
         </div>
+          );
+        })()}
 
         {/* ══════════════════════════════════════════════════════════════════
             VIEW A — CATEGORY CARDS GRID
