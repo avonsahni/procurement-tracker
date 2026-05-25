@@ -18,9 +18,11 @@ function PackagePageInner({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Category that was active when the user clicked this package row.
-  // Stored in the URL so the back button can restore the exact list view.
-  const fromCat = searchParams.get("cat") || "";
+  // Restore the view state the user came from:
+  // - ?cat=X   → category table view for that category
+  // - ?status=X → quick-filter view (all / awarded / in-progress)
+  const fromCat    = searchParams.get("cat")    || "";
+  const fromStatus = searchParams.get("status") || "";
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -31,12 +33,14 @@ function PackagePageInner({
   const handleBack = () => {
     // Invalidate Next.js server cache so the project page shows fresh data
     router.refresh();
-    // Navigate one level up: back to the category table, not the category grid
-    router.push(
-      fromCat
-        ? `/projects/${projectId}?cat=${encodeURIComponent(fromCat)}`
-        : `/projects/${projectId}`
-    );
+    // Navigate back to whichever list view the user came from
+    if (fromCat) {
+      router.push(`/projects/${projectId}?cat=${encodeURIComponent(fromCat)}`);
+    } else if (fromStatus) {
+      router.push(`/projects/${projectId}?status=${encodeURIComponent(fromStatus)}`);
+    } else {
+      router.push(`/projects/${projectId}`);
+    }
   };
 
   return (

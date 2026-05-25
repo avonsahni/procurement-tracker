@@ -11,7 +11,8 @@ function ProjectPageInner({ id }: { id: string }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialCategory = searchParams.get("cat") || undefined;
+  const initialCategory    = searchParams.get("cat")    || undefined;
+  const initialQuickFilter = searchParams.get("status") || undefined;
 
   if (loading) {
     return (
@@ -30,10 +31,11 @@ function ProjectPageInner({ id }: { id: string }) {
         from a package page, so analytics + vendor counts are always current.
       */}
       <ProjectDetail
-        key={`${id}-${initialCategory ?? ""}`}
+        key={`${id}-${initialCategory ?? ""}-${initialQuickFilter ?? ""}`}
         projectId={id}
         onBack={() => router.push("/")}
         initialCategory={initialCategory}
+        initialQuickFilter={initialQuickFilter}
       />
     </main>
   );

@@ -47,15 +47,17 @@ function getCategoryAccent(cat: string) {
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-export default function ProjectDetail({ projectId, onBack, initialCategory }: any) {
+export default function ProjectDetail({ projectId, onBack, initialCategory, initialQuickFilter }: any) {
   const { user, editMode, setEditMode } = useAuth();
   const router = useRouter();
   const [project, setProject] = useState<any>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Navigation state — initialised from URL param so back-navigation restores the table view
+  // Navigation state — initialised from URL params so back-navigation restores the table view
   const [activeCat, setActiveCat] = useState<string | null>(initialCategory || null);
+  // "all" | "awarded" | "in-progress" — set when user clicks a stat card
+  const [quickFilter, setQuickFilter] = useState<string | null>(initialQuickFilter || null);
 
   // Package list state
   const [showAddPkg, setShowAddPkg] = useState(false);
@@ -132,6 +134,22 @@ export default function ProjectDetail({ projectId, onBack, initialCategory }: an
       })
     : [];
 
+  // Packages shown in the quick-filter view (stat card click — all/awarded/in-progress)
+  const quickFilterPackages = quickFilter && !activeCat
+    ? project.packages.filter((p: any) => {
+        const isAwarded = p.currentStage === "Award";
+        const matchStatus =
+          quickFilter === "awarded"     ? isAwarded :
+          quickFilter === "in-progress" ? !isAwarded :
+          true; // "all"
+        return (
+          matchStatus &&
+          p.name.toLowerCase().includes(search.toLowerCase()) &&
+          (filterStage === "All" || p.currentStage === filterStage)
+        );
+      })
+    : [];
+
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleAddPkg = async () => {
     if (!newPkg.name.trim()) return;
@@ -146,10 +164,14 @@ export default function ProjectDetail({ projectId, onBack, initialCategory }: an
   };
 
   const openPackage = (pkgId: string) => {
-    // Carry the active category so the back button on the package page
-    // can return the user to the table view for that category.
-    const catParam = activeCat ? `?cat=${encodeURIComponent(activeCat)}` : "";
-    router.push(`/projects/${projectId}/packages/${pkgId}${catParam}`);
+    // Carry the active category OR quick-filter so the back button on the
+    // package page can return the user to the same list view.
+    if (quickFilter && !activeCat) {
+      router.push(`/projects/${projectId}/packages/${pkgId}?status=${encodeURIComponent(quickFilter)}`);
+    } else {
+      const catParam = activeCat ? `?cat=${encodeURIComponent(activeCat)}` : "";
+      router.push(`/projects/${projectId}/packages/${pkgId}${catParam}`);
+    }
   };
 
   const calculateLeadTime = (p: any) => {
@@ -171,9 +193,15 @@ export default function ProjectDetail({ projectId, onBack, initialCategory }: an
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={activeCat ? () => { setActiveCat(null); setSearch(""); setFilterStage("All"); setFilterAwardStatus("All"); } : onBack}
+              onClick={
+                activeCat
+                  ? () => { setActiveCat(null); setSearch(""); setFilterStage("All"); setFilterAwardStatus("All"); }
+                  : quickFilter
+                    ? () => { setQuickFilter(null); setSearch(""); setFilterStage("All"); }
+                    : onBack
+              }
               className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition"
-              title={activeCat ? "Back to categories" : "Back to dashboard"}
+              title={activeCat ? "Back to categories" : quickFilter ? "Back to categories" : "Back to dashboard"}
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -261,20 +289,33 @@ export default function ProjectDetail({ projectId, onBack, initialCategory }: an
               <h2 className="text-lg font-semibold text-slate-900">Package Status</h2>
 
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                {/* Total — click to see all packages */}
+                <button
+                  onClick={() => { setQuickFilter("all"); setActiveCat(null); setSearch(""); setFilterStage("All"); }}
+                  className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-left hover:border-slate-300 hover:shadow-sm transition group"
+                >
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Total</p>
                   <p className="text-2xl font-mono font-bold text-slate-900 leading-none">{total}</p>
-                </div>
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                  <p className="text-[10px] text-slate-400 mt-1 group-hover:text-blue-500 transition">View all →</p>
+                </button>
+                {/* Awarded — click to see awarded packages */}
+                <button
+                  onClick={() => { setQuickFilter("awarded"); setActiveCat(null); setSearch(""); setFilterStage("All"); }}
+                  className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-left hover:border-emerald-300 hover:shadow-sm transition group"
+                >
                   <p className="text-[10px] text-emerald-600 uppercase tracking-wide mb-1">Awarded</p>
                   <p className="text-2xl font-mono font-bold text-emerald-700 leading-none">{awardedCount}</p>
-                  <p className="text-[10px] text-emerald-500 mt-1">{awardedPct.toFixed(0)}% of total</p>
-                </div>
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                  <p className="text-[10px] text-emerald-500 mt-1 group-hover:text-emerald-700 transition">{awardedPct.toFixed(0)}% of total →</p>
+                </button>
+                {/* In Progress — click to see in-progress packages */}
+                <button
+                  onClick={() => { setQuickFilter("in-progress"); setActiveCat(null); setSearch(""); setFilterStage("All"); }}
+                  className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-left hover:border-blue-300 hover:shadow-sm transition group"
+                >
                   <p className="text-[10px] text-blue-600 uppercase tracking-wide mb-1">In Progress</p>
                   <p className="text-2xl font-mono font-bold text-blue-700 leading-none">{inProgressCount}</p>
-                  <p className="text-[10px] text-blue-400 mt-1">{total > 0 ? (100 - awardedPct).toFixed(0) : 0}% of total</p>
-                </div>
+                  <p className="text-[10px] text-blue-400 mt-1 group-hover:text-blue-600 transition">{total > 0 ? (100 - awardedPct).toFixed(0) : 0}% of total →</p>
+                </button>
               </div>
 
               {/* Stage distribution bar */}
@@ -383,7 +424,7 @@ export default function ProjectDetail({ projectId, onBack, initialCategory }: an
         {/* ══════════════════════════════════════════════════════════════════
             VIEW A — CATEGORY CARDS GRID
         ════════════════════════════════════════════════════════════════════ */}
-        {!activeCat && (
+        {!activeCat && !quickFilter && (
           <>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
@@ -655,6 +696,190 @@ export default function ProjectDetail({ projectId, onBack, initialCategory }: an
             )}
           </>
         )}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            VIEW C — QUICK-FILTER PACKAGE LIST (stat card click)
+        ════════════════════════════════════════════════════════════════════ */}
+        {quickFilter && !activeCat && (() => {
+          const qfLabel =
+            quickFilter === "awarded"     ? "Awarded" :
+            quickFilter === "in-progress" ? "In Progress" :
+            "All Packages";
+          const qfColor =
+            quickFilter === "awarded"     ? "text-emerald-700 bg-emerald-50 border-emerald-200" :
+            quickFilter === "in-progress" ? "text-blue-700 bg-blue-50 border-blue-200" :
+            "text-slate-700 bg-slate-100 border-slate-200";
+
+          return (
+            <>
+              {/* Sub-header */}
+              <div className="flex flex-wrap items-center gap-3 mb-5">
+                <button
+                  onClick={() => { setQuickFilter(null); setSearch(""); setFilterStage("All"); }}
+                  className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-600 transition font-medium"
+                >
+                  <Layers className="w-3.5 h-3.5" /> All Categories
+                </button>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${qfColor}`}>
+                  {qfLabel}
+                  <span className="text-slate-400 font-normal ml-1">· {quickFilterPackages.length} pkg{quickFilterPackages.length !== 1 ? "s" : ""}</span>
+                </span>
+
+                <div className="flex-1" />
+
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    placeholder="Search…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="pl-8 pr-3 py-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition w-40"
+                  />
+                </div>
+                <select value={filterStage} onChange={e => setFilterStage(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/30">
+                  <option value="All">All Stages</option>
+                  {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                {editMode && (
+                  <button onClick={() => setShowAddPkg(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition">
+                    <Plus className="w-3.5 h-3.5" /> Add Package
+                  </button>
+                )}
+              </div>
+
+              {quickFilterPackages.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                  <HardDrive className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm">No packages match filters</p>
+                </div>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50/60">
+                        <th className="px-5 py-3 text-xs font-medium text-slate-500 w-8">#</th>
+                        <th className="px-5 py-3 text-xs font-medium text-slate-500">Package</th>
+                        <th className="px-5 py-3 text-xs font-medium text-slate-500">Category</th>
+                        <th className="px-5 py-3 text-xs font-medium text-slate-500">Stage</th>
+                        <th className="px-5 py-3 text-xs font-medium text-slate-500 text-center">Vendors</th>
+                        <th className="px-5 py-3 text-xs font-medium text-slate-500">Award Value</th>
+                        <th className="px-5 py-3 text-xs font-medium text-slate-500">Lead Time</th>
+                        <th className="px-5 py-3 text-xs font-medium text-slate-500 w-10" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quickFilterPackages.map((pkg: any, idx: number) => {
+                        const isAwarded   = pkg.currentStage === "Award";
+                        const stageIdx    = STAGES.indexOf(pkg.currentStage);
+                        const progressPct = ((stageIdx + 1) / STAGES.length) * 100;
+                        const leadTime    = calculateLeadTime(pkg);
+                        const stageDotColor =
+                          pkg.currentStage === "Award"                  ? "bg-emerald-500" :
+                          pkg.currentStage === "Commercial Negotiation" ? "bg-blue-700" :
+                          pkg.currentStage === "Technical Negotiation"  ? "bg-blue-500" :
+                          pkg.currentStage === "RFQ Float"              ? "bg-blue-400" :
+                          "bg-slate-400";
+                        const catAccent = getCategoryAccent(pkg.category || "");
+
+                        return (
+                          <tr
+                            key={pkg.id}
+                            onClick={() => openPackage(pkg.id)}
+                            className={`border-b border-slate-100 last:border-0 cursor-pointer hover:bg-blue-50/40 transition group ${
+                              isAwarded ? "bg-emerald-50/20" : ""
+                            }`}
+                          >
+                            <td className="px-5 py-3.5">
+                              <span className="text-xs font-mono text-slate-400">{idx + 1}</span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <p className="text-sm font-semibold text-slate-900 leading-none">{pkg.name}</p>
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded font-medium">{pkg.origin}</span>
+                                <span className="text-[10px] text-slate-400">{pkg.currency}</span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <button
+                                onClick={e => { e.stopPropagation(); setQuickFilter(null); setActiveCat(pkg.category || "Uncategorised"); setSearch(""); setFilterStage("All"); setFilterAwardStatus("All"); }}
+                                className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-lg border ${catBg[catAccent]} hover:opacity-80 transition`}
+                              >
+                                {getCategoryIcon(pkg.category || "", "w-3 h-3")}
+                                {pkg.category || "Uncategorised"}
+                              </button>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${stageDotColor}`} />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium text-slate-700 leading-none whitespace-nowrap">
+                                    {pkg.currentStage === "Award" ? (
+                                      <span className="text-emerald-700 flex items-center gap-1">
+                                        <CheckCircle2 className="w-3 h-3" /> Awarded
+                                      </span>
+                                    ) : pkg.currentStage}
+                                  </p>
+                                  <div className="w-24 h-1 bg-slate-100 rounded-full mt-1.5 overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${isAwarded ? "bg-emerald-500" : "bg-blue-500"}`}
+                                      style={{ width: `${progressPct}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5 text-center">
+                              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold ${
+                                (pkg.vendorCount || 0) > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"
+                              }`}>
+                                {pkg.vendorCount || 0}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              {isAwarded ? (
+                                <span className="text-sm font-mono font-semibold text-emerald-700">
+                                  {formatCurrency(pkg.awardValue || 0, pkg.currency)}
+                                </span>
+                              ) : (
+                                <span className="text-sm text-slate-300 font-mono">—</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-3.5">
+                              {leadTime ? (
+                                <span className="text-xs text-slate-500 flex items-center gap-1">
+                                  <Clock className="w-3 h-3 flex-shrink-0" />{leadTime}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-slate-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center justify-end gap-1">
+                                {editMode && (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); handleDeletePkg(pkg.id); }}
+                                    className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                                    title="Delete package"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                <div className="p-1.5 text-slate-300 group-hover:text-blue-600 transition">
+                                  <ArrowRight className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </main>
 
       {/* ── ADD PACKAGE MODAL ──────────────────────────────────────────────── */}
