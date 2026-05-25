@@ -287,7 +287,7 @@ export default function ProjectDetail({ projectId, onBack }: any) {
             <div className="flex-1 space-y-4">
               <h2 className="text-lg font-semibold text-slate-900">Package Status</h2>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Total</p>
                   <p className="text-2xl font-mono font-bold text-slate-900 leading-none">{total}</p>
@@ -301,13 +301,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                   <p className="text-[10px] text-blue-600 uppercase tracking-wide mb-1">In Progress</p>
                   <p className="text-2xl font-mono font-bold text-blue-700 leading-none">{inProgressCount}</p>
                   <p className="text-[10px] text-blue-400 mt-1">{total > 0 ? (100 - awardedPct).toFixed(0) : 0}% of total</p>
-                </div>
-                <div className={`border rounded-xl p-3 ${remainingBudget < 0 ? "bg-red-50 border-red-100" : "bg-slate-50 border-slate-100"}`}>
-                  <p className={`text-[10px] uppercase tracking-wide mb-1 ${remainingBudget < 0 ? "text-red-500" : "text-slate-500"}`}>Budget Left</p>
-                  <p className={`text-sm font-mono font-bold leading-none mt-1 ${remainingBudget < 0 ? "text-red-600" : "text-slate-800"}`}>
-                    {formatCurrency(Math.abs(remainingBudget))}
-                  </p>
-                  {remainingBudget < 0 && <p className="text-[10px] text-red-400 mt-1">over budget</p>}
                 </div>
               </div>
 
