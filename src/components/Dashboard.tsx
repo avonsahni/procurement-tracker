@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   fetchProjects,
   addProject,
@@ -23,7 +24,7 @@ import {
 import { formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
-  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3
+  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
@@ -68,15 +69,15 @@ function ProjectBudgetCell({ project, onUpdate, editMode }: { project: any; onUp
   );
 }
 
-export default function Dashboard({ onSelectProject, onShowBudgetAnalytics, onShowUserManagement }: any) {
+export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement }: any) {
   const { user, logout, editMode, setEditMode } = useAuth();
+  const router = useRouter();
   const [projects, setProjects] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddProject, setShowAddProject] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
-  const [expandedProject, setExpandedProject] = useState<string | null>(null);
 
   const [company, setCompany] = useState<CompanyInfo>({ name: "", tagline: "" });
   const [userList, setUserList] = useState<UserAccount[]>([]);
@@ -454,34 +455,21 @@ export default function Dashboard({ onSelectProject, onShowBudgetAnalytics, onSh
             </div>
           ) : (
             filteredProjects.map((p: any) => {
-              const isExpanded = expandedProject === p.id;
-              const stageOrder = ["Spec Received", "RFQ Float", "Technical Negotiation", "Commercial Negotiation", "Award"];
-              const stageMeta: Record<string, { color: string; dot: string }> = {
-                "Spec Received": { color: "text-slate-600", dot: "bg-slate-400" },
-                "RFQ Float": { color: "text-blue-600", dot: "bg-blue-500" },
-                "Technical Negotiation": { color: "text-blue-700", dot: "bg-blue-600" },
-                "Commercial Negotiation": { color: "text-blue-700", dot: "bg-blue-700" },
-                "Award": { color: "text-emerald-700", dot: "bg-emerald-500" },
-              };
-              const stagePkgs = stageOrder.map(stage => ({
-                stage,
-                pkgs: p.packages.filter((pk: any) => pk.currentStage === stage),
-                ...stageMeta[stage]
-              }));
               const awarded = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
-              const totalBudget = p.budget;
-              const awardedPct = totalBudget > 0 ? Math.min(100, (awarded / totalBudget) * 100) : 0;
+              const awardedPct = p.budget > 0 ? Math.min(100, (awarded / p.budget) * 100) : 0;
+              const awardedCount = p.packages.filter((pk: any) => pk.currentStage === "Award").length;
 
               return (
-                <div key={p.id} className={`group bg-white rounded-2xl border transition ${
-                  isExpanded
-                    ? 'border-blue-300 shadow-sm col-span-1 lg:col-span-2'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}>
-                  <div className="p-6 cursor-pointer" onClick={() => setExpandedProject(isExpanded ? null : p.id)}>
+                <div
+                  key={p.id}
+                  className="group bg-white rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col"
+                  onClick={() => router.push(`/projects/${p.id}`)}
+                >
+                  {/* Card header */}
+                  <div className="p-6 flex-1">
                     <div className="flex justify-between items-start mb-4">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                           {editMode ? (
                             <select
                               value={p.status}
@@ -503,7 +491,7 @@ export default function Dashboard({ onSelectProject, onShowBudgetAnalytics, onSh
                         <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">{p.name}</h3>
                         <p className="text-xs text-slate-500 mt-0.5">{p.client}</p>
                       </div>
-                      <div className="flex items-center gap-1.5 ml-3">
+                      <div className="flex items-center gap-1.5 ml-3 flex-shrink-0">
                         {editMode && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id); }}
@@ -512,15 +500,14 @@ export default function Dashboard({ onSelectProject, onShowBudgetAnalytics, onSh
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
-                        <div className={`p-2 rounded-lg border transition ${
-                          isExpanded ? 'border-blue-300 text-blue-600' : 'border-slate-200 text-slate-400'
-                        }`}>
-                          <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        <div className="p-2 rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-300 group-hover:text-blue-600 transition">
+                          <ArrowRight className="w-4 h-4" />
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3">
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-3 mb-4">
                       <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
                         <p className="text-xs text-slate-500 mb-1">Budget</p>
                         <ProjectBudgetCell project={p} onUpdate={(val) => handleUpdateProjectBudget(p.id, val)} editMode={editMode} />
@@ -534,82 +521,28 @@ export default function Dashboard({ onSelectProject, onShowBudgetAnalytics, onSh
                         <p className="text-sm font-mono font-semibold text-emerald-600 leading-none">{formatCurrency(awarded)}</p>
                       </div>
                     </div>
+
+                    {/* Budget utilisation bar */}
+                    <div>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <p className="text-xs text-slate-400">Budget Utilisation</p>
+                        <p className="text-xs font-mono text-slate-500">{awardedPct.toFixed(1)}% · {awardedCount} awarded</p>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                          style={{ width: `${awardedPct}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  {isExpanded && (
-                    <div className="border-t border-slate-100 px-6 pb-6">
-                      <div className="py-5 border-b border-slate-100">
-                        <div className="flex justify-between items-center mb-2">
-                          <p className="text-xs text-slate-500">Budget Utilisation</p>
-                          <p className="text-xs font-mono font-medium text-emerald-600">{awardedPct.toFixed(1)}%</p>
-                        </div>
-                        <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${awardedPct}%` }} />
-                        </div>
-                      </div>
-
-                      <div className="pt-5">
-                        <p className="text-xs text-slate-500 mb-3">Package Breakdown by Stage</p>
-                        <div className="space-y-3">
-                          {stagePkgs.map(({ stage, pkgs, color, dot }) => (
-                            <div key={stage}>
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className={`w-2 h-2 rounded-full ${dot}`} />
-                                <span className={`text-xs font-medium ${color}`}>{stage}</span>
-                                <span className="text-xs text-slate-400 ml-auto">{pkgs.length} pkg{pkgs.length !== 1 ? 's' : ''}</span>
-                              </div>
-
-                              {pkgs.length > 0 ? (
-                                <div className="ml-4 space-y-1">
-                                  {pkgs.map((pk: any) => (
-                                    <div
-                                      key={pk.id}
-                                      onClick={(e) => { e.stopPropagation(); onSelectProject(p.id); }}
-                                      className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 hover:bg-white hover:border-slate-200 cursor-pointer transition group/pkg"
-                                    >
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-                                        <span className="text-xs font-medium text-slate-700 truncate group-hover/pkg:text-slate-900 transition">{pk.name}</span>
-                                        <span className="text-[10px] text-slate-400 flex-shrink-0">{pk.category}</span>
-                                      </div>
-                                      <div className="flex items-center gap-3 flex-shrink-0 ml-2">
-                                        {pk.awardValue ? (
-                                          <span className="text-xs font-mono font-medium text-emerald-600">{formatCurrency(pk.awardValue)}</span>
-                                        ) : (
-                                          <span className="text-xs text-slate-300">—</span>
-                                        )}
-                                        <ChevronRight className="w-3 h-3 text-slate-300 group-hover/pkg:text-slate-500" />
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="ml-4 py-1.5 text-xs text-slate-400">No packages at this stage</div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onSelectProject(p.id); }}
-                        className="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition"
-                      >
-                        Open Full Repository <ChevronRight className="w-4 h-4" />
-                      </button>
+                  {/* Card footer CTA */}
+                  <div className="px-6 pb-5">
+                    <div className="w-full py-2.5 bg-slate-50 border border-slate-200 group-hover:bg-blue-600 group-hover:border-blue-600 group-hover:text-white text-slate-600 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200">
+                      Open Project <ArrowRight className="w-4 h-4" />
                     </div>
-                  )}
-
-                  {!isExpanded && (
-                    <div className="px-6 pb-6">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onSelectProject(p.id); }}
-                        className="w-full py-2.5 bg-slate-50 border border-slate-200 text-slate-700 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition mt-3"
-                      >
-                        Access Repository <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
+                  </div>
                 </div>
               );
             })
