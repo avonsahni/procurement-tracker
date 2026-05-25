@@ -25,7 +25,7 @@ import { formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import {
-  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight
+  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight, Receipt
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
@@ -141,7 +141,8 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
     total: projects.length,
     packages: projects.reduce((s, p) => s + p.packages.length, 0),
     budget: projects.reduce((s, p) => s + p.budget, 0),
-    awarded: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.awardValue || 0), 0), 0)
+    awarded: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.awardValue || 0), 0), 0),
+    billed: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.billedAmount || 0), 0), 0),
   };
 
   if (loading) {
@@ -250,15 +251,25 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
                   </p>
                 </div>
                 <div className="border-l border-slate-200 pl-6">
-                  <p className="text-xs text-slate-500 mb-1">Total Packages</p>
-                  <p className="text-lg font-mono font-semibold text-slate-900">{stats.packages}</p>
+                  <p className="text-xs text-slate-500 mb-1">Billed to Date</p>
+                  <p className="text-lg font-mono font-semibold text-violet-700">
+                    {formatCurrency(stats.billed)}
+                  </p>
+                </div>
+                <div className="border-l border-slate-200 pl-6">
+                  <p className="text-xs text-slate-500 mb-1">Billing Rate</p>
+                  <p className="text-lg font-mono font-semibold text-slate-900">
+                    {stats.awarded > 0 ? ((stats.billed / stats.awarded) * 100).toFixed(1) : "0.0"}%
+                  </p>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-5 bg-slate-50 p-5 rounded-xl border border-slate-200">
-              <div className="relative w-24 h-24 flex items-center justify-center">
+              {/* Dual-ring donut: outer = awarded, inner = billed */}
+              <div className="relative w-24 h-24 flex items-center justify-center flex-shrink-0">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                  {/* Outer track (awarded) */}
                   <circle cx="50" cy="50" r="40" stroke="#e2e8f0" strokeWidth="8" fill="transparent" />
                   <circle
                     cx="50" cy="50" r="40"
@@ -270,10 +281,22 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
                     strokeLinecap="round"
                     className="transition-all duration-700 ease-out"
                   />
+                  {/* Inner track (billed) */}
+                  <circle cx="50" cy="50" r="28" stroke="#e2e8f0" strokeWidth="7" fill="transparent" />
+                  <circle
+                    cx="50" cy="50" r="28"
+                    stroke="#7c3aed"
+                    strokeWidth="7"
+                    fill="transparent"
+                    strokeDasharray={2 * Math.PI * 28}
+                    strokeDashoffset={2 * Math.PI * 28 * (1 - (stats.awarded > 0 ? Math.min(1, stats.billed / stats.awarded) : 0))}
+                    strokeLinecap="round"
+                    className="transition-all duration-700 ease-out"
+                  />
                 </svg>
                 <div className="absolute text-center">
-                  <p className="text-[10px] text-slate-500">Awarded</p>
-                  <p className="text-sm font-mono font-semibold text-slate-900">{stats.budget > 0 ? ((stats.awarded / stats.budget) * 100).toFixed(0) : 0}%</p>
+                  <p className="text-[10px] text-slate-500 leading-none">Billed</p>
+                  <p className="text-xs font-mono font-semibold text-violet-700">{stats.awarded > 0 ? ((stats.billed / stats.awarded) * 100).toFixed(0) : 0}%</p>
                 </div>
               </div>
               <div className="space-y-2.5">
@@ -282,6 +305,13 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
                   <div>
                     <p className="text-[10px] text-slate-500 leading-none">Awarded</p>
                     <p className="text-xs font-mono font-semibold text-slate-900 mt-0.5">{formatCurrency(stats.awarded)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 bg-violet-600 rounded-full" />
+                  <div>
+                    <p className="text-[10px] text-slate-500 leading-none">Billed</p>
+                    <p className="text-xs font-mono font-semibold text-violet-700 mt-0.5">{formatCurrency(stats.billed)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -297,7 +327,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
         </div>
 
         {/* STAT CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {([
             {
               label: "Active Projects", icon: FolderOpen, accent: "text-blue-600",
@@ -318,6 +348,19 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
               label: "Awarded Pipeline", icon: Shield, accent: "text-blue-700",
               val: formatCurrency(stats.awarded),
               rows: projects.map((p: any) => { const aw = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0); return { label: p.name, sub: `${p.packages.filter((pk: any) => pk.currentStage === 'Award').length} awarded`, val: formatCurrency(aw) }; })
+            },
+            {
+              label: "Total Billed", icon: Receipt, accent: "text-violet-700",
+              val: formatCurrency(stats.billed),
+              rows: projects.map((p: any) => {
+                const billed = p.packages.reduce((s: any, pk: any) => s + (pk.billedAmount || 0), 0);
+                const awarded = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
+                return {
+                  label: p.name,
+                  sub: awarded > 0 ? `${((billed / awarded) * 100).toFixed(0)}% of awarded` : "No awards yet",
+                  val: formatCurrency(billed)
+                };
+              })
             },
           ] as any[]).map((s, i) => {
             const isOpen = expandedCard === i;
