@@ -108,7 +108,7 @@ export async function addRemark(pkgId: string, text: string, user: string = 'Use
 }
 
 // Documents
-export async function addDocument(pkgId: string, d: { name: string; size: string; type: string }, user: string = 'User'): Promise<void> {
+export async function addDocument(pkgId: string, d: { name: string; size: string; type: string; storagePath?: string }, user: string = 'User'): Promise<void> {
   await api(`/api/packages/${pkgId}/documents`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, user }) });
 }
 export async function deleteDocument(pkgId: string, did: string, user: string = 'System'): Promise<void> {

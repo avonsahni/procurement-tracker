@@ -53,6 +53,7 @@ export interface Document {
   uploadedBy: string;
   uploadedAt: string;
   type: string;
+  storagePath: string;
 }
 
 export interface Invoice {

@@ -370,7 +370,14 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                         />
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           <RemarksSection remarks={pkg.remarks} readonly={!editMode} onAddRemark={async (t: any) => { await addRemark(pkg.id, t, user?.fullName); await loadData(); }} />
-                          <DocumentsSection documents={pkg.documents} readonly={!editMode} onAddDocument={async (name, size, type) => { await addDocument(pkg.id, { name, size, type }, user?.fullName); await loadData(); }} onDeleteDocument={async (did: any) => { await deleteDocument(pkg.id, did, user?.fullName); await loadData(); }} />
+                          <DocumentsSection
+                            documents={pkg.documents}
+                            packageId={pkg.id}
+                            userId={user?.id ?? ''}
+                            readonly={!editMode}
+                            onAddDocument={async (d) => { await addDocument(pkg.id, d, user?.fullName); await loadData(); }}
+                            onDeleteDocument={async (did: string) => { await deleteDocument(pkg.id, did, user?.fullName); await loadData(); }}
+                          />
                         </div>
                         {isAwarded && (
                           <BillingSection

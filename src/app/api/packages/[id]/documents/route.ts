@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id: pkgId } = await params;
   const parsed = await parseBody(req, DocumentCreateSchema);
   if (!parsed.ok) return parsed.response;
-  const { name, size, type } = parsed.data;
+  const { name, size, type, storagePath } = parsed.data;
 
   const supabase = await createServerSupabase();
   const { data: pkg } = await supabase.from('packages').select('id').eq('id', pkgId).single();
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: row, error } = await supabase
     .from('documents')
-    .insert({ package_id: pkgId, name, size, type, username: auth.fullName })
+    .insert({ package_id: pkgId, name, size, type, username: auth.fullName, storage_path: storagePath })
     .select()
     .single();
 
@@ -28,6 +28,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   return NextResponse.json({
     id: row.id, name: row.name, size: row.size || '', type: row.type || '',
-    uploadedBy: row.username, uploadedAt: row.uploaded_at,
+    uploadedBy: row.username, uploadedAt: row.uploaded_at, storagePath: row.storage_path || '',
   }, { status: 201 });
 }

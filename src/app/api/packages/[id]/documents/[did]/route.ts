@@ -8,8 +8,21 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (auth instanceof NextResponse) return auth;
   const { id: pkgId, did } = await params;
   const supabase = await createServerSupabase();
-  const { data: doc } = await supabase.from('documents').select('name').eq('id', did).single();
-  if (doc) await addAuditEntry(supabase, pkgId, auth.fullName, 'Document Removed', doc.name, '');
+
+  const { data: doc } = await supabase
+    .from('documents')
+    .select('name, storage_path')
+    .eq('id', did)
+    .single();
+
+  if (doc) {
+    // Remove from Supabase Storage if we have a path
+    if (doc.storage_path) {
+      await supabase.storage.from('package-documents').remove([doc.storage_path]);
+    }
+    await addAuditEntry(supabase, pkgId, auth.fullName, 'Document Removed', doc.name, '');
+  }
+
   await supabase.from('documents').delete().eq('id', did);
   return NextResponse.json({ ok: true });
 }

@@ -89,6 +89,7 @@ export const DocumentCreateSchema = z.object({
   name: trimmedString('name'),
   size: z.string().max(50).optional().default(''),
   type: z.string().max(200).optional().default(''),
+  storagePath: z.string().max(1000).optional().default(''),
 });
 
 export const InvoiceCreateSchema = z.object({
