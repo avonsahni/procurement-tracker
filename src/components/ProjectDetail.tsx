@@ -46,15 +46,15 @@ function getCategoryAccent(cat: string) {
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-export default function ProjectDetail({ projectId, onBack }: any) {
+export default function ProjectDetail({ projectId, onBack, initialCategory }: any) {
   const { user, editMode, setEditMode } = useAuth();
   const router = useRouter();
   const [project, setProject] = useState<any>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Navigation state
-  const [activeCat, setActiveCat] = useState<string | null>(null); // null = category grid
+  // Navigation state — initialised from URL param so back-navigation restores the table view
+  const [activeCat, setActiveCat] = useState<string | null>(initialCategory || null);
 
   // Package list state
   const [showAddPkg, setShowAddPkg] = useState(false);
@@ -145,7 +145,10 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   };
 
   const openPackage = (pkgId: string) => {
-    router.push(`/projects/${projectId}/packages/${pkgId}`);
+    // Carry the active category so the back button on the package page
+    // can return the user to the table view for that category.
+    const catParam = activeCat ? `?cat=${encodeURIComponent(activeCat)}` : "";
+    router.push(`/projects/${projectId}/packages/${pkgId}${catParam}`);
   };
 
   const calculateLeadTime = (p: any) => {
