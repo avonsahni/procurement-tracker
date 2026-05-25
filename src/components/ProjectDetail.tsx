@@ -1,34 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   fetchProject,
   addPackage,
   deletePackage,
-  updatePackage,
-  punchAward,
-  addVendor,
-  updateVendor,
-  deleteVendor,
-  addRemark,
-  addDocument,
-  deleteDocument,
-  addInvoice,
-  deleteInvoice,
   fetchCategories
 } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
-import StageStepper from "@/components/StageStepper";
-import VendorMatrix from "@/components/VendorMatrix";
-import AuditTrail from "@/components/AuditTrail";
-import RemarksSection from "@/components/RemarksSection";
-import DocumentsSection from "@/components/DocumentsSection";
-import BillingSection from "@/components/BillingSection";
 import {
-  ArrowLeft, Plus, Briefcase, Package, ChevronDown, Trash2, X,
+  ArrowLeft, Plus, Briefcase, Package, Trash2, X,
   Clock, CheckCircle2, Lock, Unlock, Search, Zap, Wrench, Hammer,
-  Monitor, HardDrive, ChevronRight, Layers
+  Monitor, HardDrive, ChevronRight, Layers, ArrowRight
 } from "lucide-react";
 
 // ─── Category helpers ────────────────────────────────────────────────────────
@@ -63,6 +48,7 @@ function getCategoryAccent(cat: string) {
 
 export default function ProjectDetail({ projectId, onBack }: any) {
   const { user, editMode, setEditMode } = useAuth();
+  const router = useRouter();
   const [project, setProject] = useState<any>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,17 +56,12 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   // Navigation state
   const [activeCat, setActiveCat] = useState<string | null>(null); // null = category grid
 
-  // Package state
-  const [expandedPkg, setExpandedPkg] = useState<string | null>(null);
+  // Package list state
   const [showAddPkg, setShowAddPkg] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStage, setFilterStage] = useState("All");
   const [filterAwardStatus, setFilterAwardStatus] = useState("All");
   const [newPkg, setNewPkg] = useState({ name: "", category: "", origin: "Domestic", currency: "INR" });
-  const [punchingAward, setPunchingAward] = useState<any>(null);
-  const [awardVal, setAwardVal] = useState("");
-  const [awardVendor, setAwardVendor] = useState("");
-  const [awardError, setAwardError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -158,27 +139,13 @@ export default function ProjectDetail({ projectId, onBack }: any) {
     loadData();
   };
 
-  const handlePunchAward = async () => {
-    if (!punchingAward || !awardVal || !awardVendor) return;
-    setAwardError(null);
-    try {
-      await punchAward(projectId, punchingAward.id, parseFloat(awardVal), awardVendor, user?.fullName);
-      setPunchingAward(null); setAwardVal(""); setAwardVendor(""); setAwardError(null);
-      loadData();
-    } catch (e: any) {
-      setAwardError(e.message || "Award failed");
-    }
-  };
-
-  const handleUpdateStage = async (pkgId: string, stage: string) => {
-    if (!editMode) return;
-    await updatePackage(pkgId, { currentStage: stage }, user?.fullName);
-    loadData();
-  };
-
   const handleDeletePkg = async (pkgId: string) => {
     if (!editMode) return;
     if (confirm("Delete package?")) { await deletePackage(pkgId); loadData(); }
+  };
+
+  const openPackage = (pkgId: string) => {
+    router.push(`/projects/${projectId}/packages/${pkgId}`);
   };
 
   const calculateLeadTime = (p: any) => {
@@ -200,7 +167,7 @@ export default function ProjectDetail({ projectId, onBack }: any) {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={activeCat ? () => { setActiveCat(null); setExpandedPkg(null); setSearch(""); setFilterStage("All"); setFilterAwardStatus("All"); } : onBack}
+              onClick={activeCat ? () => { setActiveCat(null); setSearch(""); setFilterStage("All"); setFilterAwardStatus("All"); } : onBack}
               className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition"
               title={activeCat ? "Back to categories" : "Back to dashboard"}
             >
@@ -247,9 +214,9 @@ export default function ProjectDetail({ projectId, onBack }: any) {
           const inProgressCount = total - awardedCount;
           const awardedPct      = total > 0 ? (awardedCount / total) * 100 : 0;
 
-          // Billed = sum of all invoices across all packages
+          // Billed = sum of billedAmount per package (pre-computed in assembleProjectSummary)
           const billedTotal = project.packages.reduce(
-            (s: number, pkg: any) => s + (pkg.invoices || []).reduce((ss: number, inv: any) => ss + inv.amount, 0), 0
+            (s: number, pkg: any) => s + (pkg.billedAmount || 0), 0
           );
           const awardedNotBilled = Math.max(0, awardedTotal - billedTotal);
           const balance          = Math.max(0, project.budget - awardedTotal);
@@ -448,7 +415,7 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                   return (
                     <button
                       key={cat}
-                      onClick={() => { setActiveCat(cat); setExpandedPkg(null); }}
+                      onClick={() => { setActiveCat(cat); }}
                       className="group text-left bg-white border border-slate-200 hover:border-blue-300 hover:shadow-md rounded-2xl p-5 transition-all duration-200 flex flex-col gap-4"
                     >
                       {/* Icon + name */}
@@ -499,15 +466,14 @@ export default function ProjectDetail({ projectId, onBack }: any) {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            VIEW B — PACKAGES IN SELECTED CATEGORY
+            VIEW B — PACKAGES TABLE IN SELECTED CATEGORY
         ════════════════════════════════════════════════════════════════════ */}
         {activeCat && (
           <>
             {/* Sub-header: breadcrumb + filters */}
             <div className="flex flex-wrap items-center gap-3 mb-5">
-              {/* Breadcrumb */}
               <button
-                onClick={() => { setActiveCat(null); setExpandedPkg(null); setSearch(""); setFilterStage("All"); setFilterAwardStatus("All"); }}
+                onClick={() => { setActiveCat(null); setSearch(""); setFilterStage("All"); setFilterAwardStatus("All"); }}
                 className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-600 transition font-medium"
               >
                 <Layers className="w-3.5 h-3.5" /> All Categories
@@ -519,10 +485,8 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                 <span className="text-slate-400 font-normal ml-0.5">· {catStats[activeCat]?.total} pkgs</span>
               </div>
 
-              {/* Spacer */}
               <div className="flex-1" />
 
-              {/* Filters */}
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -548,141 +512,141 @@ export default function ProjectDetail({ projectId, onBack }: any) {
               )}
             </div>
 
-            {/* Package list */}
-            <div className="space-y-3">
-              {catPackages.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200">
-                  <HardDrive className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500 text-sm">No packages match filters</p>
-                </div>
-              ) : (
-                catPackages.map((pkg: any) => {
-                  const isExpanded = expandedPkg === pkg.id;
-                  const isAwarded = pkg.currentStage === "Award";
-                  const stageIdx = STAGES.indexOf(pkg.currentStage);
-                  const progressPercent = ((stageIdx + 1) / STAGES.length) * 100;
-                  const leadTime = calculateLeadTime(pkg);
+            {/* Package table */}
+            {catPackages.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                <HardDrive className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 text-sm">No packages match filters</p>
+              </div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/60">
+                      <th className="px-5 py-3 text-xs font-medium text-slate-500 w-8">#</th>
+                      <th className="px-5 py-3 text-xs font-medium text-slate-500">Package</th>
+                      <th className="px-5 py-3 text-xs font-medium text-slate-500">Stage</th>
+                      <th className="px-5 py-3 text-xs font-medium text-slate-500 text-center">Vendors</th>
+                      <th className="px-5 py-3 text-xs font-medium text-slate-500">Award Value</th>
+                      <th className="px-5 py-3 text-xs font-medium text-slate-500">Lead Time</th>
+                      <th className="px-5 py-3 text-xs font-medium text-slate-500 w-16" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {catPackages.map((pkg: any, idx: number) => {
+                      const isAwarded    = pkg.currentStage === "Award";
+                      const stageIdx     = STAGES.indexOf(pkg.currentStage);
+                      const progressPct  = ((stageIdx + 1) / STAGES.length) * 100;
+                      const leadTime     = calculateLeadTime(pkg);
 
-                  return (
-                    <div key={pkg.id} className={`bg-white rounded-xl border transition overflow-hidden ${
-                      isExpanded ? "border-blue-300 shadow-sm" : isAwarded ? "border-emerald-200" : "border-slate-200 hover:border-slate-300"
-                    }`}>
-                      {/* Package row */}
-                      <div className="p-4 cursor-pointer" onClick={() => setExpandedPkg(isExpanded ? null : pkg.id)}>
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                          <div className="flex-1 min-w-[220px]">
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <h3 className="font-semibold text-slate-900 text-sm leading-none">{pkg.name}</h3>
-                              {isAwarded && (
-                                <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3" /> Awarded
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                              <span className="bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded">{pkg.origin}</span>
-                              {leadTime && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{leadTime}</span>}
-                            </div>
-                          </div>
+                      const stageDotColor =
+                        pkg.currentStage === "Award"                   ? "bg-emerald-500" :
+                        pkg.currentStage === "Commercial Negotiation"  ? "bg-blue-700" :
+                        pkg.currentStage === "Technical Negotiation"   ? "bg-blue-500" :
+                        pkg.currentStage === "RFQ Float"               ? "bg-blue-400" :
+                        "bg-slate-400";
 
-                          <div className="flex-1 min-w-[200px] max-w-[400px]">
-                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${isAwarded ? "bg-emerald-500" : "bg-blue-500"}`}
-                                style={{ width: `${progressPercent}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-slate-500 mt-1">{pkg.currentStage}</p>
-                          </div>
+                      return (
+                        <tr
+                          key={pkg.id}
+                          onClick={() => openPackage(pkg.id)}
+                          className={`border-b border-slate-100 last:border-0 cursor-pointer hover:bg-blue-50/40 transition group ${
+                            isAwarded ? "bg-emerald-50/20" : ""
+                          }`}
+                        >
+                          {/* # */}
+                          <td className="px-5 py-3.5">
+                            <span className="text-xs font-mono text-slate-400">{idx + 1}</span>
+                          </td>
 
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <p className="text-xs text-slate-500 mb-0.5">Award Value</p>
-                              <p className={`text-sm font-mono font-semibold leading-none ${isAwarded ? "text-emerald-600" : "text-slate-300"}`}>
-                                {isAwarded ? formatCurrency(pkg.awardValue || 0, pkg.currency) : "—"}
-                              </p>
+                          {/* Package name */}
+                          <td className="px-5 py-3.5">
+                            <p className="text-sm font-semibold text-slate-900 leading-none">{pkg.name}</p>
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded font-medium">{pkg.origin}</span>
+                              <span className="text-[10px] text-slate-400">{pkg.currency}</span>
                             </div>
-                            <div className="flex items-center gap-1">
+                          </td>
+
+                          {/* Stage */}
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${stageDotColor}`} />
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-slate-700 leading-none whitespace-nowrap">
+                                  {pkg.currentStage === "Award" ? (
+                                    <span className="text-emerald-700 flex items-center gap-1">
+                                      <CheckCircle2 className="w-3 h-3" /> Awarded
+                                    </span>
+                                  ) : pkg.currentStage}
+                                </p>
+                                <div className="w-24 h-1 bg-slate-100 rounded-full mt-1.5 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${isAwarded ? "bg-emerald-500" : "bg-blue-500"}`}
+                                    style={{ width: `${progressPct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Vendor count */}
+                          <td className="px-5 py-3.5 text-center">
+                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold ${
+                              (pkg.vendorCount || 0) > 0
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-slate-100 text-slate-400"
+                            }`}>
+                              {pkg.vendorCount || 0}
+                            </span>
+                          </td>
+
+                          {/* Award Value */}
+                          <td className="px-5 py-3.5">
+                            {isAwarded ? (
+                              <span className="text-sm font-mono font-semibold text-emerald-700">
+                                {formatCurrency(pkg.awardValue || 0, pkg.currency)}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-slate-300 font-mono">—</span>
+                            )}
+                          </td>
+
+                          {/* Lead time */}
+                          <td className="px-5 py-3.5">
+                            {leadTime ? (
+                              <span className="text-xs text-slate-500 flex items-center gap-1">
+                                <Clock className="w-3 h-3 flex-shrink-0" />{leadTime}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-300">—</span>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center justify-end gap-1">
                               {editMode && (
                                 <button
                                   onClick={e => { e.stopPropagation(); handleDeletePkg(pkg.id); }}
-                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                                  className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                                  title="Delete package"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               )}
-                              <div className={`p-1.5 rounded-full transition ${isExpanded ? "bg-blue-600 text-white rotate-180" : "bg-slate-100 text-slate-500"}`}>
-                                <ChevronDown className="w-3.5 h-3.5" />
+                              <div className="p-1.5 text-slate-300 group-hover:text-blue-600 transition">
+                                <ArrowRight className="w-3.5 h-3.5" />
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Expanded package detail */}
-                      {isExpanded && (
-                        <div className="border-t border-slate-100 p-5 bg-slate-50/40">
-                          <div className="mb-6 bg-white p-5 rounded-xl border border-slate-200">
-                            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                              <p className="text-xs font-medium text-slate-600">Procurement Timeline</p>
-                              {isAwarded && (
-                                <p className="text-xs font-medium text-emerald-700">
-                                  Awarded to {pkg.awardedVendorId} for {formatCurrency(pkg.awardValue || 0, pkg.currency)}
-                                </p>
-                              )}
-                            </div>
-                            <StageStepper
-                              currentStage={pkg.currentStage}
-                              readonly={!editMode}
-                              onStageChange={(st: any) => {
-                                if (st === "Award") { setPunchingAward(pkg); setAwardVal(pkg.awardValue?.toString() || ""); }
-                                else { handleUpdateStage(pkg.id, st); }
-                              }}
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 gap-6">
-                            <VendorMatrix
-                              vendors={pkg.vendors}
-                              currency={pkg.currency}
-                              awardedVendorId={pkg.awardedVendorId}
-                              awardValue={pkg.awardValue}
-                              readonly={!editMode}
-                              onUpdate={async (vid: any, updates: any) => { await updateVendor(pkg.id, vid, updates); await loadData(); }}
-                              onAdd={async (v: any) => { await addVendor(pkg.id, v, user?.fullName); await loadData(); }}
-                              onDelete={async (vid: any) => { await deleteVendor(pkg.id, vid, user?.fullName); await loadData(); }}
-                              onSelectWinner={(v: any) => { setPunchingAward(pkg); setAwardVendor(v.name); setAwardVal(v.revisedAmount.toString()); }}
-                            />
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                              <RemarksSection remarks={pkg.remarks} readonly={!editMode} onAddRemark={async (t: any) => { await addRemark(pkg.id, t, user?.fullName); await loadData(); }} />
-                              <DocumentsSection
-                                documents={pkg.documents}
-                                packageId={pkg.id}
-                                userId={user?.id ?? ''}
-                                readonly={!editMode}
-                                onAddDocument={async (d) => { await addDocument(pkg.id, d, user?.fullName); await loadData(); }}
-                                onDeleteDocument={async (did: string) => { await deleteDocument(pkg.id, did, user?.fullName); await loadData(); }}
-                              />
-                            </div>
-                            {isAwarded && (
-                              <BillingSection
-                                invoices={pkg.invoices || []}
-                                awardValue={pkg.awardValue || 0}
-                                currency={pkg.currency}
-                                readonly={!editMode}
-                                onAddInvoice={async (inv) => { await addInvoice(pkg.id, inv); await loadData(); }}
-                                onDeleteInvoice={async (iid) => { await deleteInvoice(pkg.id, iid); await loadData(); }}
-                              />
-                            )}
-                            <AuditTrail entries={pkg.auditTrail} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </>
         )}
       </main>
@@ -740,97 +704,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
         </div>
       )}
 
-      {/* ── AWARD MODAL ────────────────────────────────────────────────────── */}
-      {punchingAward && (() => {
-        // Available budget = project budget − all OTHER awarded packages
-        const otherAwarded = project.packages
-          .filter((p: any) => p.currentStage === "Award" && p.id !== punchingAward.id)
-          .reduce((s: number, p: any) => s + (p.awardValue || 0), 0);
-        const availableBudget = project.budget - otherAwarded;
-        const enteredVal = parseFloat(awardVal) || 0;
-        const wouldExceed = enteredVal > availableBudget;
-
-        return (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setPunchingAward(null); setAwardError(null); }}>
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-            <h2 className="text-base font-semibold text-slate-900 mb-1">Award Package</h2>
-            <p className="text-xs text-slate-500 mb-4">
-              Final award details for <span className="font-medium">{punchingAward.name}</span>
-            </p>
-
-            {/* Budget availability banner */}
-            <div className={`flex items-center justify-between rounded-lg px-3 py-2.5 mb-4 text-xs ${
-              availableBudget <= 0
-                ? "bg-red-50 border border-red-200 text-red-700"
-                : "bg-emerald-50 border border-emerald-200 text-emerald-700"
-            }`}>
-              <span>Available budget</span>
-              <span className="font-mono font-semibold">
-                {availableBudget <= 0 ? "Budget fully committed" : formatCurrency(availableBudget)}
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                  Award Value ({CURRENCY_SYMBOLS[punchingAward.currency as keyof typeof CURRENCY_SYMBOLS]})
-                </label>
-                <input
-                  type="number"
-                  value={awardVal}
-                  onChange={e => { setAwardVal(e.target.value); setAwardError(null); }}
-                  className={`w-full border rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 font-mono transition ${
-                    wouldExceed
-                      ? "border-red-400 focus:ring-red-400/30 focus:border-red-500"
-                      : "border-slate-200 focus:ring-blue-500/30 focus:border-blue-500"
-                  }`}
-                  autoFocus
-                />
-                {wouldExceed && (
-                  <p className="text-xs text-red-600 mt-1.5 flex items-center gap-1">
-                    ⚠ Exceeds available budget by {formatCurrency(enteredVal - availableBudget)}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">Awarded Vendor</label>
-                <select
-                  value={awardVendor}
-                  onChange={e => setAwardVendor(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                >
-                  <option value="">Select Vendor…</option>
-                  {punchingAward.vendors.map((v: any) => <option key={v.id} value={v.name}>{v.name}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* Server-side error */}
-            {awardError && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
-                {awardError}
-              </div>
-            )}
-
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={() => { setPunchingAward(null); setAwardError(null); }}
-                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePunchAward}
-                disabled={wouldExceed || availableBudget <= 0}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition"
-              >
-                Confirm Award
-              </button>
-            </div>
-          </div>
-        </div>
-        );
-      })()}
     </div>
   );
 }

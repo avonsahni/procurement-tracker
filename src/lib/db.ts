@@ -117,17 +117,20 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
 
   const pkgs = pkgRows || [];
 
-  // Fetch invoice amounts for all packages in one query so analytics can show
-  // billed totals without loading full invoice rows.
+  // Batch-fetch invoice totals and vendor counts for all packages at once.
   let billedByPkg: Record<string, number> = {};
+  let vendorCountByPkg: Record<string, number> = {};
   if (pkgs.length > 0) {
     const ids = pkgs.map((p: any) => p.id);
-    const { data: invRows } = await supabase
-      .from('invoices')
-      .select('package_id, amount')
-      .in('package_id', ids);
-    for (const inv of invRows || []) {
+    const [invRes, vendorRes] = await Promise.all([
+      supabase.from('invoices').select('package_id, amount').in('package_id', ids),
+      supabase.from('vendors').select('package_id').in('package_id', ids),
+    ]);
+    for (const inv of invRes.data || []) {
       billedByPkg[inv.package_id] = (billedByPkg[inv.package_id] || 0) + Number(inv.amount);
+    }
+    for (const v of vendorRes.data || []) {
+      vendorCountByPkg[v.package_id] = (vendorCountByPkg[v.package_id] || 0) + 1;
     }
   }
 
@@ -146,6 +149,7 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     createdAt: p.created_at,
     updatedAt: p.updated_at,
     billedAmount: billedByPkg[p.id] || 0,
+    vendorCount: vendorCountByPkg[p.id] || 0,
     vendors: [],
     remarks: [],
     documents: [],

@@ -4,6 +4,16 @@ import { assemblePackage, addAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { PackageUpdateSchema, parseBody } from '@/lib/validation';
 
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await guard('user');
+  if (auth instanceof NextResponse) return auth;
+  const { id } = await params;
+  const supabase = await createServerSupabase();
+  const { data: row } = await supabase.from('packages').select('*').eq('id', id).single();
+  if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json(await assemblePackage(supabase, row));
+}
+
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
   if (auth instanceof NextResponse) return auth;

@@ -85,6 +85,9 @@ export async function deleteCategory(name: string): Promise<void> {
 }
 
 // Packages
+export async function fetchPackage(pkgId: string): Promise<any> {
+  return api(`/api/packages/${pkgId}`);
+}
 export async function addPackage(projectId: string, data: { name: string; category: string; origin: string; currency: string }): Promise<void> {
   await api('/api/packages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, ...data }) });
 }

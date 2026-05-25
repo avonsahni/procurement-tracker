@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { assembleProject } from '@/lib/db';
+import { assembleProject, assembleProjectSummary } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { ProjectUpdateSchema, parseBody } from '@/lib/validation';
 
@@ -12,7 +12,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const supabase = await createServerSupabase();
   const { data: row } = await supabase.from('projects').select('*').eq('id', id).single();
   if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json(await assembleProject(supabase, row));
+  // Summary is enough for the project page (table view + analytics use billedAmount/vendorCount).
+  // Full data is fetched per-package when the package detail page opens.
+  return NextResponse.json(await assembleProjectSummary(supabase, row));
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
