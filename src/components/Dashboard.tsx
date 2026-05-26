@@ -80,7 +80,6 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
   const [showAddProject, setShowAddProject] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [expandedCard, setExpandedCard] = useState<number | null>(null);
 
   const [company, setCompany] = useState<CompanyInfo>({ name: "", tagline: "" });
   const [userList, setUserList] = useState<UserAccount[]>([]);
@@ -473,81 +472,23 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
           );
         })()}
 
-        {/* STAT CARDS */}
+        {/* STAT CARDS — portfolio rollups; drill into Project Portfolio below for detail */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {([
-            {
-              label: "Active Projects", icon: FolderOpen, accent: "text-blue-600",
-              val: stats.total,
-              rows: projects.map((p: any) => ({ label: p.name, sub: p.client, val: p.status }))
-            },
-            {
-              label: "Total Packages", icon: Box, accent: "text-slate-900",
-              val: stats.packages,
-              rows: projects.map((p: any) => ({ label: p.name, sub: `${p.packages.length} packages`, val: p.packages.length }))
-            },
-            {
-              label: "Total Budget", icon: Activity, accent: "text-slate-900",
-              val: formatCurrency(stats.budget),
-              rows: projects.map((p: any) => ({ label: p.name, sub: p.client, val: formatCurrency(p.budget) }))
-            },
-            {
-              label: "Awarded Pipeline", icon: Shield, accent: "text-blue-700",
-              val: formatCurrency(stats.awarded),
-              rows: projects.map((p: any) => { const aw = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0); return { label: p.name, sub: `${p.packages.filter((pk: any) => pk.currentStage === 'Award').length} awarded`, val: formatCurrency(aw) }; })
-            },
-            {
-              label: "Total Billed", icon: Receipt, accent: "text-violet-700",
-              val: formatCurrency(stats.billed),
-              rows: projects.map((p: any) => {
-                const billed = p.packages.reduce((s: any, pk: any) => s + (pk.billedAmount || 0), 0);
-                const awarded = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
-                return {
-                  label: p.name,
-                  sub: awarded > 0 ? `${((billed / awarded) * 100).toFixed(0)}% of awarded` : "No awards yet",
-                  val: formatCurrency(billed)
-                };
-              })
-            },
-          ] as any[]).map((s, i) => {
-            const isOpen = expandedCard === i;
-            return (
-              <div
-                key={i}
-                onClick={() => setExpandedCard(isOpen ? null : i)}
-                className={`bg-white border rounded-xl transition cursor-pointer select-none ${
-                  isOpen ? 'border-blue-300 shadow-sm' : 'border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                      <s.icon className={`w-4 h-4 ${s.accent}`} />
-                    </div>
-                    <span className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mb-1">{s.label}</p>
-                  <p className={`text-xl font-semibold leading-none ${s.accent}`}>{s.val}</p>
-                </div>
-
-                {isOpen && (
-                  <div className="border-t border-slate-100 px-5 pb-4 pt-3 space-y-1">
-                    {s.rows.map((row: any, ri: number) => (
-                      <div key={ri} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-slate-700 truncate leading-none">{row.label}</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">{row.sub}</p>
-                        </div>
-                        <span className="text-xs font-mono font-medium text-slate-700 ml-3 flex-shrink-0">{row.val}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            { label: "Active Projects",  icon: FolderOpen, accent: "text-blue-600",   val: stats.total },
+            { label: "Total Packages",   icon: Box,        accent: "text-slate-900",  val: stats.packages },
+            { label: "Total Budget",     icon: Activity,   accent: "text-slate-900",  val: formatCurrency(stats.budget) },
+            { label: "Awarded Pipeline", icon: Shield,     accent: "text-blue-700",   val: formatCurrency(stats.awarded) },
+            { label: "Total Billed",     icon: Receipt,    accent: "text-violet-700", val: formatCurrency(stats.billed) },
+          ] as any[]).map((s, i) => (
+            <div key={i} className="bg-white border border-slate-200 rounded-xl p-5">
+              <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 w-fit mb-3">
+                <s.icon className={`w-4 h-4 ${s.accent}`} />
               </div>
-            );
-          })}
+              <p className="text-xs text-slate-500 mb-1">{s.label}</p>
+              <p className={`text-xl font-semibold leading-none ${s.accent}`}>{s.val}</p>
+            </div>
+          ))}
         </div>
 
         {/* PIPELINE */}
