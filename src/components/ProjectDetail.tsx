@@ -35,18 +35,6 @@ function StatTile({ label, value, sub, accent }: { label: string; value: string 
   );
 }
 
-/** Read-only progress bar for execution view package cards. */
-function ReadOnlyBar({ value }: { value: number }) {
-  const done = value >= 100;
-  return (
-    <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
-      <div
-        className={`h-full rounded-full ${done ? "bg-emerald-500" : value > 0 ? "bg-blue-500" : "bg-slate-200"}`}
-        style={{ width: `${value}%` }}
-      />
-    </div>
-  );
-}
 
 // ─── main component ──────────────────────────────────────────────────────────
 
@@ -759,9 +747,7 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                     {projectCats.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                   <span className="text-xs text-slate-400 ml-1">{filteredExecution.length} package{filteredExecution.length !== 1 ? "s" : ""}</span>
-                  <span className="text-xs text-slate-400 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
-                    Read-only · open a package to edit milestones
-                  </span>
+                  <span className="text-xs text-slate-400">Click a package to view details and edit milestones</span>
                 </div>
 
                 {filteredExecution.length === 0 ? (
@@ -770,29 +756,34 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                     <p className="text-slate-500 text-sm">No packages match filters</p>
                   </div>
                 ) : (
-                  <div className="space-y-5">
+                  <div className="space-y-3">
                     {filteredExecution.map((pkg: any, idx: number) => {
                       const pkgProgress = execMilestones[pkg.id] || {};
                       const pkgSum      = EXECUTION_MILESTONES.reduce((s, n) => s + (pkgProgress[n] ?? 0), 0);
                       const pkgAvg      = pkgSum / EXECUTION_MILESTONES.length;
                       const finPct      = (pkg.awardValue || 0) > 0
                         ? Math.min(100, ((pkg.billedAmount || 0) / pkg.awardValue) * 100) : 0;
+                      const doneCount   = EXECUTION_MILESTONES.filter(n => (pkgProgress[n] ?? 0) === 100).length;
 
                       return (
-                        <div key={pkg.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                          {/* Package header */}
+                        <div
+                          key={pkg.id}
+                          onClick={() => openPackage(pkg.id)}
+                          className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group"
+                        >
+                          {/* Package header — click navigates to package detail */}
                           <div className="px-5 py-4 bg-slate-50/60 border-b border-slate-200 flex items-center gap-4">
                             <div className="w-8 h-8 bg-emerald-100 border border-emerald-200 rounded-lg flex items-center justify-center flex-shrink-0">
                               <span className="text-xs font-bold text-emerald-700">{idx + 1}</span>
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-slate-900 truncate">{pkg.name}</p>
+                              <p className="text-sm font-semibold text-slate-900 group-hover:text-blue-700 transition truncate">{pkg.name}</p>
                               <p className="text-[10px] text-slate-500 mt-0.5">
                                 {pkg.category || "Uncategorised"}
                                 {pkg.awardedVendorId ? ` · ${pkg.awardedVendorId}` : ""}
                               </p>
                             </div>
-                            <div className="flex items-center gap-5 flex-shrink-0">
+                            <div className="flex items-center gap-4 flex-shrink-0">
                               <div className="text-right hidden sm:block">
                                 <p className="text-[10px] text-slate-400">Award Value</p>
                                 <p className="text-sm font-mono font-semibold text-emerald-700">{formatCurrency(pkg.awardValue || 0, pkg.currency)}</p>
@@ -805,56 +796,38 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                                 <p className="text-[10px] text-slate-400">Financial</p>
                                 <p className={`text-sm font-mono font-semibold ${finPct >= 100 ? "text-emerald-600" : "text-violet-700"}`}>{finPct.toFixed(0)}%</p>
                               </div>
-                              <button
-                                onClick={() => openPackage(pkg.id)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-blue-600 hover:text-white rounded-lg text-xs font-medium text-slate-600 transition"
-                                title="Open package to edit milestones"
-                              >
-                                Edit <ArrowRight className="w-3.5 h-3.5" />
-                              </button>
+                              <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition flex-shrink-0" />
                             </div>
                           </div>
 
-                          {/* Milestone bars — read-only; edit via package detail page */}
-                          <div className="px-5 py-4">
-                            <div className="space-y-1">
-                              {EXECUTION_MILESTONES.map((name, i) => {
-                                const prog = pkgProgress[name] ?? 0;
-                                const done = prog === 100;
-                                return (
-                                  <div key={name} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
-                                    <div className="flex-shrink-0 w-5 flex items-center justify-center">
-                                      {done
-                                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                        : <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
-                                      }
-                                    </div>
-                                    <span className={`text-xs font-medium flex-shrink-0 w-44 truncate ${done ? "text-slate-400 line-through" : "text-slate-700"}`}>
-                                      {name}
-                                    </span>
-                                    <div className="flex-1 min-w-0">
-                                      <ReadOnlyBar value={prog} />
-                                    </div>
-                                    <span className={`text-xs font-mono font-semibold w-9 text-right flex-shrink-0 ${
-                                      done ? "text-emerald-600" : prog > 0 ? "text-blue-600" : "text-slate-400"
-                                    }`}>{prog}%</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-
-                            {/* Package avg row */}
-                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3">
-                              <span className="text-[10px] text-slate-400 flex-shrink-0 w-24">Package avg</span>
-                              <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                          {/* Roll-up summary — 2 bars only */}
+                          <div className="px-5 py-4 space-y-3">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-slate-500 w-32 flex-shrink-0">
+                                Milestone Progress
+                                <span className="text-slate-400 ml-1">({doneCount}/{EXECUTION_MILESTONES.length})</span>
+                              </span>
+                              <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
                                 <div
                                   className={`h-full rounded-full transition-all duration-300 ${pkgAvg >= 100 ? "bg-emerald-500" : pkgAvg > 0 ? "bg-blue-500" : "bg-slate-200"}`}
                                   style={{ width: `${Math.min(100, pkgAvg)}%` }}
                                 />
                               </div>
-                              <span className={`text-xs font-mono font-semibold flex-shrink-0 w-10 text-right ${
+                              <span className={`text-xs font-mono font-semibold w-10 text-right flex-shrink-0 ${
                                 pkgAvg >= 100 ? "text-emerald-600" : pkgAvg > 0 ? "text-blue-600" : "text-slate-400"
                               }`}>{pkgAvg.toFixed(1)}%</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-slate-500 w-32 flex-shrink-0">Financial Progress</span>
+                              <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-300 ${finPct >= 100 ? "bg-emerald-500" : finPct > 0 ? "bg-violet-500" : "bg-slate-200"}`}
+                                  style={{ width: `${Math.min(100, finPct)}%` }}
+                                />
+                              </div>
+                              <span className={`text-xs font-mono font-semibold w-10 text-right flex-shrink-0 ${
+                                finPct >= 100 ? "text-emerald-600" : finPct > 0 ? "text-violet-600" : "text-slate-400"
+                              }`}>{finPct.toFixed(1)}%</span>
                             </div>
                           </div>
                         </div>
