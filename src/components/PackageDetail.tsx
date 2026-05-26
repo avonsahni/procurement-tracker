@@ -334,9 +334,9 @@ export default function PackageDetail({
           </>
         )}
 
-        {/* ── BILLING + MILESTONES — shown in both flows (awarded only) ───── */}
-        {isAwarded && (
-          <div className={`grid gap-6 ${mode === "execution" ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
+        {/* ── BILLING + MILESTONES — execution flow only ───────────────── */}
+        {mode === "execution" && isAwarded && (
+          <div className="grid gap-6 grid-cols-1">
             <BillingSection
               invoices={pkg.invoices || []}
               awardValue={pkg.awardValue || 0}
