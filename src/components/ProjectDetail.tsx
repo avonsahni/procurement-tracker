@@ -72,6 +72,13 @@ export default function ProjectDetail({ projectId, onBack }: ProjectDetailProps)
 
   useEffect(() => { loadData(); }, [projectId]);
 
+  // Reload when user navigates back (browser back-cache restores component without remounting)
+  useEffect(() => {
+    const handleVisible = () => { if (document.visibilityState === "visible") loadData(); };
+    document.addEventListener("visibilitychange", handleVisible);
+    return () => document.removeEventListener("visibilitychange", handleVisible);
+  }, [projectId]);
+
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
       <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
@@ -363,7 +370,7 @@ export default function ProjectDetail({ projectId, onBack }: ProjectDetailProps)
                       </div>
                       <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
                         <p className="text-[10px] text-blue-600 mb-1">Milestones</p>
-                        <p className="text-xl font-mono font-bold text-blue-700">{summaryMilestonePct.toFixed(0)}%</p>
+                        <p className="text-xl font-mono font-bold text-blue-700">{exMilestonePct.toFixed(0)}%</p>
                       </div>
                       <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 text-center">
                         <p className="text-[10px] text-violet-600 mb-1">Financial</p>

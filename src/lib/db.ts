@@ -150,6 +150,9 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     for (const v of vendorRes.data || []) {
       vendorCountByPkg[v.package_id] = (vendorCountByPkg[v.package_id] || 0) + 1;
     }
+    if (milestoneRes.error) {
+      console.error('[assembleProjectSummary] milestone query failed:', milestoneRes.error.message);
+    }
     for (const m of milestoneRes.data || []) {
       milestonesTotalByPkg[m.package_id] = (milestonesTotalByPkg[m.package_id] || 0) + 1;
       milestonesCompletedByPkg[m.package_id] = (milestonesCompletedByPkg[m.package_id] || 0) + Number(m.progress || 0);
