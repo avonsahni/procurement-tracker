@@ -5,17 +5,23 @@ import { EXECUTION_MILESTONES } from '@/lib/types';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
-  if (auth instanceof NextResponse) return auth;
+  if (auth instanceof NextResponse) {
+    console.error('[milestones PATCH] guard failed — user not authenticated or canEdit=false');
+    return auth;
+  }
   const { id: pkgId } = await params;
-  const { milestoneName, progress } = await req.json();
+  const body = await req.json();
+  const { milestoneName, progress } = body;
+
+  console.log('[milestones PATCH] pkgId=%s milestone=%s progress=%s user=%s', pkgId, milestoneName, progress, auth.fullName);
 
   if (typeof progress !== 'number' || progress < 0 || progress > 100) {
+    console.error('[milestones PATCH] invalid progress value:', progress);
     return NextResponse.json({ error: 'progress must be a number 0–100' }, { status: 400 });
   }
 
   const supabase = await createServerSupabase();
 
-  // Check if a row already exists to preserve its display_order
   const { data: existing } = await supabase
     .from('package_milestones')
     .select('display_order')
@@ -25,7 +31,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const displayOrder = existing?.display_order ?? (EXECUTION_MILESTONES.indexOf(milestoneName) + 1);
 
-  // Upsert so legacy packages (no pre-seeded rows) get rows created on first edit
   const { error } = await supabase
     .from('package_milestones')
     .upsert({
@@ -37,6 +42,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       completed_by: progress === 100 ? auth.fullName : null,
     }, { onConflict: 'package_id,milestone_name' });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[milestones PATCH] upsert error:', error.message, error.code, error.details);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  console.log('[milestones PATCH] saved ok — pkgId=%s milestone=%s progress=%s', pkgId, milestoneName, progress);
   return NextResponse.json({ ok: true });
 }

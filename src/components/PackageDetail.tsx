@@ -47,6 +47,7 @@ export default function PackageDetail({
   const [pkg, setPkg]         = useState<any>(null);
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [milestoneError, setMilestoneError] = useState<string | null>(null);
 
   // Award modal state
   const [punchingAward, setPunchingAward] = useState(false);
@@ -344,16 +345,25 @@ export default function PackageDetail({
               onAddInvoice={async (inv) => { await addInvoice(packageId, inv); await reloadPackage(); }}
               onDeleteInvoice={async (iid) => { await deleteInvoice(packageId, iid); await reloadPackage(); }}
             />
+            {milestoneError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-xs text-red-700 flex items-center justify-between">
+                <span>Milestone save failed: {milestoneError}</span>
+                <button onClick={() => setMilestoneError(null)} className="ml-3 text-red-500 hover:text-red-700 font-bold">✕</button>
+              </div>
+            )}
             <MilestoneTracker
               milestones={pkg.milestones || []}
               readonly={!editMode}
               onUpdate={async (name, progress) => {
+                setMilestoneError(null);
                 try {
                   await updateMilestoneProgress(packageId, name, progress, user?.fullName);
                   await reloadPackage();
-                } catch (e) {
-                  console.error('Milestone save failed:', e);
-                  await reloadPackage(); // snap bar back to last saved value
+                } catch (e: any) {
+                  const msg = e?.message || String(e);
+                  console.error('Milestone save failed:', msg);
+                  setMilestoneError(msg);
+                  await reloadPackage();
                 }
               }}
             />
