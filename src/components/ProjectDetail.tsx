@@ -40,16 +40,17 @@ function StatTile({ label, value, sub, accent }: { label: string; value: string 
 
 interface ProjectDetailProps {
   projectId: string;
+  initialView?: View;
   onBack: () => void;
 }
-export default function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
+export default function ProjectDetail({ projectId, initialView, onBack }: ProjectDetailProps) {
   const { user, editMode, setEditMode } = useAuth();
   const router = useRouter();
 
   const [project, setProject]       = useState<ProjectSummary | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading]       = useState(true);
-  const [view, setView]             = useState<View>("landing");
+  const [view, setView]             = useState<View>(initialView ?? "landing");
 
   // filters
   const [search, setSearch]         = useState("");

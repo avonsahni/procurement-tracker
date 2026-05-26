@@ -1,7 +1,7 @@
 "use client";
 
 import { use, Suspense, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthContext";
 import ProjectDetail from "@/components/ProjectDetail";
 import LoginForm from "@/components/auth/LoginForm";
@@ -10,6 +10,8 @@ import LoginForm from "@/components/auth/LoginForm";
 function ProjectPageInner({ id }: { id: string }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialView = (searchParams.get("view") as "landing" | "purchasing" | "execution") ?? "landing";
   // A new timestamp on every mount forces ProjectDetail to remount (and re-fetch)
   // whenever the user navigates back from the package detail page.
   const [mountKey] = useState(() => Date.now().toString());
@@ -29,6 +31,7 @@ function ProjectPageInner({ id }: { id: string }) {
       <ProjectDetail
         key={`${id}-${mountKey}`}
         projectId={id}
+        initialView={initialView}
         onBack={() => router.push("/")}
       />
     </main>

@@ -29,7 +29,8 @@ function PackagePageInner({
   // router.push() can serve from the 30s client-side cache; window.location
   // forces a fresh mount and re-runs ProjectDetail's data-loading useEffect.
   const handleBack = () => {
-    window.location.href = `/projects/${projectId}`;
+    const view = mode === "execution" ? "execution" : "purchasing";
+    window.location.href = `/projects/${projectId}?view=${view}`;
   };
 
   return (
