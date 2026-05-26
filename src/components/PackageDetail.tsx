@@ -267,9 +267,15 @@ export default function PackageDetail({
               </p>
             )}
           </div>
+          {isAwarded && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg mb-4">
+              <Lock className="w-3 h-3 flex-shrink-0" />
+              Package is locked — no edits allowed after award. Invoices can still be recorded up to the award value.
+            </div>
+          )}
           <StageStepper
             currentStage={pkg.currentStage}
-            readonly={!editMode}
+            readonly={!editMode || isAwarded}
             onStageChange={handleStageChange}
           />
         </div>
@@ -280,7 +286,7 @@ export default function PackageDetail({
           currency={pkg.currency}
           awardedVendorId={pkg.awardedVendorId}
           awardValue={pkg.awardValue}
-          readonly={!editMode}
+          readonly={!editMode || isAwarded}
           onUpdate={async (vid: any, updates: any) => { await updateVendor(packageId, vid, updates); await reloadPackage(); }}
           onAdd={async (v: any) => { await addVendor(packageId, v, user?.fullName); await reloadPackage(); }}
           onDelete={async (vid: any) => { await deleteVendor(packageId, vid, user?.fullName); await reloadPackage(); }}
@@ -295,14 +301,14 @@ export default function PackageDetail({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <RemarksSection
             remarks={pkg.remarks}
-            readonly={!editMode}
+            readonly={!editMode || isAwarded}
             onAddRemark={async (t: any) => { await addRemark(packageId, t, user?.fullName); await reloadPackage(); }}
           />
           <DocumentsSection
             documents={pkg.documents}
             packageId={packageId}
             userId={user?.id ?? ""}
-            readonly={!editMode}
+            readonly={!editMode || isAwarded}
             onAddDocument={async (d) => { await addDocument(packageId, d, user?.fullName); await reloadPackage(); }}
             onDeleteDocument={async (did: string) => { await deleteDocument(packageId, did, user?.fullName); await reloadPackage(); }}
           />

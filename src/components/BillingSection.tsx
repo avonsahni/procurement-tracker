@@ -75,7 +75,7 @@ export default function BillingSection({
           <h3 className="font-semibold text-slate-900 text-sm">Billing</h3>
           <span className="text-xs text-slate-400 ml-1">({invoices.length})</span>
         </div>
-        {!readonly && !overbilled && (
+        {!readonly && !overbilled && !fullyBilled && (
           <button
             onClick={() => setShowAdd(true)}
             className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-1 transition"
@@ -257,8 +257,8 @@ export default function BillingSection({
               </button>
               <button
                 type="submit"
-                disabled={submitting}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition">
+                disabled={submitting || wouldExceedAward}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition">
                 Record
               </button>
             </div>
