@@ -29,6 +29,7 @@ export const SignupSchema = z.object({
   email: z.string().trim().email('valid email required'),
   password: z.string().min(8, 'password must be at least 8 characters'),
   fullName: trimmedString('fullName', 1, 200),
+  orgName: z.string().trim().max(200).optional().default('My Organisation'),
 });
 
 export const ProjectCreateSchema = z.object({

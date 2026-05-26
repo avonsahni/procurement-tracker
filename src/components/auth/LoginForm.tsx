@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { getCompanyInfo, CompanyInfo } from "@/lib/store";
-import { Lock, Mail, User, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Lock, Mail, User, ArrowRight, CheckCircle2, Building2 } from "lucide-react";
 
 type Mode = "login" | "signup";
 
@@ -13,6 +13,7 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [orgName, setOrgName] = useState("");
   const [error, setError] = useState("");
   const [confirmMessage, setConfirmMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,7 +39,7 @@ export default function LoginForm() {
       if (mode === "login") {
         await login(email, password);
       } else {
-        const { needsConfirmation } = await signup(email, password, fullName);
+        const { needsConfirmation } = await signup(email, password, fullName, orgName);
         if (needsConfirmation) {
           setConfirmMessage(`Check ${email} to confirm your account, then sign in.`);
           setMode("login");
@@ -79,9 +80,16 @@ export default function LoginForm() {
                   mode === "signup" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                 }`}
               >
-                Create account
+                Register Organisation
               </button>
             </div>
+
+            {mode === "signup" && (
+              <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 mb-4 text-xs text-blue-700">
+                This creates a <strong>new, separate organisation</strong> with its own projects and users.
+                If you were invited to join an existing team, ask your admin to add you instead.
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
@@ -97,19 +105,34 @@ export default function LoginForm() {
               )}
 
               {mode === "signup" && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Full Name</label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      required
-                      value={fullName}
-                      onChange={e => setFullName(e.target.value)}
-                      placeholder="Jane Smith"
-                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 text-sm text-slate-900 placeholder-slate-400 transition"
-                    />
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Organisation Name</label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        required
+                        value={orgName}
+                        onChange={e => setOrgName(e.target.value)}
+                        placeholder="Acme Construction Ltd"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 text-sm text-slate-900 placeholder-slate-400 transition"
+                      />
+                    </div>
                   </div>
-                </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Your Full Name</label>
+                    <div className="relative">
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        required
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value)}
+                        placeholder="Jane Smith"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 text-sm text-slate-900 placeholder-slate-400 transition"
+                      />
+                    </div>
+                  </div>
+                </>
               )}
 
               <div>
@@ -147,9 +170,9 @@ export default function LoginForm() {
                 disabled={loading}
                 className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
               >
-                {loading ? (mode === "login" ? "Signing in..." : "Creating account...") : (
+                {loading ? (mode === "login" ? "Signing in..." : "Creating organisation...") : (
                   <>
-                    {mode === "login" ? "Enter Tracking Suite" : "Create Account"}
+                    {mode === "login" ? "Enter Tracking Suite" : "Register Organisation"}
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -158,9 +181,9 @@ export default function LoginForm() {
 
             {mode === "login" && (
               <p className="text-center text-xs text-slate-500 mt-6">
-                New here?{" "}
+                New company?{" "}
                 <button onClick={() => switchMode("signup")} className="text-blue-600 hover:text-blue-700 font-medium">
-                  Create an account
+                  Register a new organisation
                 </button>
               </p>
             )}
