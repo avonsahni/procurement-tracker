@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { fetchProject, addPackage, deletePackage, fetchCategories } from "@/lib/store";
+import { fetchProject, addPackage, deletePackage, fetchCategories, updateMilestoneProgress } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
@@ -10,12 +10,12 @@ import {
   ArrowLeft, Plus, Briefcase, Package, Trash2, X,
   Clock, CheckCircle2, Lock, Unlock, Search,
   ShoppingCart, Activity, ChevronRight, ArrowRight,
-  HardDrive, TrendingUp, Receipt, Target,
+  HardDrive, Receipt, Target,
 } from "lucide-react";
 
 type View = "landing" | "purchasing" | "execution";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// ─── shared helpers ──────────────────────────────────────────────────────────
 
 function MiniBar({ pct, color }: { pct: number; color: string }) {
   return (
@@ -28,9 +28,65 @@ function MiniBar({ pct, color }: { pct: number; color: string }) {
 function StatTile({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent: string }) {
   return (
     <div className={`rounded-xl p-4 border ${accent}`}>
-      <p className="text-[10px] font-medium uppercase tracking-wide text-current opacity-60 mb-1">{label}</p>
+      <p className="text-[10px] font-medium uppercase tracking-wide opacity-60 mb-1">{label}</p>
       <p className="text-2xl font-mono font-bold leading-none">{value}</p>
       {sub && <p className="text-[10px] mt-1 opacity-60">{sub}</p>}
+    </div>
+  );
+}
+
+/** Draggable progress bar used inline in the execution package cards. */
+function InlineDraggableBar({
+  value, onChange, onCommit, readonly,
+}: {
+  value: number; onChange: (v: number) => void; onCommit: (v: number) => void; readonly?: boolean;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  const clamp = (clientX: number): number => {
+    if (!trackRef.current) return value;
+    const rect = trackRef.current.getBoundingClientRect();
+    return Math.round(Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)));
+  };
+
+  const done = value >= 100;
+  const thumbColor = done ? "border-emerald-500" : "border-blue-500";
+  const fillColor  = done ? "bg-emerald-500" : value > 0 ? "bg-blue-500" : "bg-slate-200";
+
+  return (
+    <div
+      ref={trackRef}
+      className={`relative h-5 w-full ${readonly ? "cursor-default" : "cursor-ew-resize"} select-none`}
+      onPointerDown={e => {
+        if (readonly) return;
+        dragging.current = true;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        onChange(clamp(e.clientX));
+      }}
+      onPointerMove={e => {
+        if (!dragging.current || readonly) return;
+        onChange(clamp(e.clientX));
+      }}
+      onPointerUp={e => {
+        if (!dragging.current) return;
+        dragging.current = false;
+        const v = clamp(e.clientX);
+        onChange(v);
+        onCommit(v);
+      }}
+    >
+      {/* track */}
+      <div className="absolute inset-0 top-1/2 -translate-y-1/2 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+        <div className={`h-full rounded-full transition-none ${fillColor}`} style={{ width: `${value}%` }} />
+      </div>
+      {/* thumb */}
+      {!readonly && (
+        <div
+          className={`absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-white border-2 ${thumbColor} rounded-full shadow pointer-events-none z-10`}
+          style={{ left: `calc(${value}% - 10px)` }}
+        />
+      )}
     </div>
   );
 }
@@ -41,15 +97,18 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   const { user, editMode, setEditMode } = useAuth();
   const router = useRouter();
 
-  const [project, setProject]     = useState<any>(null);
+  const [project, setProject]       = useState<any>(null);
   const [categories, setCategories] = useState<string[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [view, setView]           = useState<View>("landing");
+  const [loading, setLoading]       = useState(true);
+  const [view, setView]             = useState<View>("landing");
 
-  // filters shared across both detail views
-  const [search, setSearch]       = useState("");
-  const [filterCat, setFilterCat] = useState("All");
+  // filters
+  const [search, setSearch]         = useState("");
+  const [filterCat, setFilterCat]   = useState("All");
   const [filterStage, setFilterStage] = useState("All");
+
+  // local milestone state for execution view (live drag feedback)
+  const [execMilestones, setExecMilestones] = useState<Record<string, Record<string, number>>>({});
 
   const [showAddPkg, setShowAddPkg] = useState(false);
   const [newPkg, setNewPkg] = useState({ name: "", category: "", origin: "Domestic", currency: "INR" });
@@ -67,6 +126,20 @@ export default function ProjectDetail({ projectId, onBack }: any) {
 
   useEffect(() => { loadData(); }, [projectId]);
 
+  // Seed execMilestones from project data whenever project loads
+  useEffect(() => {
+    if (!project) return;
+    const init: Record<string, Record<string, number>> = {};
+    for (const pkg of project.packages as any[]) {
+      if (pkg.currentStage !== "Award") continue;
+      const pkgMap: Record<string, number> = {};
+      for (const name of EXECUTION_MILESTONES) pkgMap[name] = 0;
+      for (const m of (pkg.milestones || []) as any[]) pkgMap[m.milestoneName] = m.progress;
+      init[pkg.id] = pkgMap;
+    }
+    setExecMilestones(init);
+  }, [project]);
+
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
       <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
@@ -82,32 +155,49 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   const awardedPkgs  = allPkgs.filter(p => p.currentStage === "Award");
   const inProgPkgs   = allPkgs.filter(p => p.currentStage !== "Award");
 
-  const totalAwarded    = awardedPkgs.reduce((s: number, p: any) => s + (p.awardValue || 0), 0);
-  const totalBilled     = allPkgs.reduce((s: number, p: any) => s + (p.billedAmount || 0), 0);
-  const balance         = Math.max(0, project.budget - totalAwarded);
-  const awardedNotBill  = Math.max(0, totalAwarded - totalBilled);
-  const overrun         = totalAwarded > project.budget ? totalAwarded - project.budget : 0;
+  const totalAwarded = awardedPkgs.reduce((s: number, p: any) => s + (p.awardValue || 0), 0);
+  const totalBilled  = allPkgs.reduce((s: number, p: any) => s + (p.billedAmount || 0), 0);
+  const balance      = Math.max(0, project.budget - totalAwarded);
+  const overrun      = totalAwarded > project.budget ? totalAwarded - project.budget : 0;
+  const awardedNotBill = Math.max(0, totalAwarded - totalBilled);
+  const awardPct     = project.budget > 0 ? Math.min(100, (totalAwarded / project.budget) * 100) : 0;
 
-  const exMilestonesSum   = awardedPkgs.reduce((s: number, p: any) => s + (p.milestonesProgressSum || 0), 0);
-  const exMilestonesTotal = awardedPkgs.reduce((s: number, p: any) => s + (p.totalMilestones || 0), 0);
-  const exMilestonePct    = exMilestonesTotal > 0 ? exMilestonesSum / exMilestonesTotal : 0;
-  const exFinancialPct    = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
-  const awardPct          = project.budget > 0 ? Math.min(100, (totalAwarded / project.budget) * 100) : 0;
+  // Purchasing stats (from project summary aggregates)
+  const summaryMilestoneSum   = awardedPkgs.reduce((s: number, p: any) => s + (p.milestonesProgressSum || 0), 0);
+  const summaryMilestoneCount = awardedPkgs.reduce((s: number, p: any) => s + (p.totalMilestones || 0), 0);
+  const summaryMilestonePct   = summaryMilestoneCount > 0 ? summaryMilestoneSum / summaryMilestoneCount : 0;
+  const summaryFinancialPct   = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
 
-  const projectCats = Array.from(new Set(allPkgs.map((p: any) => p.category || "Uncategorised"))) as string[];
+  // Execution stats — computed live from execMilestones local state
+  const execMilestoneCount = awardedPkgs.length * EXECUTION_MILESTONES.length;
+  const execProgressSum    = Object.values(execMilestones).reduce(
+    (s, pkgMap) => s + Object.values(pkgMap).reduce((ss, v) => ss + v, 0), 0
+  );
+  const exMilestonePct = execMilestoneCount > 0 ? execProgressSum / execMilestoneCount : 0;
+  const exFinancialPct = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
 
-  // stage distribution
+  // Per-milestone average across all awarded packages (for pipeline chart)
+  const perMilestoneAvg = EXECUTION_MILESTONES.map(name => ({
+    name,
+    avg: awardedPkgs.length > 0
+      ? awardedPkgs.reduce((s: number, pkg: any) => s + (execMilestones[pkg.id]?.[name] ?? 0), 0) / awardedPkgs.length
+      : 0,
+  }));
+
+  // Stage distribution
   const stageDist = STAGES.map(s => ({
     label: s, count: allPkgs.filter((p: any) => p.currentStage === s).length,
     color: s === "Award" ? "bg-emerald-500" : s === "Commercial Negotiation" ? "bg-blue-700"
          : s === "Technical Negotiation" ? "bg-blue-500" : s === "RFQ Float" ? "bg-blue-400" : "bg-slate-300",
   }));
 
-  // budget bar widths
+  // Budget bar widths
   const barBase     = overrun > 0 ? totalAwarded : project.budget;
   const billedPct   = barBase > 0 ? Math.min(100, (totalBilled / barBase) * 100) : 0;
   const unbilledPct = barBase > 0 ? Math.min(100 - billedPct, (awardedNotBill / barBase) * 100) : 0;
   const balancePct  = barBase > 0 ? Math.max(0, (balance / barBase) * 100) : 100;
+
+  const projectCats = Array.from(new Set(allPkgs.map((p: any) => p.category || "Uncategorised"))) as string[];
 
   // ── filtered package lists ─────────────────────────────────────────────────
   const filteredPurchasing = allPkgs.filter((p: any) =>
@@ -141,6 +231,14 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   const goBack = () => {
     if (view !== "landing") { setView("landing"); setSearch(""); setFilterCat("All"); setFilterStage("All"); }
     else onBack();
+  };
+
+  const handleMilestoneUpdate = async (pkgId: string, name: string, progress: number) => {
+    try {
+      await updateMilestoneProgress(pkgId, name, progress, user?.username);
+    } catch (e) {
+      console.error("Milestone update failed", e);
+    }
   };
 
   const stageDotColor = (stage: string) =>
@@ -207,7 +305,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
         ══════════════════════════════════════════════════════════════════════ */}
         {view === "landing" && (
           <>
-            {/* Project meta */}
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-1">
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ring-1 ring-inset ${
@@ -241,7 +338,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                   <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition mt-1 flex-shrink-0" />
                 </div>
 
-                {/* Stat tiles */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
                     <p className="text-[10px] text-slate-500 mb-1">Total</p>
@@ -258,7 +354,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                   </div>
                 </div>
 
-                {/* Stage bar */}
                 <div>
                   <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-2">Stage Distribution</p>
                   <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-slate-100 gap-px">
@@ -278,7 +373,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                   </div>
                 </div>
 
-                {/* Budget summary */}
                 <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-[10px] text-slate-400">Awarded Value</p>
@@ -323,7 +417,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                   </div>
                 ) : (
                   <>
-                    {/* Stat tiles */}
                     <div className="grid grid-cols-3 gap-3">
                       <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
                         <p className="text-[10px] text-emerald-600 mb-1">In Execution</p>
@@ -331,37 +424,36 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                       </div>
                       <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
                         <p className="text-[10px] text-blue-600 mb-1">Milestones</p>
-                        <p className="text-xl font-mono font-bold text-blue-700">{exMilestonePct.toFixed(0)}%</p>
+                        <p className="text-xl font-mono font-bold text-blue-700">{summaryMilestonePct.toFixed(0)}%</p>
                       </div>
                       <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 text-center">
                         <p className="text-[10px] text-violet-600 mb-1">Financial</p>
-                        <p className="text-xl font-mono font-bold text-violet-700">{exFinancialPct.toFixed(0)}%</p>
+                        <p className="text-xl font-mono font-bold text-violet-700">{summaryFinancialPct.toFixed(0)}%</p>
                       </div>
                     </div>
 
-                    {/* Progress bars */}
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex justify-between text-[10px] text-slate-500 mb-1.5">
-                          <span>Milestone Progress (avg)</span>
-                          <span className="font-mono font-semibold">{exMilestonePct.toFixed(1)}%</span>
-                        </div>
-                        <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${exMilestonePct}%` }} />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-[10px] text-slate-500 mb-1.5">
-                          <span>Financial Progress (billed / awarded)</span>
-                          <span className="font-mono font-semibold">{exFinancialPct.toFixed(1)}%</span>
-                        </div>
-                        <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-violet-500 transition-all duration-500" style={{ width: `${exFinancialPct}%` }} />
-                        </div>
-                      </div>
+                    <div className="space-y-2.5">
+                      {EXECUTION_MILESTONES.map((name, i) => {
+                        const avg = awardedPkgs.length > 0
+                          ? awardedPkgs.reduce((s: number, p: any) => {
+                              const m = (p.milestones || []).find((x: any) => x.milestoneName === name);
+                              return s + (m ? m.progress : 0);
+                            }, 0) / awardedPkgs.length
+                          : 0;
+                        return (
+                          <div key={name} className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-400 w-3 text-center flex-shrink-0">{i + 1}</span>
+                            <span className="text-[10px] text-slate-600 w-28 truncate flex-shrink-0">{name}</span>
+                            <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                              <div className={`h-full rounded-full ${avg >= 100 ? "bg-emerald-500" : avg > 0 ? "bg-blue-400" : "bg-slate-200"}`}
+                                style={{ width: `${avg}%` }} />
+                            </div>
+                            <span className="text-[10px] font-mono font-semibold w-8 text-right text-slate-500 flex-shrink-0">{avg.toFixed(0)}%</span>
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    {/* Financial amounts */}
                     <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-3">
                       <div>
                         <p className="text-[10px] text-slate-400">Total Awarded</p>
@@ -389,7 +481,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
         ══════════════════════════════════════════════════════════════════════ */}
         {view === "purchasing" && (
           <>
-            {/* ── Stats + charts block ─────────────────────────────────────── */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 space-y-6">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-4 h-4 text-blue-600" />
@@ -397,7 +488,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                 <span className="text-xs text-slate-400">· {project.client}</span>
               </div>
 
-              {/* 4 stat tiles */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-center">
                   <p className="text-[10px] text-slate-500 mb-1">Total Packages</p>
@@ -420,15 +510,13 @@ export default function ProjectDetail({ projectId, onBack }: any) {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Stage distribution */}
                 <div>
                   <p className="text-xs font-semibold text-slate-700 mb-3">Stage Distribution</p>
                   <div className="flex h-4 w-full rounded-full overflow-hidden bg-slate-100 gap-px mb-3">
                     {stageDist.map(s => s.count > 0 && (
                       <div key={s.label} className={`${s.color} flex items-center justify-center`}
                         style={{ width: `${(s.count / allPkgs.length) * 100}%` }}
-                        title={`${s.label}: ${s.count}`}
-                      >
+                        title={`${s.label}: ${s.count}`}>
                         {(s.count / allPkgs.length) * 100 > 10 && (
                           <span className="text-[9px] font-semibold text-white">{s.count}</span>
                         )}
@@ -446,7 +534,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                   </div>
                 </div>
 
-                {/* Budget breakdown */}
                 <div>
                   <p className="text-xs font-semibold text-slate-700 mb-3">Budget Breakdown</p>
                   <div className="flex h-4 w-full rounded-full overflow-hidden bg-slate-100 gap-px mb-3">
@@ -468,10 +555,10 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { label: "Budget", val: project.budget, cls: "text-slate-800", dot: "bg-slate-300" },
-                      { label: "Awarded", val: totalAwarded, cls: "text-emerald-700", dot: "bg-emerald-500" },
-                      { label: "Billed", val: totalBilled, cls: "text-violet-700", dot: "bg-violet-600" },
-                      { label: "Balance", val: balance, cls: overrun > 0 ? "text-red-600" : "text-slate-700", dot: overrun > 0 ? "bg-red-500" : "bg-slate-200" },
+                      { label: "Budget",  val: project.budget, cls: "text-slate-800",   dot: "bg-slate-300" },
+                      { label: "Awarded", val: totalAwarded,   cls: "text-emerald-700", dot: "bg-emerald-500" },
+                      { label: "Billed",  val: totalBilled,    cls: "text-violet-700",  dot: "bg-violet-600" },
+                      { label: "Balance", val: balance,        cls: overrun > 0 ? "text-red-600" : "text-slate-700", dot: overrun > 0 ? "bg-red-500" : "bg-slate-200" },
                     ].map(r => (
                       <div key={r.label} className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${r.dot}`} />
@@ -484,7 +571,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
               </div>
             </div>
 
-            {/* ── Filters + package list ───────────────────────────────────── */}
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <div className="relative flex-1 min-w-40">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -599,12 +685,12 @@ export default function ProjectDetail({ projectId, onBack }: any) {
         ══════════════════════════════════════════════════════════════════════ */}
         {view === "execution" && (
           <>
-            {/* ── Stats + charts block ─────────────────────────────────────── */}
+            {/* ── Summary stats + pipeline chart ───────────────────────────── */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 space-y-6">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-emerald-600" />
                 <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Execution Dashboard</p>
-                <span className="text-xs text-slate-400">· awarded packages only</span>
+                <span className="text-xs text-slate-400">· {project.client} · awarded packages only</span>
               </div>
 
               {awardedPkgs.length === 0 ? (
@@ -624,70 +710,76 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                     </div>
                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
                       <p className="text-[10px] text-blue-600 mb-1">Milestone Avg</p>
-                      <p className="text-2xl font-mono font-bold text-blue-700">{exMilestonePct.toFixed(0)}%</p>
+                      <p className="text-2xl font-mono font-bold text-blue-700">{exMilestonePct.toFixed(1)}%</p>
+                      <p className="text-[10px] text-blue-500">all milestones</p>
                     </div>
                     <div className="bg-violet-50 border border-violet-100 rounded-xl p-4 text-center">
                       <p className="text-[10px] text-violet-600 mb-1">Financial</p>
-                      <p className="text-2xl font-mono font-bold text-violet-700">{exFinancialPct.toFixed(0)}%</p>
-                      <p className="text-[10px] text-violet-500">billed of awarded</p>
+                      <p className="text-2xl font-mono font-bold text-violet-700">{exFinancialPct.toFixed(1)}%</p>
+                      <p className="text-[10px] text-violet-500">billed / awarded</p>
                     </div>
                     <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-center">
                       <p className="text-[10px] text-slate-500 mb-1">Total Billed</p>
-                      <p className="text-lg font-mono font-bold text-slate-900">{formatCurrency(totalBilled)}</p>
+                      <p className="text-xl font-mono font-bold text-slate-900 leading-tight mt-0.5">{formatCurrency(totalBilled)}</p>
+                      <p className="text-[10px] text-slate-400">of {formatCurrency(totalAwarded)}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Overall progress bars */}
-                    <div className="space-y-4">
-                      <p className="text-xs font-semibold text-slate-700">Overall Progress</p>
-                      <div>
-                        <div className="flex items-center justify-between text-xs mb-2">
-                          <span className="text-slate-500 flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-blue-500" />Milestone Progress</span>
-                          <span className="font-mono font-semibold text-blue-700">{exMilestonePct.toFixed(1)}%</span>
-                        </div>
-                        <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${exMilestonePct}%` }} />
-                        </div>
-                        <p className="text-[10px] text-slate-400 mt-1">Average across all {EXECUTION_MILESTONES.length} milestones × {awardedPkgs.length} packages</p>
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between text-xs mb-2">
-                          <span className="text-slate-500 flex items-center gap-1.5"><Receipt className="w-3.5 h-3.5 text-violet-500" />Financial Progress</span>
-                          <span className="font-mono font-semibold text-violet-700">{exFinancialPct.toFixed(1)}%</span>
-                        </div>
-                        <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-violet-500 transition-all duration-500" style={{ width: `${exFinancialPct}%` }} />
-                        </div>
-                        <p className="text-[10px] text-slate-400 mt-1">{formatCurrency(totalBilled)} billed of {formatCurrency(totalAwarded)} awarded</p>
+                    {/* Milestone pipeline — avg per stage across all packages */}
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700 mb-4">Milestone Pipeline
+                        <span className="font-normal text-slate-400 ml-1">(avg across {awardedPkgs.length} package{awardedPkgs.length !== 1 ? "s" : ""})</span>
+                      </p>
+                      <div className="space-y-3">
+                        {perMilestoneAvg.map((m, i) => (
+                          <div key={m.name} className="flex items-center gap-3">
+                            <span className="text-[10px] font-bold text-slate-400 w-4 text-center flex-shrink-0">{i + 1}</span>
+                            <span className="text-xs text-slate-600 w-44 truncate flex-shrink-0">{m.name}</span>
+                            <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${m.avg >= 100 ? "bg-emerald-500" : m.avg > 0 ? "bg-blue-500" : "bg-slate-200"}`}
+                                style={{ width: `${m.avg}%` }}
+                              />
+                            </div>
+                            <span className={`text-xs font-mono font-semibold w-10 text-right flex-shrink-0 ${
+                              m.avg >= 100 ? "text-emerald-600" : m.avg > 0 ? "text-blue-600" : "text-slate-400"
+                            }`}>{m.avg.toFixed(0)}%</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
-                    {/* Per-package financial snapshot */}
-                    <div>
-                      <p className="text-xs font-semibold text-slate-700 mb-3">Package Snapshot</p>
-                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                        {awardedPkgs.map((pkg: any) => {
-                          const finPct = pkg.awardValue > 0 ? Math.min(100, ((pkg.billedAmount || 0) / pkg.awardValue) * 100) : 0;
-                          const milPct = (pkg.totalMilestones || 0) > 0 ? (pkg.milestonesProgressSum || 0) / pkg.totalMilestones : 0;
-                          return (
-                            <div key={pkg.id} className="flex items-center gap-2">
-                              <span className="text-xs text-slate-600 truncate flex-1 min-w-0">{pkg.name}</span>
-                              <div className="flex items-center gap-1.5 flex-shrink-0">
-                                <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                                  <div className="h-full rounded-full bg-blue-400" style={{ width: `${milPct}%` }} />
-                                </div>
-                                <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                                  <div className="h-full rounded-full bg-violet-400" style={{ width: `${finPct}%` }} />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                    {/* Overall progress */}
+                    <div className="space-y-4">
+                      <p className="text-xs font-semibold text-slate-700">Overall Execution Progress</p>
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-2">
+                          <span className="text-slate-500 flex items-center gap-1.5">
+                            <Target className="w-3.5 h-3.5 text-blue-500" />Milestone Progress
+                          </span>
+                          <span className="font-mono font-semibold text-blue-700">{exMilestonePct.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${Math.min(100, exMilestonePct)}%` }} />
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Average across {EXECUTION_MILESTONES.length} milestones × {awardedPkgs.length} package{awardedPkgs.length !== 1 ? "s" : ""}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100">
-                        <span className="flex items-center gap-1.5 text-[10px] text-slate-500"><span className="w-2.5 h-1.5 rounded-sm bg-blue-400 inline-block" />Milestone</span>
-                        <span className="flex items-center gap-1.5 text-[10px] text-slate-500"><span className="w-2.5 h-1.5 rounded-sm bg-violet-400 inline-block" />Financial</span>
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-2">
+                          <span className="text-slate-500 flex items-center gap-1.5">
+                            <Receipt className="w-3.5 h-3.5 text-violet-500" />Financial Progress
+                          </span>
+                          <span className="font-mono font-semibold text-violet-700">{exFinancialPct.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-violet-500 transition-all duration-500" style={{ width: `${Math.min(100, exFinancialPct)}%` }} />
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          {formatCurrency(totalBilled)} billed of {formatCurrency(totalAwarded)} awarded
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -695,9 +787,10 @@ export default function ProjectDetail({ projectId, onBack }: any) {
               )}
             </div>
 
-            {/* ── Filters + execution package list ─────────────────────────── */}
+            {/* ── Package execution cards ───────────────────────────────────── */}
             {awardedPkgs.length > 0 && (
               <>
+                {/* Filters */}
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   <div className="relative flex-1 min-w-40">
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -708,70 +801,128 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                     <option value="All">All Categories</option>
                     {projectCats.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
-                  <span className="text-xs text-slate-400 ml-1">{filteredExecution.length} packages</span>
+                  <span className="text-xs text-slate-400 ml-1">{filteredExecution.length} package{filteredExecution.length !== 1 ? "s" : ""}</span>
+                  {editMode && (
+                    <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                      Drag bars to update milestone progress
+                    </span>
+                  )}
                 </div>
 
                 {filteredExecution.length === 0 ? (
                   <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200">
-                    <HardDrive className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                    <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-500 text-sm">No packages match filters</p>
                   </div>
                 ) : (
-                  <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50/60">
-                          <th className="px-4 py-3 text-xs font-medium text-slate-500 w-8">#</th>
-                          <th className="px-4 py-3 text-xs font-medium text-slate-500">Package</th>
-                          <th className="px-4 py-3 text-xs font-medium text-slate-500 hidden md:table-cell">Category</th>
-                          <th className="px-4 py-3 text-xs font-medium text-slate-500">Award Value</th>
-                          <th className="px-4 py-3 text-xs font-medium text-slate-500">Billed</th>
-                          <th className="px-4 py-3 text-xs font-medium text-slate-500">Financial %</th>
-                          <th className="px-4 py-3 text-xs font-medium text-slate-500">Milestone %</th>
-                          <th className="px-4 py-3 w-10" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredExecution.map((pkg: any, idx: number) => {
-                          const finPct = pkg.awardValue > 0 ? Math.min(100, ((pkg.billedAmount || 0) / pkg.awardValue) * 100) : 0;
-                          const milPct = (pkg.totalMilestones || 0) > 0 ? (pkg.milestonesProgressSum || 0) / pkg.totalMilestones : 0;
-                          return (
-                            <tr key={pkg.id} onClick={() => openPackage(pkg.id)}
-                              className="border-b border-slate-100 last:border-0 cursor-pointer hover:bg-emerald-50/30 transition group">
-                              <td className="px-4 py-3.5"><span className="text-xs font-mono text-slate-400">{idx + 1}</span></td>
-                              <td className="px-4 py-3.5">
-                                <p className="text-sm font-semibold text-slate-900 leading-none">{pkg.name}</p>
-                                <p className="text-[10px] text-slate-400 mt-1">{pkg.awardedVendorId || "—"}</p>
-                              </td>
-                              <td className="px-4 py-3.5 hidden md:table-cell">
-                                <span className="text-xs text-slate-600">{pkg.category || "—"}</span>
-                              </td>
-                              <td className="px-4 py-3.5">
-                                <span className="text-sm font-mono font-semibold text-emerald-700">{formatCurrency(pkg.awardValue || 0, pkg.currency)}</span>
-                              </td>
-                              <td className="px-4 py-3.5">
-                                <span className="text-sm font-mono text-violet-700">{formatCurrency(pkg.billedAmount || 0, pkg.currency)}</span>
-                              </td>
-                              <td className="px-4 py-3.5">
-                                <div className="flex items-center gap-2">
-                                  <MiniBar pct={finPct} color="bg-violet-500" />
-                                  <span className="text-xs font-mono text-slate-600">{finPct.toFixed(0)}%</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3.5">
-                                <div className="flex items-center gap-2">
-                                  <MiniBar pct={milPct} color={milPct >= 100 ? "bg-emerald-500" : "bg-blue-500"} />
-                                  <span className="text-xs font-mono text-slate-600">{milPct.toFixed(0)}%</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3.5">
-                                <div className="p-1.5 text-slate-300 group-hover:text-emerald-600 transition"><ArrowRight className="w-3.5 h-3.5" /></div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  <div className="space-y-5">
+                    {filteredExecution.map((pkg: any, idx: number) => {
+                      const pkgProgress = execMilestones[pkg.id] || {};
+                      const pkgSum      = EXECUTION_MILESTONES.reduce((s, n) => s + (pkgProgress[n] ?? 0), 0);
+                      const pkgAvg      = pkgSum / EXECUTION_MILESTONES.length;
+                      const finPct      = (pkg.awardValue || 0) > 0
+                        ? Math.min(100, ((pkg.billedAmount || 0) / pkg.awardValue) * 100) : 0;
+
+                      return (
+                        <div key={pkg.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                          {/* Package header */}
+                          <div className="px-5 py-4 bg-slate-50/60 border-b border-slate-200 flex items-center gap-4">
+                            <div className="w-8 h-8 bg-emerald-100 border border-emerald-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs font-bold text-emerald-700">{idx + 1}</span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-slate-900 truncate">{pkg.name}</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">
+                                {pkg.category || "Uncategorised"}
+                                {pkg.awardedVendorId ? ` · ${pkg.awardedVendorId}` : ""}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-5 flex-shrink-0">
+                              <div className="text-right hidden sm:block">
+                                <p className="text-[10px] text-slate-400">Award Value</p>
+                                <p className="text-sm font-mono font-semibold text-emerald-700">{formatCurrency(pkg.awardValue || 0, pkg.currency)}</p>
+                              </div>
+                              <div className="text-right hidden sm:block">
+                                <p className="text-[10px] text-slate-400">Billed</p>
+                                <p className="text-sm font-mono font-semibold text-violet-700">{formatCurrency(pkg.billedAmount || 0, pkg.currency)}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] text-slate-400">Financial</p>
+                                <p className={`text-sm font-mono font-semibold ${finPct >= 100 ? "text-emerald-600" : "text-violet-700"}`}>{finPct.toFixed(0)}%</p>
+                              </div>
+                              <button
+                                onClick={() => openPackage(pkg.id)}
+                                className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition"
+                                title="Open package detail"
+                              >
+                                <ArrowRight className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Milestone bars */}
+                          <div className="px-5 py-4">
+                            <div className="space-y-1">
+                              {EXECUTION_MILESTONES.map((name, i) => {
+                                const prog = pkgProgress[name] ?? 0;
+                                const done = prog === 100;
+                                return (
+                                  <div key={name} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                                    {/* step / check icon */}
+                                    <div className="flex-shrink-0 w-5 flex items-center justify-center">
+                                      {done
+                                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                        : <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
+                                      }
+                                    </div>
+                                    {/* milestone name */}
+                                    <span className={`text-xs font-medium flex-shrink-0 w-44 truncate ${done ? "text-slate-400 line-through" : "text-slate-700"}`}>
+                                      {name}
+                                    </span>
+                                    {/* draggable bar */}
+                                    <div className="flex-1 min-w-0">
+                                      <InlineDraggableBar
+                                        value={prog}
+                                        readonly={!editMode}
+                                        onChange={v => setExecMilestones(prev => ({
+                                          ...prev,
+                                          [pkg.id]: { ...prev[pkg.id], [name]: v },
+                                        }))}
+                                        onCommit={v => handleMilestoneUpdate(pkg.id, name, v)}
+                                      />
+                                    </div>
+                                    {/* percentage label */}
+                                    <span className={`text-xs font-mono font-semibold w-9 text-right flex-shrink-0 ${
+                                      done ? "text-emerald-600" : prog > 0 ? "text-blue-600" : "text-slate-400"
+                                    }`}>{prog}%</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Package overall progress summary */}
+                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3">
+                              <span className="text-[10px] text-slate-400 flex-shrink-0 w-24">Package avg</span>
+                              <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-300 ${pkgAvg >= 100 ? "bg-emerald-500" : pkgAvg > 0 ? "bg-blue-500" : "bg-slate-200"}`}
+                                  style={{ width: `${Math.min(100, pkgAvg)}%` }}
+                                />
+                              </div>
+                              <span className={`text-xs font-mono font-semibold flex-shrink-0 w-10 text-right ${
+                                pkgAvg >= 100 ? "text-emerald-600" : pkgAvg > 0 ? "text-blue-600" : "text-slate-400"
+                              }`}>{pkgAvg.toFixed(1)}%</span>
+                            </div>
+
+                            {!editMode && (
+                              <p className="text-[10px] text-slate-400 mt-2 text-center italic">
+                                Enable Edit Mode in the header to update milestone progress
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </>
