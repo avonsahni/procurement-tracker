@@ -230,7 +230,12 @@ export default function ProjectDetail({ projectId, onBack }: any) {
 
   const goBack = () => {
     if (view !== "landing") { setView("landing"); setSearch(""); setFilterCat("All"); setFilterStage("All"); }
-    else onBack();
+    else {
+      // Invalidate Next.js router cache so the Dashboard reloads fresh data
+      // (milestone edits made at package level must surface in portfolio stats)
+      router.refresh();
+      onBack();
+    }
   };
 
   const openExecView = () => {
@@ -439,11 +444,9 @@ export default function ProjectDetail({ projectId, onBack }: any) {
 
                     <div className="space-y-2.5">
                       {EXECUTION_MILESTONES.map((name, i) => {
+                        // Use execMilestones (already seeded from pkg data, live-updating)
                         const avg = awardedPkgs.length > 0
-                          ? awardedPkgs.reduce((s: number, p: any) => {
-                              const m = (p.milestones || []).find((x: any) => x.milestoneName === name);
-                              return s + (m ? m.progress : 0);
-                            }, 0) / awardedPkgs.length
+                          ? awardedPkgs.reduce((s: number, p: any) => s + (execMilestones[p.id]?.[name] ?? 0), 0) / awardedPkgs.length
                           : 0;
                         return (
                           <div key={name} className="flex items-center gap-2">

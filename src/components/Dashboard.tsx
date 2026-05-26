@@ -107,7 +107,14 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    // Reload whenever the user navigates back to this page (e.g. after editing
+    // milestones in a package detail page and returning to the portfolio).
+    const handleVisible = () => { if (document.visibilityState === "visible") loadData(); };
+    document.addEventListener("visibilitychange", handleVisible);
+    return () => document.removeEventListener("visibilitychange", handleVisible);
+  }, []);
 
   const handleAddProject = async () => {
     if (!newProj.name || !newProj.client || !newProj.budget) return;
