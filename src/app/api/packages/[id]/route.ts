@@ -3,6 +3,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { assemblePackage, addAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { PackageUpdateSchema, parseBody } from '@/lib/validation';
+import { EXECUTION_MILESTONES } from '@/lib/types';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('user');
@@ -11,6 +12,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const supabase = await createServerSupabase();
   const { data: row } = await supabase.from('packages').select('*').eq('id', id).single();
   if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Auto-seed milestone rows for packages that were awarded before milestone tracking
+  // was introduced, so they always get a usable milestone section.
+  if (row.current_stage === 'Award') {
+    const { count } = await supabase
+      .from('package_milestones')
+      .select('*', { count: 'exact', head: true })
+      .eq('package_id', id);
+    if (!count) {
+      await supabase.from('package_milestones').upsert(
+        EXECUTION_MILESTONES.map((name, i) => ({
+          package_id: id, milestone_name: name, display_order: i + 1, progress: 0,
+        })),
+        { onConflict: 'package_id,milestone_name', ignoreDuplicates: true },
+      );
+    }
+  }
+
   return NextResponse.json(await assemblePackage(supabase, row));
 }
 

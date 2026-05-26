@@ -371,10 +371,6 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
             return { name, avg: allAwardedPkgs.length > 0 ? sum / allAwardedPkgs.length : 0 };
           });
 
-          const projectsWithExecution = projects.filter((p: any) =>
-            p.packages.some((pk: any) => pk.currentStage === "Award")
-          );
-
           return (
             <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
               {/* Header */}
@@ -437,96 +433,40 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Per-milestone pipeline */}
-                <div>
-                  <p className="text-xs font-semibold text-slate-700 mb-4">
-                    Milestone Pipeline
-                    <span className="font-normal text-slate-400 ml-1">(portfolio avg across {allAwardedPkgs.length} package{allAwardedPkgs.length !== 1 ? "s" : ""})</span>
-                  </p>
-                  <div className="space-y-3">
-                    {perMilestoneAvg.map((m, i) => (
-                      <div key={m.name} className="flex items-center gap-3">
-                        <div className="flex-shrink-0 w-5 flex items-center justify-center">
-                          {m.avg >= 100
-                            ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                            : <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
-                          }
-                        </div>
-                        <span className={`text-xs font-medium flex-shrink-0 w-44 truncate ${m.avg >= 100 ? "text-slate-400 line-through" : "text-slate-700"}`}>
-                          {m.name}
-                        </span>
-                        <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${m.avg >= 100 ? "bg-emerald-500" : m.avg > 0 ? "bg-blue-500" : "bg-slate-200"}`}
-                            style={{ width: `${m.avg}%` }}
-                          />
-                        </div>
-                        <span className={`text-xs font-mono font-semibold w-10 text-right flex-shrink-0 ${
-                          m.avg >= 100 ? "text-emerald-600" : m.avg > 0 ? "text-blue-600" : "text-slate-400"
-                        }`}>{m.avg.toFixed(0)}%</span>
+              {/* Full-width milestone pipeline */}
+              <div>
+                <p className="text-xs font-semibold text-slate-700 mb-4">
+                  Milestone Pipeline
+                  <span className="font-normal text-slate-400 ml-1">(portfolio avg across {allAwardedPkgs.length} package{allAwardedPkgs.length !== 1 ? "s" : ""})</span>
+                </p>
+                <div className="space-y-3">
+                  {perMilestoneAvg.map((m, i) => (
+                    <div key={m.name} className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-5 flex items-center justify-center">
+                        {m.avg >= 100
+                          ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                          : <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
+                        }
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Per-project execution snapshot */}
-                <div>
-                  <p className="text-xs font-semibold text-slate-700 mb-4">Project Execution Snapshot</p>
-                  <div className="space-y-4">
-                    {projectsWithExecution.map((p: any) => {
-                      const projAwarded = p.packages.filter((pk: any) => pk.currentStage === "Award");
-                      const projMilestoneSum   = projAwarded.reduce((s: number, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
-                      const projMilestoneTotal = projAwarded.reduce((s: number, pk: any) => s + (pk.totalMilestones || 0), 0);
-                      const projMilestonePct   = projMilestoneTotal > 0 ? projMilestoneSum / projMilestoneTotal : 0;
-                      const projBilled  = p.packages.reduce((s: number, pk: any) => s + (pk.billedAmount || 0), 0);
-                      const projAwarded2 = p.packages.reduce((s: number, pk: any) => s + (pk.awardValue || 0), 0);
-                      const projFinPct  = projAwarded2 > 0 ? Math.min(100, (projBilled / projAwarded2) * 100) : 0;
-
-                      return (
+                      <span className={`text-xs font-medium flex-shrink-0 w-52 truncate ${m.avg >= 100 ? "text-slate-400 line-through" : "text-slate-700"}`}>
+                        {m.name}
+                      </span>
+                      <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
                         <div
-                          key={p.id}
-                          className="cursor-pointer group p-3 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition"
-                          onClick={() => router.push(`/projects/${p.id}`)}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold text-slate-800 truncate flex-1 group-hover:text-emerald-700 transition">{p.name}</span>
-                            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                              <span className="text-[10px] text-slate-400">{projAwarded.length} awarded</span>
-                              <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-emerald-500 transition" />
-                            </div>
-                          </div>
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-slate-400 w-16 flex-shrink-0">Milestone</span>
-                              <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all ${projMilestonePct >= 100 ? "bg-emerald-500" : projMilestonePct > 0 ? "bg-blue-500" : "bg-slate-200"}`}
-                                  style={{ width: `${projMilestonePct}%` }}
-                                />
-                              </div>
-                              <span className="text-[10px] font-mono font-semibold text-slate-600 w-8 text-right flex-shrink-0">{projMilestonePct.toFixed(0)}%</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-slate-400 w-16 flex-shrink-0">Financial</span>
-                              <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all ${projFinPct >= 100 ? "bg-emerald-500" : projFinPct > 0 ? "bg-violet-500" : "bg-slate-200"}`}
-                                  style={{ width: `${projFinPct}%` }}
-                                />
-                              </div>
-                              <span className="text-[10px] font-mono font-semibold text-slate-600 w-8 text-right flex-shrink-0">{projFinPct.toFixed(0)}%</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex items-center gap-5 mt-4 pt-3 border-t border-slate-100">
-                    <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-blue-500 inline-block" />Milestone progress</span>
-                    <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-violet-500 inline-block" />Financial progress</span>
-                    <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-emerald-500 inline-block" />Complete</span>
-                  </div>
+                          className={`h-full rounded-full transition-all duration-500 ${m.avg >= 100 ? "bg-emerald-500" : m.avg > 0 ? "bg-blue-500" : "bg-slate-200"}`}
+                          style={{ width: `${m.avg}%` }}
+                        />
+                      </div>
+                      <span className={`text-xs font-mono font-semibold w-10 text-right flex-shrink-0 ${
+                        m.avg >= 100 ? "text-emerald-600" : m.avg > 0 ? "text-blue-600" : "text-slate-400"
+                      }`}>{m.avg.toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-5 mt-4 pt-3 border-t border-slate-100">
+                  <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-blue-500 inline-block" />In progress</span>
+                  <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-emerald-500 inline-block" />Complete</span>
+                  <span className="text-[10px] text-slate-400 ml-auto">Open a project to drill down per package</span>
                 </div>
               </div>
             </div>

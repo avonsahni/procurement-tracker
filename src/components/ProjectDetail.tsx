@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { fetchProject, addPackage, deletePackage, fetchCategories, updateMilestoneProgress } from "@/lib/store";
+import { fetchProject, addPackage, deletePackage, fetchCategories } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
@@ -35,58 +35,15 @@ function StatTile({ label, value, sub, accent }: { label: string; value: string 
   );
 }
 
-/** Draggable progress bar used inline in the execution package cards. */
-function InlineDraggableBar({
-  value, onChange, onCommit, readonly,
-}: {
-  value: number; onChange: (v: number) => void; onCommit: (v: number) => void; readonly?: boolean;
-}) {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
-
-  const clamp = (clientX: number): number => {
-    if (!trackRef.current) return value;
-    const rect = trackRef.current.getBoundingClientRect();
-    return Math.round(Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)));
-  };
-
+/** Read-only progress bar for execution view package cards. */
+function ReadOnlyBar({ value }: { value: number }) {
   const done = value >= 100;
-  const thumbColor = done ? "border-emerald-500" : "border-blue-500";
-  const fillColor  = done ? "bg-emerald-500" : value > 0 ? "bg-blue-500" : "bg-slate-200";
-
   return (
-    <div
-      ref={trackRef}
-      className={`relative h-5 w-full ${readonly ? "cursor-default" : "cursor-ew-resize"} select-none`}
-      onPointerDown={e => {
-        if (readonly) return;
-        dragging.current = true;
-        e.currentTarget.setPointerCapture(e.pointerId);
-        onChange(clamp(e.clientX));
-      }}
-      onPointerMove={e => {
-        if (!dragging.current || readonly) return;
-        onChange(clamp(e.clientX));
-      }}
-      onPointerUp={e => {
-        if (!dragging.current) return;
-        dragging.current = false;
-        const v = clamp(e.clientX);
-        onChange(v);
-        onCommit(v);
-      }}
-    >
-      {/* track */}
-      <div className="absolute inset-0 top-1/2 -translate-y-1/2 h-2.5 rounded-full bg-slate-100 overflow-hidden">
-        <div className={`h-full rounded-full transition-none ${fillColor}`} style={{ width: `${value}%` }} />
-      </div>
-      {/* thumb */}
-      {!readonly && (
-        <div
-          className={`absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-white border-2 ${thumbColor} rounded-full shadow pointer-events-none z-10`}
-          style={{ left: `calc(${value}% - 10px)` }}
-        />
-      )}
+    <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
+      <div
+        className={`h-full rounded-full ${done ? "bg-emerald-500" : value > 0 ? "bg-blue-500" : "bg-slate-200"}`}
+        style={{ width: `${value}%` }}
+      />
     </div>
   );
 }
@@ -107,7 +64,7 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   const [filterCat, setFilterCat]   = useState("All");
   const [filterStage, setFilterStage] = useState("All");
 
-  // local milestone state for execution view (live drag feedback)
+  // milestone lookup: pkg.id → milestone name → progress (built from server data)
   const [execMilestones, setExecMilestones] = useState<Record<string, Record<string, number>>>({});
 
   const [showAddPkg, setShowAddPkg] = useState(false);
@@ -241,14 +198,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   const openExecView = () => {
     setView("execution");
     loadData(); // always fetch fresh milestone data when entering execution
-  };
-
-  const handleMilestoneUpdate = async (pkgId: string, name: string, progress: number) => {
-    try {
-      await updateMilestoneProgress(pkgId, name, progress, user?.username);
-    } catch (e) {
-      console.error("Milestone update failed", e);
-    }
   };
 
   const stageDotColor = (stage: string) =>
@@ -810,11 +759,9 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                     {projectCats.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                   <span className="text-xs text-slate-400 ml-1">{filteredExecution.length} package{filteredExecution.length !== 1 ? "s" : ""}</span>
-                  {editMode && (
-                    <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                      Drag bars to update milestone progress
-                    </span>
-                  )}
+                  <span className="text-xs text-slate-400 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                    Read-only · open a package to edit milestones
+                  </span>
                 </div>
 
                 {filteredExecution.length === 0 ? (
@@ -860,15 +807,15 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                               </div>
                               <button
                                 onClick={() => openPackage(pkg.id)}
-                                className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition"
-                                title="Open package detail"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-blue-600 hover:text-white rounded-lg text-xs font-medium text-slate-600 transition"
+                                title="Open package to edit milestones"
                               >
-                                <ArrowRight className="w-4 h-4" />
+                                Edit <ArrowRight className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </div>
 
-                          {/* Milestone bars */}
+                          {/* Milestone bars — read-only; edit via package detail page */}
                           <div className="px-5 py-4">
                             <div className="space-y-1">
                               {EXECUTION_MILESTONES.map((name, i) => {
@@ -876,30 +823,18 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                                 const done = prog === 100;
                                 return (
                                   <div key={name} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
-                                    {/* step / check icon */}
                                     <div className="flex-shrink-0 w-5 flex items-center justify-center">
                                       {done
                                         ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                                         : <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
                                       }
                                     </div>
-                                    {/* milestone name */}
                                     <span className={`text-xs font-medium flex-shrink-0 w-44 truncate ${done ? "text-slate-400 line-through" : "text-slate-700"}`}>
                                       {name}
                                     </span>
-                                    {/* draggable bar */}
                                     <div className="flex-1 min-w-0">
-                                      <InlineDraggableBar
-                                        value={prog}
-                                        readonly={!editMode}
-                                        onChange={v => setExecMilestones(prev => ({
-                                          ...prev,
-                                          [pkg.id]: { ...prev[pkg.id], [name]: v },
-                                        }))}
-                                        onCommit={v => handleMilestoneUpdate(pkg.id, name, v)}
-                                      />
+                                      <ReadOnlyBar value={prog} />
                                     </div>
-                                    {/* percentage label */}
                                     <span className={`text-xs font-mono font-semibold w-9 text-right flex-shrink-0 ${
                                       done ? "text-emerald-600" : prog > 0 ? "text-blue-600" : "text-slate-400"
                                     }`}>{prog}%</span>
@@ -908,7 +843,7 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                               })}
                             </div>
 
-                            {/* Package overall progress summary */}
+                            {/* Package avg row */}
                             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3">
                               <span className="text-[10px] text-slate-400 flex-shrink-0 w-24">Package avg</span>
                               <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
@@ -921,12 +856,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                                 pkgAvg >= 100 ? "text-emerald-600" : pkgAvg > 0 ? "text-blue-600" : "text-slate-400"
                               }`}>{pkgAvg.toFixed(1)}%</span>
                             </div>
-
-                            {!editMode && (
-                              <p className="text-[10px] text-slate-400 mt-2 text-center italic">
-                                Enable Edit Mode in the header to update milestone progress
-                              </p>
-                            )}
                           </div>
                         </div>
                       );
