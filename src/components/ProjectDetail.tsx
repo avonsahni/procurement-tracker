@@ -73,6 +73,12 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
 
   useEffect(() => { loadData(); }, [projectId]);
 
+  // Apply initialView after client hydration (useSearchParams returns empty on the server,
+  // so useState gets "landing" on first render; this corrects it once the URL is available).
+  useEffect(() => {
+    if (initialView && initialView !== "landing") setView(initialView);
+  }, [initialView]);
+
   // Reload when user navigates back (browser back-cache restores component without remounting)
   useEffect(() => {
     const handleVisible = () => { if (document.visibilityState === "visible") loadData(); };
