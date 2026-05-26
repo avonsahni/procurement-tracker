@@ -83,17 +83,17 @@ export default function MilestoneTracker({ milestones, readonly, onUpdate }: Pro
   const [localProgress, setLocalProgress] = useState<Record<string, number>>({});
 
   useEffect(() => {
+    // Seed all 6 slots to 0, then overlay whatever the DB has
     const init: Record<string, number> = {};
+    for (const name of EXECUTION_MILESTONES) init[name] = 0;
     for (const m of milestones) init[m.milestoneName] = m.progress;
     setLocalProgress(init);
   }, [milestones]);
 
   const getProgress = (name: string) => localProgress[name] ?? 0;
-  const isSeeded = milestones.length > 0;
 
-  const overallPct = isSeeded
-    ? EXECUTION_MILESTONES.reduce((s, n) => s + getProgress(n), 0) / EXECUTION_MILESTONES.length
-    : 0;
+  const overallPct =
+    EXECUTION_MILESTONES.reduce((s, n) => s + getProgress(n), 0) / EXECUTION_MILESTONES.length;
   const doneCount = EXECUTION_MILESTONES.filter(n => getProgress(n) === 100).length;
 
   return (
@@ -103,9 +103,7 @@ export default function MilestoneTracker({ milestones, readonly, onUpdate }: Pro
         <div className="flex items-center gap-2">
           <ClipboardList className="w-4 h-4 text-blue-600" />
           <h3 className="font-semibold text-slate-900 text-sm">Execution Milestones</h3>
-          {isSeeded && (
-            <span className="text-xs text-slate-400 ml-1">({doneCount}/{EXECUTION_MILESTONES.length} complete)</span>
-          )}
+          <span className="text-xs text-slate-400 ml-1">({doneCount}/{EXECUTION_MILESTONES.length} complete)</span>
         </div>
         <span className={`text-xs font-mono font-semibold ${overallPct >= 100 ? "text-emerald-600" : "text-slate-700"}`}>
           {overallPct.toFixed(0)}%
@@ -126,13 +124,8 @@ export default function MilestoneTracker({ milestones, readonly, onUpdate }: Pro
         </div>
       </div>
 
-      {/* Milestone rows */}
-      {!isSeeded ? (
-        <div className="px-5 py-6 text-center text-xs text-slate-400 italic">
-          Milestones are created when the package is awarded.
-        </div>
-      ) : (
-        <div className="divide-y divide-slate-100 pb-2">
+      {/* Milestone rows — always shown for all 6 milestones */}
+      <div className="divide-y divide-slate-100 pb-2">
           {EXECUTION_MILESTONES.map((name, i) => {
             const prog = getProgress(name);
             const done = prog === 100;
@@ -171,10 +164,9 @@ export default function MilestoneTracker({ milestones, readonly, onUpdate }: Pro
               </div>
             );
           })}
-        </div>
-      )}
+      </div>
 
-      {!readonly && isSeeded && (
+      {!readonly && (
         <p className="px-5 pb-3 text-[10px] text-slate-400">
           Drag each bar to set milestone progress
         </p>

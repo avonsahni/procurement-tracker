@@ -28,16 +28,18 @@ import DocumentsSection from "@/components/DocumentsSection";
 import BillingSection from "@/components/BillingSection";
 import MilestoneTracker from "@/components/MilestoneTracker";
 import {
-  ArrowLeft, Package, ChevronRight, Lock, Unlock, CheckCircle2, Clock, AlertTriangle,
+  ArrowLeft, Package, ChevronRight, Lock, Unlock, CheckCircle2, Clock, AlertTriangle, Activity,
 } from "lucide-react";
 
 export default function PackageDetail({
   projectId,
   packageId,
+  mode = "purchasing",
   onBack,
 }: {
   projectId: string;
   packageId: string;
+  mode?: "purchasing" | "execution";
   onBack: () => void;
 }) {
   const { user, editMode, setEditMode } = useAuth();
@@ -205,6 +207,14 @@ export default function PackageDetail({
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
 
+        {/* ── EXECUTION MODE BANNER ───────────────────────────────────────── */}
+        {mode === "execution" && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700">
+            <Activity className="w-3.5 h-3.5 flex-shrink-0" />
+            Execution view — update milestone progress below. Go back to see the full procurement record.
+          </div>
+        )}
+
         {/* ── PACKAGE HEADER CARD ─────────────────────────────────────────── */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -259,66 +269,68 @@ export default function PackageDetail({
           </div>
         </div>
 
-        {/* ── STAGE STEPPER ───────────────────────────────────────────────── */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <p className="text-sm font-semibold text-slate-900">Procurement Timeline</p>
-            {isAwarded && (
-              <p className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                Awarded to {pkg.awardedVendorId} · {formatCurrency(pkg.awardValue || 0, pkg.currency)}
-              </p>
-            )}
-          </div>
-          {isAwarded && (
-            <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg mb-4">
-              <Lock className="w-3 h-3 flex-shrink-0" />
-              Package is locked — no edits allowed after award. Invoices can still be recorded up to the award value.
+        {/* ── PROCUREMENT SECTIONS (purchasing flow only) ─────────────────── */}
+        {mode !== "execution" && (
+          <>
+            <div className="bg-white border border-slate-200 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <p className="text-sm font-semibold text-slate-900">Procurement Timeline</p>
+                {isAwarded && (
+                  <p className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                    Awarded to {pkg.awardedVendorId} · {formatCurrency(pkg.awardValue || 0, pkg.currency)}
+                  </p>
+                )}
+              </div>
+              {isAwarded && (
+                <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg mb-4">
+                  <Lock className="w-3 h-3 flex-shrink-0" />
+                  Package is locked — no edits allowed after award. Invoices can still be recorded up to the award value.
+                </div>
+              )}
+              <StageStepper
+                currentStage={pkg.currentStage}
+                readonly={!editMode || isAwarded}
+                onStageChange={handleStageChange}
+              />
             </div>
-          )}
-          <StageStepper
-            currentStage={pkg.currentStage}
-            readonly={!editMode || isAwarded}
-            onStageChange={handleStageChange}
-          />
-        </div>
 
-        {/* ── VENDOR MATRIX ───────────────────────────────────────────────── */}
-        <VendorMatrix
-          vendors={pkg.vendors}
-          currency={pkg.currency}
-          awardedVendorId={pkg.awardedVendorId}
-          awardValue={pkg.awardValue}
-          readonly={!editMode || isAwarded}
-          onUpdate={async (vid: any, updates: any) => { await updateVendor(packageId, vid, updates); await reloadPackage(); }}
-          onAdd={async (v: any) => { await addVendor(packageId, v, user?.fullName); await reloadPackage(); }}
-          onDelete={async (vid: any) => { await deleteVendor(packageId, vid, user?.fullName); await reloadPackage(); }}
-          onSelectWinner={(v: any) => {
-            setAwardVendor(v.name);
-            setAwardVal(v.revisedAmount.toString());
-            setPunchingAward(true);
-          }}
-        />
+            <VendorMatrix
+              vendors={pkg.vendors}
+              currency={pkg.currency}
+              awardedVendorId={pkg.awardedVendorId}
+              awardValue={pkg.awardValue}
+              readonly={!editMode || isAwarded}
+              onUpdate={async (vid: any, updates: any) => { await updateVendor(packageId, vid, updates); await reloadPackage(); }}
+              onAdd={async (v: any) => { await addVendor(packageId, v, user?.fullName); await reloadPackage(); }}
+              onDelete={async (vid: any) => { await deleteVendor(packageId, vid, user?.fullName); await reloadPackage(); }}
+              onSelectWinner={(v: any) => {
+                setAwardVendor(v.name);
+                setAwardVal(v.revisedAmount.toString());
+                setPunchingAward(true);
+              }}
+            />
 
-        {/* ── REMARKS + DOCUMENTS ─────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <RemarksSection
-            remarks={pkg.remarks}
-            readonly={!editMode || isAwarded}
-            onAddRemark={async (t: any) => { await addRemark(packageId, t, user?.fullName); await reloadPackage(); }}
-          />
-          <DocumentsSection
-            documents={pkg.documents}
-            packageId={packageId}
-            userId={user?.id ?? ""}
-            readonly={!editMode || isAwarded}
-            onAddDocument={async (d) => { await addDocument(packageId, d, user?.fullName); await reloadPackage(); }}
-            onDeleteDocument={async (did: string) => { await deleteDocument(packageId, did, user?.fullName); await reloadPackage(); }}
-          />
-        </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <RemarksSection
+                remarks={pkg.remarks}
+                readonly={!editMode || isAwarded}
+                onAddRemark={async (t: any) => { await addRemark(packageId, t, user?.fullName); await reloadPackage(); }}
+              />
+              <DocumentsSection
+                documents={pkg.documents}
+                packageId={packageId}
+                userId={user?.id ?? ""}
+                readonly={!editMode || isAwarded}
+                onAddDocument={async (d) => { await addDocument(packageId, d, user?.fullName); await reloadPackage(); }}
+                onDeleteDocument={async (did: string) => { await deleteDocument(packageId, did, user?.fullName); await reloadPackage(); }}
+              />
+            </div>
+          </>
+        )}
 
-        {/* ── BILLING + MILESTONES (awarded only) ─────────────────────────── */}
+        {/* ── BILLING + MILESTONES — shown in both flows (awarded only) ───── */}
         {isAwarded && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className={`grid gap-6 ${mode === "execution" ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
             <BillingSection
               invoices={pkg.invoices || []}
               awardValue={pkg.awardValue || 0}
@@ -339,7 +351,7 @@ export default function PackageDetail({
         )}
 
         {/* ── AUDIT TRAIL ─────────────────────────────────────────────────── */}
-        <AuditTrail entries={pkg.auditTrail} />
+        {mode !== "execution" && <AuditTrail entries={pkg.auditTrail} />}
 
       </main>
 

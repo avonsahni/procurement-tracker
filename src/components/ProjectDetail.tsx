@@ -171,7 +171,8 @@ export default function ProjectDetail({ projectId, onBack }: any) {
     loadData();
   };
 
-  const openPackage = (pkgId: string) => router.push(`/projects/${projectId}/packages/${pkgId}`);
+  const openPackage = (pkgId: string, mode: "purchasing" | "execution" = "purchasing") =>
+    router.push(`/projects/${projectId}/packages/${pkgId}?mode=${mode}`);
 
   const goBack = () => {
     if (view !== "landing") { setView("landing"); setSearch(""); setFilterCat("All"); setFilterStage("All"); }
@@ -768,8 +769,8 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                       return (
                         <div
                           key={pkg.id}
-                          onClick={() => openPackage(pkg.id)}
-                          className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group"
+                          onClick={() => openPackage(pkg.id, "execution")}
+                          className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group"
                         >
                           {/* Package header — click navigates to package detail */}
                           <div className="px-5 py-4 bg-slate-50/60 border-b border-slate-200 flex items-center gap-4">

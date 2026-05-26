@@ -1,12 +1,10 @@
 "use client";
 
-import { use, Suspense } from "react";
+import { use, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PackageDetail from "@/components/PackageDetail";
 import { useAuth } from "@/components/auth/AuthContext";
-import { useEffect } from "react";
 
-// Inner component — needs Suspense because it calls useSearchParams()
 function PackagePageInner({
   projectId,
   packageId,
@@ -18,11 +16,8 @@ function PackagePageInner({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Restore the view state the user came from:
-  // - ?cat=X   → category table view for that category
-  // - ?status=X → quick-filter view (all / awarded / in-progress)
-  const fromCat    = searchParams.get("cat")    || "";
-  const fromStatus = searchParams.get("status") || "";
+  // "execution" mode: opened from the Execution Dashboard flow
+  const mode = searchParams.get("mode") as "purchasing" | "execution" | null;
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -31,16 +26,8 @@ function PackagePageInner({
   if (loading || !user) return null;
 
   const handleBack = () => {
-    // Invalidate Next.js server cache so the project page shows fresh data
     router.refresh();
-    // Navigate back to whichever list view the user came from
-    if (fromCat) {
-      router.push(`/projects/${projectId}?cat=${encodeURIComponent(fromCat)}`);
-    } else if (fromStatus) {
-      router.push(`/projects/${projectId}?status=${encodeURIComponent(fromStatus)}`);
-    } else {
-      router.push(`/projects/${projectId}`);
-    }
+    router.push(`/projects/${projectId}`);
   };
 
   return (
@@ -48,6 +35,7 @@ function PackagePageInner({
       <PackageDetail
         projectId={projectId}
         packageId={packageId}
+        mode={mode ?? "purchasing"}
         onBack={handleBack}
       />
     </main>
