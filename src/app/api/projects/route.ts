@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   const supabase = await createServerSupabase();
   const { data: row, error } = await supabase
     .from('projects')
-    .insert({ owner_id: auth.id, name, client, budget, status: 'Active' })
+    .insert({ owner_id: auth.id, org_id: auth.orgId, name, client, budget, status: 'Active' })
     .select()
     .single();
 

@@ -7,44 +7,37 @@ export type AuthUser = {
   fullName: string;
   role: 'admin' | 'user';
   canEdit: boolean;
+  orgId: string;
+  orgRole: 'owner' | 'admin' | 'viewer';
 };
 
-/**
- * Returns the current authenticated user with their profile, or null.
- * Pulls session from the Supabase auth cookie set by login.
- */
 export async function getCurrentUser(): Promise<AuthUser | null> {
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, can_edit')
-    .eq('id', user.id)
-    .single();
+  const [{ data: profile }, { data: membership }] = await Promise.all([
+    supabase.from('profiles').select('full_name, can_edit').eq('id', user.id).single(),
+    supabase.from('organization_members').select('org_id, role').eq('user_id', user.id).single(),
+  ]);
 
   return {
     id: user.id,
     email: user.email ?? '',
     fullName: profile?.full_name || user.email?.split('@')[0] || 'User',
-    // Every user is admin of their own workspace (single-tenant-per-user model)
-    role: 'admin',
+    role: membership?.role === 'owner' ? 'admin' : 'user',
     canEdit: profile?.can_edit ?? true,
+    orgId: membership?.org_id ?? '',
+    orgRole: (membership?.role as 'owner' | 'admin' | 'viewer') ?? 'viewer',
   };
 }
 
 /**
  * Route guard. Returns the user, or a NextResponse to short-circuit the handler.
- *
- *   const auth = await guard('editor');
- *   if (auth instanceof NextResponse) return auth;
- *   // auth is AuthUser here
- *
  * Roles:
  *   - 'user'   — any authenticated user
- *   - 'editor' — must have can_edit=true (personal edit-mode lock)
- *   - 'admin'  — every user is admin of their own workspace, so same as 'user'
+ *   - 'editor' — must have can_edit=true
+ *   - 'admin'  — must be org owner or admin
  */
 export async function guard(role: 'user' | 'editor' | 'admin'): Promise<NextResponse | AuthUser> {
   const user = await getCurrentUser();
@@ -53,6 +46,9 @@ export async function guard(role: 'user' | 'editor' | 'admin'): Promise<NextResp
   }
   if (role === 'editor' && !user.canEdit) {
     return NextResponse.json({ error: 'Edit permission required' }, { status: 403 });
+  }
+  if (role === 'admin' && !['owner', 'admin'].includes(user.orgRole)) {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
   return user;
 }

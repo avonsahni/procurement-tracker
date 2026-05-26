@@ -1,50 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { guard } from '@/lib/auth';
-import { UserUpdateSchema, parseBody } from '@/lib/validation';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 
-// User can only update their own profile. role/password changes go through Supabase Auth directly.
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
   const { id } = await params;
-  if (id !== auth.id) {
-    return NextResponse.json({ error: 'Can only update your own profile' }, { status: 403 });
-  }
-  const parsed = await parseBody(req, UserUpdateSchema);
-  if (!parsed.ok) return parsed.response;
-  const body = parsed.data;
 
-  const supabase = await createServerSupabase();
+  const isSelf = id === auth.id;
+  const isOrgAdmin = ['owner', 'admin'].includes(auth.orgRole);
+  if (!isSelf && !isOrgAdmin) {
+    return NextResponse.json({ error: 'Not authorised' }, { status: 403 });
+  }
+
+  const body = await req.json();
+  const admin = createAdminSupabase();
+
+  // Verify target is in the same org when updating someone else
+  if (!isSelf) {
+    const { data: membership } = await admin
+      .from('organization_members')
+      .select('org_id')
+      .eq('user_id', id)
+      .eq('org_id', auth.orgId)
+      .single();
+    if (!membership) return NextResponse.json({ error: 'User not in your organisation' }, { status: 403 });
+  }
+
   const updates: Record<string, any> = {};
   if (body.fullName !== undefined) updates.full_name = body.fullName;
   if (body.canEdit !== undefined) updates.can_edit = body.canEdit;
-  // role changes intentionally ignored — single-tenant-per-user means every user is admin of their workspace
-
   if (Object.keys(updates).length > 0) {
-    await supabase.from('profiles').update(updates).eq('id', auth.id);
+    await admin.from('profiles').update(updates).eq('id', id);
   }
 
-  if (body.password) {
+  if (body.role !== undefined && isOrgAdmin && !isSelf) {
+    const orgRole = body.role === 'admin' ? 'admin' : 'viewer';
+    await admin.from('organization_members').update({ role: orgRole }).eq('user_id', id).eq('org_id', auth.orgId);
+  }
+
+  if (body.password && isSelf) {
+    const supabase = await createServerSupabase();
     const { error: pwErr } = await supabase.auth.updateUser({ password: body.password });
     if (pwErr) return NextResponse.json({ error: pwErr.message }, { status: 400 });
   }
 
-  return NextResponse.json({
-    id: auth.id,
-    username: auth.email,
-    fullName: body.fullName ?? auth.fullName,
-    role: 'admin',
-    canEdit: body.canEdit ?? auth.canEdit,
-  });
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await guard('user');
+  const auth = await guard('admin');
   if (auth instanceof NextResponse) return auth;
   const { id } = await params;
-  if (id !== auth.id) {
-    return NextResponse.json({ error: 'Account deletion only via Supabase Auth' }, { status: 403 });
+
+  if (id === auth.id) {
+    return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
   }
-  return NextResponse.json({ error: 'Account deletion requires Supabase admin API' }, { status: 501 });
+
+  const admin = createAdminSupabase();
+
+  const { data: membership } = await admin
+    .from('organization_members')
+    .select('org_id')
+    .eq('user_id', id)
+    .eq('org_id', auth.orgId)
+    .single();
+  if (!membership) return NextResponse.json({ error: 'User not in your organisation' }, { status: 403 });
+
+  const { error } = await admin.auth.admin.deleteUser(id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true });
 }
