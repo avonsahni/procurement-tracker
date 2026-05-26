@@ -116,6 +116,19 @@ create table if not exists public.invoices (
 );
 create index if not exists invoices_package_id_idx on public.invoices(package_id);
 
+-- ─────────────────────── package_milestones ───────────────────────
+create table if not exists public.package_milestones (
+  id uuid primary key default uuid_generate_v4(),
+  package_id uuid not null references public.packages(id) on delete cascade,
+  milestone_name text not null,
+  display_order int not null,
+  completed boolean not null default false,
+  completed_at timestamptz,
+  completed_by text,
+  unique (package_id, milestone_name)
+);
+create index if not exists milestones_package_id_idx on public.package_milestones(package_id);
+
 -- ─────────────────────── audit_trail ───────────────────────
 create table if not exists public.audit_trail (
   id uuid primary key default uuid_generate_v4(),
@@ -169,6 +182,7 @@ alter table public.vendors enable row level security;
 alter table public.remarks enable row level security;
 alter table public.documents enable row level security;
 alter table public.invoices enable row level security;
+alter table public.package_milestones enable row level security;
 alter table public.audit_trail enable row level security;
 
 -- profiles: each user manages their own row
@@ -262,6 +276,22 @@ create policy "invoices_via_package" on public.invoices
       select 1 from public.packages pk
       join public.projects p on p.id = pk.project_id
       where pk.id = invoices.package_id and p.owner_id = auth.uid()
+    )
+  );
+
+drop policy if exists "milestones_via_package" on public.package_milestones;
+create policy "milestones_via_package" on public.package_milestones
+  for all using (
+    exists (
+      select 1 from public.packages pk
+      join public.projects p on p.id = pk.project_id
+      where pk.id = package_milestones.package_id and p.owner_id = auth.uid()
+    )
+  ) with check (
+    exists (
+      select 1 from public.packages pk
+      join public.projects p on p.id = pk.project_id
+      where pk.id = package_milestones.package_id and p.owner_id = auth.uid()
     )
   );
 

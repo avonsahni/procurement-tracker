@@ -140,6 +140,15 @@ export async function deleteInvoice(pkgId: string, iid: string): Promise<void> {
   await api(`/api/packages/${pkgId}/invoices/${iid}`, { method: 'DELETE' });
 }
 
+// Milestones
+export async function toggleMilestone(pkgId: string, milestoneName: string, completed: boolean, user?: string): Promise<void> {
+  await api(`/api/packages/${pkgId}/milestones`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ milestoneName, completed, user }),
+  });
+}
+
 // Admin
 export async function resetTrackerData(): Promise<void> {
   await api('/api/reset', { method: 'POST' });

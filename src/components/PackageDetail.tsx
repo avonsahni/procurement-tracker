@@ -15,6 +15,7 @@ import {
   deleteDocument,
   addInvoice,
   deleteInvoice,
+  toggleMilestone,
 } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -25,6 +26,7 @@ import AuditTrail from "@/components/AuditTrail";
 import RemarksSection from "@/components/RemarksSection";
 import DocumentsSection from "@/components/DocumentsSection";
 import BillingSection from "@/components/BillingSection";
+import MilestoneTracker from "@/components/MilestoneTracker";
 import {
   ArrowLeft, Package, ChevronRight, Lock, Unlock, CheckCircle2, Clock, AlertTriangle,
 } from "lucide-react";
@@ -314,16 +316,26 @@ export default function PackageDetail({
           />
         </div>
 
-        {/* ── BILLING (awarded only) ───────────────────────────────────────── */}
+        {/* ── BILLING + MILESTONES (awarded only) ─────────────────────────── */}
         {isAwarded && (
-          <BillingSection
-            invoices={pkg.invoices || []}
-            awardValue={pkg.awardValue || 0}
-            currency={pkg.currency}
-            readonly={!editMode}
-            onAddInvoice={async (inv) => { await addInvoice(packageId, inv); await reloadPackage(); }}
-            onDeleteInvoice={async (iid) => { await deleteInvoice(packageId, iid); await reloadPackage(); }}
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <BillingSection
+              invoices={pkg.invoices || []}
+              awardValue={pkg.awardValue || 0}
+              currency={pkg.currency}
+              readonly={!editMode}
+              onAddInvoice={async (inv) => { await addInvoice(packageId, inv); await reloadPackage(); }}
+              onDeleteInvoice={async (iid) => { await deleteInvoice(packageId, iid); await reloadPackage(); }}
+            />
+            <MilestoneTracker
+              milestones={pkg.milestones || []}
+              readonly={!editMode}
+              onToggle={async (name, completed) => {
+                await toggleMilestone(packageId, name, completed, user?.fullName);
+                await reloadPackage();
+              }}
+            />
+          </div>
         )}
 
         {/* ── AUDIT TRAIL ─────────────────────────────────────────────────── */}

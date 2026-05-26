@@ -1,3 +1,21 @@
+export const EXECUTION_MILESTONES = [
+  "Mobilisation",
+  "Preliminaries",
+  "Procurement",
+  "Installation",
+  "Testing and Commissioning",
+  "Handover",
+] as const;
+
+export interface PackageMilestone {
+  id: string;
+  milestoneName: string;
+  displayOrder: number;
+  completed: boolean;
+  completedAt?: string;
+  completedBy?: string;
+}
+
 export type Stage =
   | "Spec Received"
   | "RFQ Float"
@@ -83,6 +101,7 @@ export interface Package {
   remarks: Remark[];
   documents: Document[];
   invoices: Invoice[];
+  milestones: PackageMilestone[];
   createdAt: string;
   updatedAt: string;
 }

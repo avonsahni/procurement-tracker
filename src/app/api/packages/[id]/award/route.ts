@@ -3,7 +3,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { assemblePackage, addAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { AwardSchema, parseBody } from '@/lib/validation';
-import { formatCurrency } from '@/lib/types';
+import { formatCurrency, EXECUTION_MILESTONES } from '@/lib/types';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
@@ -72,6 +72,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     addAuditEntry(supabase, pkgId, auth.fullName, 'Stage', pkg.current_stage, 'Award'),
     addAuditEntry(supabase, pkgId, auth.fullName, 'Awarded Vendor', '', awardedVendor),
     addAuditEntry(supabase, pkgId, auth.fullName, 'Award Value', '', String(awardValue)),
+    supabase.from('package_milestones').upsert(
+      EXECUTION_MILESTONES.map((name, i) => ({
+        package_id: pkgId,
+        milestone_name: name,
+        display_order: i + 1,
+        completed: false,
+      })),
+      { onConflict: 'package_id,milestone_name', ignoreDuplicates: true }
+    ),
   ]);
 
   return NextResponse.json(await assemblePackage(supabase, row));

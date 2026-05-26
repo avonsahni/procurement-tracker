@@ -145,6 +145,8 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
     budget: projects.reduce((s, p) => s + p.budget, 0),
     awarded: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.awardValue || 0), 0), 0),
     billed: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.billedAmount || 0), 0), 0),
+    milestonesCompleted: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.completedMilestones || 0), 0), 0),
+    milestonesTotal: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').length * 6, 0),
   };
 
   if (loading) {
@@ -270,6 +272,12 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
                   <p className="text-xs text-slate-500 mb-1">Billing Rate</p>
                   <p className="text-lg font-mono font-semibold text-slate-900">
                     {stats.awarded > 0 ? ((stats.billed / stats.awarded) * 100).toFixed(1) : "0.0"}%
+                  </p>
+                </div>
+                <div className="border-l border-slate-200 pl-6">
+                  <p className="text-xs text-slate-500 mb-1">Milestone Progress</p>
+                  <p className="text-lg font-mono font-semibold text-blue-700">
+                    {stats.milestonesTotal > 0 ? ((stats.milestonesCompleted / stats.milestonesTotal) * 100).toFixed(1) : "0.0"}%
                   </p>
                 </div>
               </div>
@@ -512,8 +520,13 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
           ) : (
             filteredProjects.map((p: any) => {
               const awarded = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
+              const billed = p.packages.reduce((s: any, pk: any) => s + (pk.billedAmount || 0), 0);
               const awardedPct = p.budget > 0 ? Math.min(100, (awarded / p.budget) * 100) : 0;
+              const financialPct = awarded > 0 ? Math.min(100, (billed / awarded) * 100) : 0;
               const awardedCount = p.packages.filter((pk: any) => pk.currentStage === "Award").length;
+              const completedMilestones = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.completedMilestones || 0), 0);
+              const totalMilestonesForProject = awardedCount * 6;
+              const taskPct = totalMilestonesForProject > 0 ? (completedMilestones / totalMilestonesForProject) * 100 : 0;
 
               return (
                 <div
@@ -573,22 +586,30 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
                         <p className="text-sm font-mono font-semibold text-slate-700 leading-none">{p.packages.length}</p>
                       </div>
                       <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
-                        <p className="text-xs text-slate-500 mb-1">Awarded</p>
-                        <p className="text-sm font-mono font-semibold text-emerald-600 leading-none">{formatCurrency(awarded)}</p>
+                        <p className="text-xs text-slate-500 mb-1">Billed</p>
+                        <p className="text-sm font-mono font-semibold text-violet-600 leading-none">{formatCurrency(billed)}</p>
                       </div>
                     </div>
 
-                    {/* Budget utilisation bar */}
-                    <div>
-                      <div className="flex justify-between items-center mb-1.5">
-                        <p className="text-xs text-slate-400">Budget Utilisation</p>
-                        <p className="text-xs font-mono text-slate-500">{awardedPct.toFixed(1)}% · {awardedCount} awarded</p>
+                    {/* Dual progress bars */}
+                    <div className="space-y-2.5">
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="text-xs text-slate-400">Financial Progress</p>
+                          <p className="text-xs font-mono text-slate-500">{financialPct.toFixed(0)}%</p>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-violet-500 transition-all duration-500" style={{ width: `${financialPct}%` }} />
+                        </div>
                       </div>
-                      <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                          style={{ width: `${awardedPct}%` }}
-                        />
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="text-xs text-slate-400">Milestone Progress</p>
+                          <p className="text-xs font-mono text-slate-500">{taskPct.toFixed(0)}% · {awardedCount} awarded</p>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${taskPct}%` }} />
+                        </div>
                       </div>
                     </div>
                   </div>

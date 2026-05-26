@@ -27,6 +27,7 @@ function mapPackageRow(
   docsByPkg: Record<string, any[]>,
   auditByPkg: Record<string, any[]>,
   invoicesByPkg: Record<string, any[]>,
+  milestonesByPkg: Record<string, any[]> = {},
 ) {
   const id = row.id;
   return {
@@ -64,6 +65,14 @@ function mapPackageRow(
       user: i.username,
       createdAt: i.created_at,
     })),
+    milestones: (milestonesByPkg[id] || []).map((m: any) => ({
+      id: m.id,
+      milestoneName: m.milestone_name,
+      displayOrder: m.display_order,
+      completed: m.completed,
+      completedAt: m.completed_at || undefined,
+      completedBy: m.completed_by || undefined,
+    })),
   };
 }
 
@@ -84,12 +93,13 @@ function groupBy(rows: any[], key: string): Record<string, any[]> {
  */
 export async function assemblePackage(supabase: SupabaseClient, row: any) {
   const id = row.id;
-  const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes] = await Promise.all([
+  const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes] = await Promise.all([
     supabase.from('vendors').select('id, name, quoted_amount, revised_amount').eq('package_id', id),
     supabase.from('remarks').select('id, username, text, timestamp').eq('package_id', id).order('timestamp'),
     supabase.from('documents').select('id, name, size, type, username, uploaded_at, storage_path').eq('package_id', id).order('uploaded_at'),
     supabase.from('audit_trail').select('id, username, field, old_value, new_value, timestamp').eq('package_id', id).order('timestamp'),
     supabase.from('invoices').select('id, amount, invoice_number, invoice_date, notes, username, created_at').eq('package_id', id).order('invoice_date'),
+    supabase.from('package_milestones').select('id, milestone_name, display_order, completed, completed_at, completed_by').eq('package_id', id).order('display_order'),
   ]);
 
   return mapPackageRow(
@@ -99,6 +109,7 @@ export async function assemblePackage(supabase: SupabaseClient, row: any) {
     { [id]: docsRes.data || [] },
     { [id]: auditRes.data || [] },
     { [id]: invoicesRes.data || [] },
+    { [id]: milestonesRes.data || [] },
   );
 }
 
@@ -117,20 +128,27 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
 
   const pkgs = pkgRows || [];
 
-  // Batch-fetch invoice totals and vendor counts for all packages at once.
+  // Batch-fetch invoice totals, vendor counts, and milestone completion for all packages at once.
   let billedByPkg: Record<string, number> = {};
   let vendorCountByPkg: Record<string, number> = {};
+  let milestonesCompletedByPkg: Record<string, number> = {};
+  let milestonesTotalByPkg: Record<string, number> = {};
   if (pkgs.length > 0) {
     const ids = pkgs.map((p: any) => p.id);
-    const [invRes, vendorRes] = await Promise.all([
+    const [invRes, vendorRes, milestoneRes] = await Promise.all([
       supabase.from('invoices').select('package_id, amount').in('package_id', ids),
       supabase.from('vendors').select('package_id').in('package_id', ids),
+      supabase.from('package_milestones').select('package_id, completed').in('package_id', ids),
     ]);
     for (const inv of invRes.data || []) {
       billedByPkg[inv.package_id] = (billedByPkg[inv.package_id] || 0) + Number(inv.amount);
     }
     for (const v of vendorRes.data || []) {
       vendorCountByPkg[v.package_id] = (vendorCountByPkg[v.package_id] || 0) + 1;
+    }
+    for (const m of milestoneRes.data || []) {
+      milestonesTotalByPkg[m.package_id] = (milestonesTotalByPkg[m.package_id] || 0) + 1;
+      if (m.completed) milestonesCompletedByPkg[m.package_id] = (milestonesCompletedByPkg[m.package_id] || 0) + 1;
     }
   }
 
@@ -150,11 +168,14 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     updatedAt: p.updated_at,
     billedAmount: billedByPkg[p.id] || 0,
     vendorCount: vendorCountByPkg[p.id] || 0,
+    completedMilestones: milestonesCompletedByPkg[p.id] || 0,
+    totalMilestones: milestonesTotalByPkg[p.id] || 0,
     vendors: [],
     remarks: [],
     documents: [],
     auditTrail: [],
     invoices: [],
+    milestones: [],
   }));
 
   return {
@@ -189,27 +210,30 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
   let docsByPkg: Record<string, any[]> = {};
   let auditByPkg: Record<string, any[]> = {};
   let invoicesByPkg: Record<string, any[]> = {};
+  let milestonesByPkg: Record<string, any[]> = {};
 
   if (pkgs.length > 0) {
     const ids = pkgs.map((p: any) => p.id);
 
-    const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes] = await Promise.all([
+    const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes] = await Promise.all([
       supabase.from('vendors').select('id, package_id, name, quoted_amount, revised_amount').in('package_id', ids),
       supabase.from('remarks').select('id, package_id, username, text, timestamp').in('package_id', ids).order('timestamp'),
       supabase.from('documents').select('id, package_id, name, size, type, username, uploaded_at, storage_path').in('package_id', ids).order('uploaded_at'),
       supabase.from('audit_trail').select('id, package_id, username, field, old_value, new_value, timestamp').in('package_id', ids).order('timestamp'),
       supabase.from('invoices').select('id, package_id, amount, invoice_number, invoice_date, notes, username, created_at').in('package_id', ids).order('invoice_date'),
+      supabase.from('package_milestones').select('id, package_id, milestone_name, display_order, completed, completed_at, completed_by').in('package_id', ids).order('display_order'),
     ]);
 
-    vendorsByPkg  = groupBy(vendorsRes.data  || [], 'package_id');
-    remarksByPkg  = groupBy(remarksRes.data  || [], 'package_id');
-    docsByPkg     = groupBy(docsRes.data     || [], 'package_id');
-    auditByPkg    = groupBy(auditRes.data    || [], 'package_id');
-    invoicesByPkg = groupBy(invoicesRes.data || [], 'package_id');
+    vendorsByPkg   = groupBy(vendorsRes.data    || [], 'package_id');
+    remarksByPkg   = groupBy(remarksRes.data    || [], 'package_id');
+    docsByPkg      = groupBy(docsRes.data       || [], 'package_id');
+    auditByPkg     = groupBy(auditRes.data      || [], 'package_id');
+    invoicesByPkg  = groupBy(invoicesRes.data   || [], 'package_id');
+    milestonesByPkg = groupBy(milestonesRes.data || [], 'package_id');
   }
 
   const packages = pkgs.map((p: any) =>
-    mapPackageRow(p, vendorsByPkg, remarksByPkg, docsByPkg, auditByPkg, invoicesByPkg)
+    mapPackageRow(p, vendorsByPkg, remarksByPkg, docsByPkg, auditByPkg, invoicesByPkg, milestonesByPkg)
   );
 
   return {
