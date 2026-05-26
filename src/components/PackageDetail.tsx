@@ -341,7 +341,7 @@ export default function PackageDetail({
             />
             <MilestoneTracker
               milestones={pkg.milestones || []}
-              readonly={!editMode}
+              readonly={mode !== "execution" && !editMode}
               onUpdate={async (name, progress) => {
                 await updateMilestoneProgress(packageId, name, progress, user?.fullName);
                 await reloadPackage();
