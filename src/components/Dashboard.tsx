@@ -84,11 +84,10 @@ function ExecTrackingSection({ projects, totalAwarded, totalBilled }: ExecTracki
   );
   if (allAwardedPkgs.length === 0) return null;
 
-  const portfolioMilestoneSum   = allAwardedPkgs.reduce((s: number, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
-  const portfolioMilestoneTotal = allAwardedPkgs.reduce((s: number, pk: any) => s + (pk.totalMilestones || 0), 0);
-  const portfolioMilestonePct   = portfolioMilestoneTotal > 0 ? portfolioMilestoneSum / portfolioMilestoneTotal : 0;
-  const portfolioFinancialPct   = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
+  const portfolioFinancialPct = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
 
+  // perMilestoneAvg treats packages with no DB rows for a milestone as 0%,
+  // giving the correct denominator (allAwardedPkgs.length × 6).
   const perMilestoneAvg = EXECUTION_MILESTONES.map(name => {
     const sum = allAwardedPkgs.reduce((s: number, pkg: any) => {
       const m = (pkg.milestones || []).find((x: any) => x.milestoneName === name);
@@ -96,6 +95,13 @@ function ExecTrackingSection({ projects, totalAwarded, totalBilled }: ExecTracki
     }, 0);
     return { name, avg: allAwardedPkgs.length > 0 ? sum / allAwardedPkgs.length : 0 };
   });
+
+  // Overall = average of the 6 per-milestone averages.
+  // Using per-milestone avgs (not raw DB row counts) ensures packages with
+  // missing rows are counted as 0%, not excluded from the denominator.
+  const portfolioMilestonePct = perMilestoneAvg.length > 0
+    ? perMilestoneAvg.reduce((s, m) => s + m.avg, 0) / perMilestoneAvg.length
+    : 0;
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
@@ -473,7 +479,9 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
     awarded: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.awardValue || 0), 0), 0),
     billed: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.billedAmount || 0), 0), 0),
     milestonesProgressSum: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.milestonesProgressSum || 0), 0), 0),
-    milestonesCount: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.totalMilestones || 0), 0), 0),
+    // Denominator is always awardedPkgs × 6 — DB row count undercounts when
+    // packages have never been visited (missing rows default to 0%).
+    milestonesCount: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').length, 0) * EXECUTION_MILESTONES.length,
   };
 
   if (loading) {
