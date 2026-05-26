@@ -82,6 +82,11 @@ export default function PackageDetail({
     })();
   }, [packageId, projectId]);
 
+  // Auto-enable Edit Mode in execution flow so milestone bars are immediately draggable.
+  useEffect(() => {
+    if (mode === "execution") setEditMode(true);
+  }, [mode]);
+
   // ── Derived values ────────────────────────────────────────────────────────
 
   const isAwarded     = pkg?.currentStage === "Award";
@@ -341,10 +346,15 @@ export default function PackageDetail({
             />
             <MilestoneTracker
               milestones={pkg.milestones || []}
-              readonly={mode !== "execution" && !editMode}
+              readonly={!editMode}
               onUpdate={async (name, progress) => {
-                await updateMilestoneProgress(packageId, name, progress, user?.fullName);
-                await reloadPackage();
+                try {
+                  await updateMilestoneProgress(packageId, name, progress, user?.fullName);
+                  await reloadPackage();
+                } catch (e) {
+                  console.error('Milestone save failed:', e);
+                  await reloadPackage(); // snap bar back to last saved value
+                }
               }}
             />
           </div>
