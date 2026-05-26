@@ -25,9 +25,11 @@ function PackagePageInner({
 
   if (loading || !user) return null;
 
+  // Hard-navigate so Next.js router cache doesn't restore stale project state.
+  // router.push() can serve from the 30s client-side cache; window.location
+  // forces a fresh mount and re-runs ProjectDetail's data-loading useEffect.
   const handleBack = () => {
-    router.refresh();
-    router.push(`/projects/${projectId}`);
+    window.location.href = `/projects/${projectId}`;
   };
 
   return (
