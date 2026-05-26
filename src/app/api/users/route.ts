@@ -5,13 +5,30 @@ import { createAdminSupabase } from '@/lib/supabase/admin';
 export async function GET() {
   const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
-  return NextResponse.json([{
-    id: auth.id,
-    username: auth.email,
-    fullName: auth.fullName,
-    role: auth.role,
-    canEdit: auth.canEdit,
-  }]);
+
+  const admin = createAdminSupabase();
+
+  const { data: { users }, error } = await admin.auth.admin.listUsers();
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Fetch profiles for can_edit
+  const ids = users.map(u => u.id);
+  const { data: profiles } = await admin.from('profiles').select('id, full_name, can_edit').in('id', ids);
+  const profileById: Record<string, any> = {};
+  for (const p of profiles || []) profileById[p.id] = p;
+
+  return NextResponse.json(users.map(u => {
+    const profile = profileById[u.id];
+    return {
+      id: u.id,
+      username: u.email ?? '',
+      fullName: profile?.full_name || u.user_metadata?.full_name || u.email?.split('@')[0] || 'User',
+      role: u.id === auth.id ? 'admin' : 'user',
+      canEdit: profile?.can_edit ?? true,
+    };
+  }));
 }
 
 export async function POST(req: NextRequest) {
