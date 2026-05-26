@@ -52,3 +52,6 @@ procurement.db-wal
 
 # Claude Code agent memory
 /memory/
+
+# Claude Code internal state
+/.claude/
