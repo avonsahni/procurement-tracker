@@ -1,16 +1,14 @@
 -- Fix recursive RLS on organization_members.
--- Policies that reference organization_members (including the table's own policy)
--- must go through a SECURITY DEFINER function so Postgres doesn't apply RLS
--- to the membership lookup itself, which causes infinite recursion.
+-- Returns uuid[] (array) not setof uuid — arrays are allowed in policy expressions.
 
 create or replace function public.my_org_ids()
-returns setof uuid
+returns uuid[]
 language sql
 security definer
 stable
 set search_path = public
 as $$
-  select org_id from public.organization_members where user_id = auth.uid();
+  select array(select org_id from public.organization_members where user_id = auth.uid());
 $$;
 
 create or replace function public.is_org_admin(check_org_id uuid)
@@ -28,6 +26,10 @@ $$;
 
 -- ── organization_members ──────────────────────────────────────────────────────
 drop policy if exists "org_members_access" on public.organization_members;
+drop policy if exists "org_members_select" on public.organization_members;
+drop policy if exists "org_members_insert" on public.organization_members;
+drop policy if exists "org_members_update" on public.organization_members;
+drop policy if exists "org_members_delete" on public.organization_members;
 
 create policy "org_members_select" on public.organization_members
   for select using (org_id = any(public.my_org_ids()));
@@ -43,6 +45,8 @@ create policy "org_members_delete" on public.organization_members
 
 -- ── organizations ─────────────────────────────────────────────────────────────
 drop policy if exists "orgs_member_access" on public.organizations;
+drop policy if exists "orgs_select" on public.organizations;
+drop policy if exists "orgs_write" on public.organizations;
 
 create policy "orgs_select" on public.organizations
   for select using (id = any(public.my_org_ids()));
@@ -57,7 +61,7 @@ create policy "projects_via_org" on public.projects
   for all using (org_id = any(public.my_org_ids()))
   with check (org_id = any(public.my_org_ids()));
 
--- ── packages ─────────────────────────────────────────────────────────────────
+-- ── packages ──────────────────────────────────────────────────────────────────
 drop policy if exists "packages_via_org" on public.packages;
 
 create policy "packages_via_org" on public.packages
