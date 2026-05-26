@@ -71,6 +71,327 @@ function ProjectBudgetCell({ project, onUpdate, editMode }: { project: any; onUp
   );
 }
 
+// ─── ExecTrackingSection ──────────────────────────────────────────────────────
+
+interface ExecTrackingSectionProps {
+  projects: any[]; // keep any[] here for now — these are ProjectSummary but Dashboard's state is still untyped
+  totalAwarded: number;
+  totalBilled: number;
+}
+function ExecTrackingSection({ projects, totalAwarded, totalBilled }: ExecTrackingSectionProps) {
+  const allAwardedPkgs = projects.flatMap((p: any) =>
+    p.packages.filter((pk: any) => pk.currentStage === "Award")
+  );
+  if (allAwardedPkgs.length === 0) return null;
+
+  const portfolioMilestoneSum   = allAwardedPkgs.reduce((s: number, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
+  const portfolioMilestoneTotal = allAwardedPkgs.reduce((s: number, pk: any) => s + (pk.totalMilestones || 0), 0);
+  const portfolioMilestonePct   = portfolioMilestoneTotal > 0 ? portfolioMilestoneSum / portfolioMilestoneTotal : 0;
+  const portfolioFinancialPct   = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
+
+  const perMilestoneAvg = EXECUTION_MILESTONES.map(name => {
+    const sum = allAwardedPkgs.reduce((s: number, pkg: any) => {
+      const m = (pkg.milestones || []).find((x: any) => x.milestoneName === name);
+      return s + (m ? Number(m.progress) : 0);
+    }, 0);
+    return { name, avg: allAwardedPkgs.length > 0 ? sum / allAwardedPkgs.length : 0 };
+  });
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Activity className="w-4 h-4 text-emerald-600" />
+            <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Execution Tracking</p>
+          </div>
+          <h3 className="text-base font-semibold text-slate-900">Portfolio Milestone Progress</h3>
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="text-xs text-slate-500">In Execution</p>
+            <p className="text-xl font-mono font-semibold text-emerald-600">{allAwardedPkgs.length}</p>
+            <p className="text-[10px] text-slate-400">packages</p>
+          </div>
+          <div className="w-px h-10 bg-slate-200" />
+          <div className="text-right">
+            <p className="text-xs text-slate-500">Milestone Avg</p>
+            <p className="text-xl font-mono font-semibold text-blue-600">{portfolioMilestonePct.toFixed(1)}%</p>
+            <p className="text-[10px] text-slate-400">all milestones</p>
+          </div>
+          <div className="w-px h-10 bg-slate-200" />
+          <div className="text-right">
+            <p className="text-xs text-slate-500">Financial</p>
+            <p className="text-xl font-mono font-semibold text-violet-600">{portfolioFinancialPct.toFixed(1)}%</p>
+            <p className="text-[10px] text-slate-400">billed / awarded</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Overall bars */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-blue-700 flex items-center gap-1.5">
+              <Target className="w-3.5 h-3.5" />Overall Milestone Progress
+            </span>
+            <span className="text-sm font-mono font-bold text-blue-700">{portfolioMilestonePct.toFixed(1)}%</span>
+          </div>
+          <div className="h-3 w-full rounded-full bg-blue-100 overflow-hidden">
+            <div className={`h-full rounded-full transition-all duration-700 ${portfolioMilestonePct >= 100 ? "bg-emerald-500" : "bg-blue-500"}`}
+              style={{ width: `${Math.min(100, portfolioMilestonePct)}%` }} />
+          </div>
+          <p className="text-[10px] text-blue-400 mt-1">{allAwardedPkgs.length} packages · {EXECUTION_MILESTONES.length} milestones each</p>
+        </div>
+        <div className="bg-violet-50 border border-violet-100 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-violet-700 flex items-center gap-1.5">
+              <Receipt className="w-3.5 h-3.5" />Overall Financial Progress
+            </span>
+            <span className="text-sm font-mono font-bold text-violet-700">{portfolioFinancialPct.toFixed(1)}%</span>
+          </div>
+          <div className="h-3 w-full rounded-full bg-violet-100 overflow-hidden">
+            <div className={`h-full rounded-full transition-all duration-700 ${portfolioFinancialPct >= 100 ? "bg-emerald-500" : "bg-violet-500"}`}
+              style={{ width: `${Math.min(100, portfolioFinancialPct)}%` }} />
+          </div>
+          <p className="text-[10px] text-violet-400 mt-1">{formatCurrency(totalBilled)} billed of {formatCurrency(totalAwarded)} awarded</p>
+        </div>
+      </div>
+
+      {/* Full-width milestone pipeline */}
+      <div>
+        <p className="text-xs font-semibold text-slate-700 mb-4">
+          Milestone Pipeline
+          <span className="font-normal text-slate-400 ml-1">(portfolio avg across {allAwardedPkgs.length} package{allAwardedPkgs.length !== 1 ? "s" : ""})</span>
+        </p>
+        <div className="space-y-3">
+          {perMilestoneAvg.map((m, i) => (
+            <div key={m.name} className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-5 flex items-center justify-center">
+                {m.avg >= 100
+                  ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  : <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
+                }
+              </div>
+              <span className={`text-xs font-medium flex-shrink-0 w-52 truncate ${m.avg >= 100 ? "text-slate-400 line-through" : "text-slate-700"}`}>
+                {m.name}
+              </span>
+              <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${m.avg >= 100 ? "bg-emerald-500" : m.avg > 0 ? "bg-blue-500" : "bg-slate-200"}`}
+                  style={{ width: `${m.avg}%` }}
+                />
+              </div>
+              <span className={`text-xs font-mono font-semibold w-10 text-right flex-shrink-0 ${
+                m.avg >= 100 ? "text-emerald-600" : m.avg > 0 ? "text-blue-600" : "text-slate-400"
+              }`}>{m.avg.toFixed(0)}%</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-5 mt-4 pt-3 border-t border-slate-100">
+          <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-blue-500 inline-block" />In progress</span>
+          <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-emerald-500 inline-block" />Complete</span>
+          <span className="text-[10px] text-slate-400 ml-auto">Open a project to drill down per package</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ProcurementPipelineSection ───────────────────────────────────────────────
+
+function ProcurementPipelineSection({ projects }: { projects: any[] }) {
+  const stageConfig = [
+    { key: "Spec Received", label: "Spec Received", color: "bg-slate-400" },
+    { key: "RFQ Float", label: "RFQ Float", color: "bg-blue-400" },
+    { key: "Technical Negotiation", label: "Tech Neg.", color: "bg-blue-500" },
+    { key: "Commercial Negotiation", label: "Comm. Neg.", color: "bg-blue-600" },
+    { key: "Award", label: "Awarded", color: "bg-emerald-500" },
+  ];
+
+  const allPkgs = projects.flatMap((p: any) => p.packages);
+  const total = allPkgs.length;
+
+  const stageCounts = stageConfig.map(s => ({
+    ...s,
+    count: allPkgs.filter((pk: any) => pk.currentStage === s.key).length,
+    pct: total > 0 ? (allPkgs.filter((pk: any) => pk.currentStage === s.key).length / total) * 100 : 0,
+  }));
+
+  const cumulativeCompleted = total > 0 ? (stageCounts[4].count / total) * 100 : 0;
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Procurement Pipeline</p>
+          <h3 className="text-base font-semibold text-slate-900">Package Stage Distribution</h3>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-xs text-slate-500">Total Packages</p>
+            <p className="text-xl font-mono font-semibold text-slate-900">{total}</p>
+          </div>
+          <div className="w-px h-8 bg-slate-200" />
+          <div className="text-right">
+            <p className="text-xs text-slate-500">Awarded</p>
+            <p className="text-xl font-mono font-semibold text-emerald-600">{cumulativeCompleted.toFixed(1)}%</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <div className="flex h-6 w-full rounded-full overflow-hidden bg-slate-100">
+          {stageCounts.map((s) => (
+            s.pct > 0 && (
+              <div
+                key={s.key}
+                className={`${s.color} relative flex items-center justify-center transition-all duration-500`}
+                style={{ width: `${s.pct}%`, minWidth: s.pct > 0 ? '2px' : '0' }}
+                title={`${s.label}: ${s.count} packages (${s.pct.toFixed(1)}%)`}
+              >
+                {s.pct > 8 && (
+                  <span className="text-[10px] font-medium text-white">{s.pct.toFixed(0)}%</span>
+                )}
+              </div>
+            )
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
+        {stageCounts.map(s => (
+          <div key={s.key} className="flex items-center gap-2">
+            <div className={`w-2.5 h-2.5 rounded-full ${s.color} flex-shrink-0`} />
+            <span className="text-xs text-slate-700">{s.label}</span>
+            <span className="text-xs font-mono text-slate-500">{s.count}</span>
+            <span className="text-xs text-slate-400">({s.pct.toFixed(1)}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── ProjectCard ──────────────────────────────────────────────────────────────
+
+interface ProjectCardProps {
+  project: any; // ProjectSummary
+  editMode: boolean;
+  onOpen: (id: string) => void;
+  onDelete: (id: string) => void;
+  onUpdateStatus: (id: string, status: string) => void;
+  onUpdateBudget: (id: string, budget: number) => void;
+}
+function ProjectCard({ project: p, editMode, onOpen, onDelete, onUpdateStatus, onUpdateBudget }: ProjectCardProps) {
+  const awarded = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
+  const billed = p.packages.reduce((s: any, pk: any) => s + (pk.billedAmount || 0), 0);
+  const awardedPct = p.budget > 0 ? Math.min(100, (awarded / p.budget) * 100) : 0;
+  const financialPct = awarded > 0 ? Math.min(100, (billed / awarded) * 100) : 0;
+  const awardedCount = p.packages.filter((pk: any) => pk.currentStage === "Award").length;
+  const milestonesProgressSum = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
+  const milestonesCount = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.totalMilestones || 0), 0);
+  const taskPct = milestonesCount > 0 ? milestonesProgressSum / milestonesCount : 0;
+
+  return (
+    <div
+      key={p.id}
+      className="group bg-white rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col"
+      onClick={() => onOpen(p.id)}
+    >
+      {/* Card header */}
+      <div className="p-6 flex-1">
+        <div className="flex justify-between items-start mb-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              {editMode ? (
+                <select
+                  value={p.status}
+                  onClick={e => e.stopPropagation()}
+                  onChange={async (e) => { e.stopPropagation(); await onUpdateStatus(p.id, e.target.value); }}
+                  className="bg-white border border-slate-200 rounded text-xs text-slate-700 px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="Active">Active</option>
+                  <option value="On Hold">On Hold</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              ) : (
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ring-1 ring-inset ${statusColors[p.status]}`}>
+                  {p.status}
+                </span>
+              )}
+              <span className="text-xs text-slate-400">Modified {new Date(p.updatedAt).toLocaleDateString()}</span>
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">{p.name}</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{p.client}</p>
+          </div>
+          <div className="flex items-center gap-1.5 ml-3 flex-shrink-0">
+            {editMode && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
+                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            <div className="p-2 rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-300 group-hover:text-blue-600 transition">
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
+            <p className="text-xs text-slate-500 mb-1">Budget</p>
+            <ProjectBudgetCell project={p} onUpdate={(val) => onUpdateBudget(p.id, val)} editMode={editMode} />
+          </div>
+          <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
+            <p className="text-xs text-slate-500 mb-1">Packages</p>
+            <p className="text-sm font-mono font-semibold text-slate-700 leading-none">{p.packages.length}</p>
+          </div>
+          <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
+            <p className="text-xs text-slate-500 mb-1">Billed</p>
+            <p className="text-sm font-mono font-semibold text-violet-600 leading-none">{formatCurrency(billed)}</p>
+          </div>
+        </div>
+
+        {/* Dual progress bars */}
+        <div className="space-y-2.5">
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <p className="text-xs text-slate-400">Financial Progress</p>
+              <p className="text-xs font-mono text-slate-500">{financialPct.toFixed(0)}%</p>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full rounded-full bg-violet-500 transition-all duration-500" style={{ width: `${financialPct}%` }} />
+            </div>
+          </div>
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <p className="text-xs text-slate-400">Milestone Progress</p>
+              <p className="text-xs font-mono text-slate-500">{taskPct.toFixed(0)}% · {awardedCount} awarded</p>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${taskPct}%` }} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Card footer CTA */}
+      <div className="px-6 pb-5">
+        <div className="w-full py-2.5 bg-slate-50 border border-slate-200 group-hover:bg-blue-600 group-hover:border-blue-600 group-hover:text-white text-slate-600 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200">
+          Open Project <ArrowRight className="w-4 h-4" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
 export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement }: any) {
   const { user, logout, editMode, setEditMode } = useAuth();
   const router = useRouter();
@@ -351,126 +672,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
         </div>
 
         {/* EXECUTION TRACKING — portfolio-level milestone progress */}
-        {(() => {
-          const allAwardedPkgs = projects.flatMap((p: any) =>
-            p.packages.filter((pk: any) => pk.currentStage === "Award")
-          );
-          if (allAwardedPkgs.length === 0) return null;
-
-          const portfolioMilestoneSum   = allAwardedPkgs.reduce((s: number, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
-          const portfolioMilestoneTotal = allAwardedPkgs.reduce((s: number, pk: any) => s + (pk.totalMilestones || 0), 0);
-          const portfolioMilestonePct   = portfolioMilestoneTotal > 0 ? portfolioMilestoneSum / portfolioMilestoneTotal : 0;
-          const portfolioFinancialPct   = stats.awarded > 0 ? Math.min(100, (stats.billed / stats.awarded) * 100) : 0;
-
-          const perMilestoneAvg = EXECUTION_MILESTONES.map(name => {
-            const sum = allAwardedPkgs.reduce((s: number, pkg: any) => {
-              const m = (pkg.milestones || []).find((x: any) => x.milestoneName === name);
-              return s + (m ? Number(m.progress) : 0);
-            }, 0);
-            return { name, avg: allAwardedPkgs.length > 0 ? sum / allAwardedPkgs.length : 0 };
-          });
-
-          return (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Activity className="w-4 h-4 text-emerald-600" />
-                    <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Execution Tracking</p>
-                  </div>
-                  <h3 className="text-base font-semibold text-slate-900">Portfolio Milestone Progress</h3>
-                </div>
-                <div className="flex items-center gap-6">
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500">In Execution</p>
-                    <p className="text-xl font-mono font-semibold text-emerald-600">{allAwardedPkgs.length}</p>
-                    <p className="text-[10px] text-slate-400">packages</p>
-                  </div>
-                  <div className="w-px h-10 bg-slate-200" />
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500">Milestone Avg</p>
-                    <p className="text-xl font-mono font-semibold text-blue-600">{portfolioMilestonePct.toFixed(1)}%</p>
-                    <p className="text-[10px] text-slate-400">all milestones</p>
-                  </div>
-                  <div className="w-px h-10 bg-slate-200" />
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500">Financial</p>
-                    <p className="text-xl font-mono font-semibold text-violet-600">{portfolioFinancialPct.toFixed(1)}%</p>
-                    <p className="text-[10px] text-slate-400">billed / awarded</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Overall bars */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-blue-700 flex items-center gap-1.5">
-                      <Target className="w-3.5 h-3.5" />Overall Milestone Progress
-                    </span>
-                    <span className="text-sm font-mono font-bold text-blue-700">{portfolioMilestonePct.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-3 w-full rounded-full bg-blue-100 overflow-hidden">
-                    <div className={`h-full rounded-full transition-all duration-700 ${portfolioMilestonePct >= 100 ? "bg-emerald-500" : "bg-blue-500"}`}
-                      style={{ width: `${Math.min(100, portfolioMilestonePct)}%` }} />
-                  </div>
-                  <p className="text-[10px] text-blue-400 mt-1">{allAwardedPkgs.length} packages · {EXECUTION_MILESTONES.length} milestones each</p>
-                </div>
-                <div className="bg-violet-50 border border-violet-100 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-violet-700 flex items-center gap-1.5">
-                      <Receipt className="w-3.5 h-3.5" />Overall Financial Progress
-                    </span>
-                    <span className="text-sm font-mono font-bold text-violet-700">{portfolioFinancialPct.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-3 w-full rounded-full bg-violet-100 overflow-hidden">
-                    <div className={`h-full rounded-full transition-all duration-700 ${portfolioFinancialPct >= 100 ? "bg-emerald-500" : "bg-violet-500"}`}
-                      style={{ width: `${Math.min(100, portfolioFinancialPct)}%` }} />
-                  </div>
-                  <p className="text-[10px] text-violet-400 mt-1">{formatCurrency(stats.billed)} billed of {formatCurrency(stats.awarded)} awarded</p>
-                </div>
-              </div>
-
-              {/* Full-width milestone pipeline */}
-              <div>
-                <p className="text-xs font-semibold text-slate-700 mb-4">
-                  Milestone Pipeline
-                  <span className="font-normal text-slate-400 ml-1">(portfolio avg across {allAwardedPkgs.length} package{allAwardedPkgs.length !== 1 ? "s" : ""})</span>
-                </p>
-                <div className="space-y-3">
-                  {perMilestoneAvg.map((m, i) => (
-                    <div key={m.name} className="flex items-center gap-3">
-                      <div className="flex-shrink-0 w-5 flex items-center justify-center">
-                        {m.avg >= 100
-                          ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          : <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
-                        }
-                      </div>
-                      <span className={`text-xs font-medium flex-shrink-0 w-52 truncate ${m.avg >= 100 ? "text-slate-400 line-through" : "text-slate-700"}`}>
-                        {m.name}
-                      </span>
-                      <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${m.avg >= 100 ? "bg-emerald-500" : m.avg > 0 ? "bg-blue-500" : "bg-slate-200"}`}
-                          style={{ width: `${m.avg}%` }}
-                        />
-                      </div>
-                      <span className={`text-xs font-mono font-semibold w-10 text-right flex-shrink-0 ${
-                        m.avg >= 100 ? "text-emerald-600" : m.avg > 0 ? "text-blue-600" : "text-slate-400"
-                      }`}>{m.avg.toFixed(0)}%</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-5 mt-4 pt-3 border-t border-slate-100">
-                  <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-blue-500 inline-block" />In progress</span>
-                  <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-emerald-500 inline-block" />Complete</span>
-                  <span className="text-[10px] text-slate-400 ml-auto">Open a project to drill down per package</span>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+        <ExecTrackingSection projects={projects} totalAwarded={stats.awarded} totalBilled={stats.billed} />
 
         {/* STAT CARDS — portfolio rollups; drill into Project Portfolio below for detail */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
@@ -492,78 +694,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
         </div>
 
         {/* PIPELINE */}
-        {(() => {
-          const stageConfig = [
-            { key: "Spec Received", label: "Spec Received", color: "bg-slate-400" },
-            { key: "RFQ Float", label: "RFQ Float", color: "bg-blue-400" },
-            { key: "Technical Negotiation", label: "Tech Neg.", color: "bg-blue-500" },
-            { key: "Commercial Negotiation", label: "Comm. Neg.", color: "bg-blue-600" },
-            { key: "Award", label: "Awarded", color: "bg-emerald-500" },
-          ];
-
-          const allPkgs = projects.flatMap((p: any) => p.packages);
-          const total = allPkgs.length;
-
-          const stageCounts = stageConfig.map(s => ({
-            ...s,
-            count: allPkgs.filter((pk: any) => pk.currentStage === s.key).length,
-            pct: total > 0 ? (allPkgs.filter((pk: any) => pk.currentStage === s.key).length / total) * 100 : 0,
-          }));
-
-          const cumulativeCompleted = total > 0 ? (stageCounts[4].count / total) * 100 : 0;
-
-          return (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Procurement Pipeline</p>
-                  <h3 className="text-base font-semibold text-slate-900">Package Stage Distribution</h3>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500">Total Packages</p>
-                    <p className="text-xl font-mono font-semibold text-slate-900">{total}</p>
-                  </div>
-                  <div className="w-px h-8 bg-slate-200" />
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500">Awarded</p>
-                    <p className="text-xl font-mono font-semibold text-emerald-600">{cumulativeCompleted.toFixed(1)}%</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <div className="flex h-6 w-full rounded-full overflow-hidden bg-slate-100">
-                  {stageCounts.map((s) => (
-                    s.pct > 0 && (
-                      <div
-                        key={s.key}
-                        className={`${s.color} relative flex items-center justify-center transition-all duration-500`}
-                        style={{ width: `${s.pct}%`, minWidth: s.pct > 0 ? '2px' : '0' }}
-                        title={`${s.label}: ${s.count} packages (${s.pct.toFixed(1)}%)`}
-                      >
-                        {s.pct > 8 && (
-                          <span className="text-[10px] font-medium text-white">{s.pct.toFixed(0)}%</span>
-                        )}
-                      </div>
-                    )
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-x-5 gap-y-2">
-                {stageCounts.map(s => (
-                  <div key={s.key} className="flex items-center gap-2">
-                    <div className={`w-2.5 h-2.5 rounded-full ${s.color} flex-shrink-0`} />
-                    <span className="text-xs text-slate-700">{s.label}</span>
-                    <span className="text-xs font-mono text-slate-500">{s.count}</span>
-                    <span className="text-xs text-slate-400">({s.pct.toFixed(1)}%)</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+        <ProcurementPipelineSection projects={projects} />
 
         {/* SECTION TITLE */}
         <div className="flex items-center justify-between mb-5">
@@ -588,111 +719,17 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
               <p className="text-slate-500 text-sm font-medium">No projects found</p>
             </div>
           ) : (
-            filteredProjects.map((p: any) => {
-              const awarded = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
-              const billed = p.packages.reduce((s: any, pk: any) => s + (pk.billedAmount || 0), 0);
-              const awardedPct = p.budget > 0 ? Math.min(100, (awarded / p.budget) * 100) : 0;
-              const financialPct = awarded > 0 ? Math.min(100, (billed / awarded) * 100) : 0;
-              const awardedCount = p.packages.filter((pk: any) => pk.currentStage === "Award").length;
-              const milestonesProgressSum = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
-              const milestonesCount = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.totalMilestones || 0), 0);
-              const taskPct = milestonesCount > 0 ? milestonesProgressSum / milestonesCount : 0;
-
-              return (
-                <div
-                  key={p.id}
-                  className="group bg-white rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col"
-                  onClick={() => router.push(`/projects/${p.id}`)}
-                >
-                  {/* Card header */}
-                  <div className="p-6 flex-1">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          {editMode ? (
-                            <select
-                              value={p.status}
-                              onClick={e => e.stopPropagation()}
-                              onChange={async (e) => { e.stopPropagation(); await handleUpdateProjectStatus(p.id, e.target.value); }}
-                              className="bg-white border border-slate-200 rounded text-xs text-slate-700 px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-500"
-                            >
-                              <option value="Active">Active</option>
-                              <option value="On Hold">On Hold</option>
-                              <option value="Completed">Completed</option>
-                            </select>
-                          ) : (
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ring-1 ring-inset ${statusColors[p.status]}`}>
-                              {p.status}
-                            </span>
-                          )}
-                          <span className="text-xs text-slate-400">Modified {new Date(p.updatedAt).toLocaleDateString()}</span>
-                        </div>
-                        <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">{p.name}</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">{p.client}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 ml-3 flex-shrink-0">
-                        {editMode && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id); }}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                        <div className="p-2 rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-300 group-hover:text-blue-600 transition">
-                          <ArrowRight className="w-4 h-4" />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="grid grid-cols-3 gap-3 mb-4">
-                      <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
-                        <p className="text-xs text-slate-500 mb-1">Budget</p>
-                        <ProjectBudgetCell project={p} onUpdate={(val) => handleUpdateProjectBudget(p.id, val)} editMode={editMode} />
-                      </div>
-                      <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
-                        <p className="text-xs text-slate-500 mb-1">Packages</p>
-                        <p className="text-sm font-mono font-semibold text-slate-700 leading-none">{p.packages.length}</p>
-                      </div>
-                      <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
-                        <p className="text-xs text-slate-500 mb-1">Billed</p>
-                        <p className="text-sm font-mono font-semibold text-violet-600 leading-none">{formatCurrency(billed)}</p>
-                      </div>
-                    </div>
-
-                    {/* Dual progress bars */}
-                    <div className="space-y-2.5">
-                      <div>
-                        <div className="flex justify-between items-center mb-1">
-                          <p className="text-xs text-slate-400">Financial Progress</p>
-                          <p className="text-xs font-mono text-slate-500">{financialPct.toFixed(0)}%</p>
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-violet-500 transition-all duration-500" style={{ width: `${financialPct}%` }} />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between items-center mb-1">
-                          <p className="text-xs text-slate-400">Milestone Progress</p>
-                          <p className="text-xs font-mono text-slate-500">{taskPct.toFixed(0)}% · {awardedCount} awarded</p>
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${taskPct}%` }} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card footer CTA */}
-                  <div className="px-6 pb-5">
-                    <div className="w-full py-2.5 bg-slate-50 border border-slate-200 group-hover:bg-blue-600 group-hover:border-blue-600 group-hover:text-white text-slate-600 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200">
-                      Open Project <ArrowRight className="w-4 h-4" />
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+            filteredProjects.map((p: any) => (
+              <ProjectCard
+                key={p.id}
+                project={p}
+                editMode={editMode}
+                onOpen={(id) => router.push(`/projects/${id}`)}
+                onDelete={handleDeleteProject}
+                onUpdateStatus={handleUpdateProjectStatus}
+                onUpdateBudget={handleUpdateProjectBudget}
+              />
+            ))
           )}
         </div>
       </main>

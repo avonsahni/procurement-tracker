@@ -1,4 +1,4 @@
-import type { Project } from "./types";
+import type { Project, ProjectSummary } from "./types";
 
 export interface CompanyInfo {
   name: string;
@@ -57,7 +57,7 @@ export async function deleteUser(id: string): Promise<void> {
 export async function fetchProjects(): Promise<Project[]> {
   return api('/api/projects');
 }
-export async function fetchProject(id: string): Promise<Project | undefined> {
+export async function fetchProject(id: string): Promise<ProjectSummary | undefined> {
   try { return await api(`/api/projects/${id}`); } catch { return undefined; }
 }
 export async function addProject(name: string, client: string, budget: number): Promise<void> {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { fetchProject, addPackage, deletePackage, fetchCategories } from "@/lib/store";
-import { STAGES, CURRENCY_SYMBOLS, formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
+import { STAGES, CURRENCY_SYMBOLS, formatCurrency, EXECUTION_MILESTONES, ProjectSummary, PackageSummary } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import {
@@ -38,11 +38,15 @@ function StatTile({ label, value, sub, accent }: { label: string; value: string 
 
 // ─── main component ──────────────────────────────────────────────────────────
 
-export default function ProjectDetail({ projectId, onBack }: any) {
+interface ProjectDetailProps {
+  projectId: string;
+  onBack: () => void;
+}
+export default function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
   const { user, editMode, setEditMode } = useAuth();
   const router = useRouter();
 
-  const [project, setProject]       = useState<any>(null);
+  const [project, setProject]       = useState<ProjectSummary | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading]       = useState(true);
   const [view, setView]             = useState<View>("landing");
@@ -52,9 +56,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   const [filterCat, setFilterCat]   = useState("All");
   const [filterStage, setFilterStage] = useState("All");
 
-  // milestone lookup: pkg.id → milestone name → progress (built from server data)
-  const [execMilestones, setExecMilestones] = useState<Record<string, Record<string, number>>>({});
-
   const [showAddPkg, setShowAddPkg] = useState(false);
   const [newPkg, setNewPkg] = useState({ name: "", category: "", origin: "Domestic", currency: "INR" });
 
@@ -62,7 +63,7 @@ export default function ProjectDetail({ projectId, onBack }: any) {
     setLoading(true);
     try {
       const [proj, cats] = await Promise.all([fetchProject(projectId), fetchCategories()]);
-      setProject(proj);
+      setProject(proj ?? null);
       setCategories(cats);
       if (cats.length > 0) setNewPkg(p => ({ ...p, category: p.category || cats[0] }));
     } catch (e) { console.error(e); }
@@ -70,20 +71,6 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   };
 
   useEffect(() => { loadData(); }, [projectId]);
-
-  // Seed execMilestones from project data whenever project loads
-  useEffect(() => {
-    if (!project) return;
-    const init: Record<string, Record<string, number>> = {};
-    for (const pkg of project.packages as any[]) {
-      if (pkg.currentStage !== "Award") continue;
-      const pkgMap: Record<string, number> = {};
-      for (const name of EXECUTION_MILESTONES) pkgMap[name] = 0;
-      for (const m of (pkg.milestones || []) as any[]) pkgMap[m.milestoneName] = m.progress;
-      init[pkg.id] = pkgMap;
-    }
-    setExecMilestones(init);
-  }, [project]);
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
@@ -95,28 +82,32 @@ export default function ProjectDetail({ projectId, onBack }: any) {
     <div className="min-h-screen flex items-center justify-center text-sm text-slate-500 bg-slate-50">Project not found.</div>
   );
 
+  // ── pure helper ─────────────────────────────────────────────────────────────
+  const milestoneProgress = (pkg: PackageSummary, name: string): number =>
+    pkg.milestones.find(m => m.milestoneName === name)?.progress ?? 0;
+
   // ── derived values ──────────────────────────────────────────────────────────
-  const allPkgs      = project.packages as any[];
+  const allPkgs      = project.packages as PackageSummary[];
   const awardedPkgs  = allPkgs.filter(p => p.currentStage === "Award");
   const inProgPkgs   = allPkgs.filter(p => p.currentStage !== "Award");
 
-  const totalAwarded = awardedPkgs.reduce((s: number, p: any) => s + (p.awardValue || 0), 0);
-  const totalBilled  = allPkgs.reduce((s: number, p: any) => s + (p.billedAmount || 0), 0);
+  const totalAwarded = awardedPkgs.reduce((s, p) => s + (p.awardValue || 0), 0);
+  const totalBilled  = allPkgs.reduce((s, p) => s + (p.billedAmount || 0), 0);
   const balance      = Math.max(0, project.budget - totalAwarded);
   const overrun      = totalAwarded > project.budget ? totalAwarded - project.budget : 0;
   const awardedNotBill = Math.max(0, totalAwarded - totalBilled);
   const awardPct     = project.budget > 0 ? Math.min(100, (totalAwarded / project.budget) * 100) : 0;
 
   // Purchasing stats (from project summary aggregates)
-  const summaryMilestoneSum   = awardedPkgs.reduce((s: number, p: any) => s + (p.milestonesProgressSum || 0), 0);
-  const summaryMilestoneCount = awardedPkgs.reduce((s: number, p: any) => s + (p.totalMilestones || 0), 0);
+  const summaryMilestoneSum   = awardedPkgs.reduce((s, p) => s + (p.milestonesProgressSum || 0), 0);
+  const summaryMilestoneCount = awardedPkgs.reduce((s, p) => s + (p.totalMilestones || 0), 0);
   const summaryMilestonePct   = summaryMilestoneCount > 0 ? summaryMilestoneSum / summaryMilestoneCount : 0;
   const summaryFinancialPct   = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
 
-  // Execution stats — computed live from execMilestones local state
+  // Execution stats — computed directly from pkg.milestones (read-only view)
   const execMilestoneCount = awardedPkgs.length * EXECUTION_MILESTONES.length;
-  const execProgressSum    = Object.values(execMilestones).reduce(
-    (s, pkgMap) => s + Object.values(pkgMap).reduce((ss, v) => ss + v, 0), 0
+  const execProgressSum    = awardedPkgs.reduce(
+    (s, pkg) => s + EXECUTION_MILESTONES.reduce((ss, name) => ss + milestoneProgress(pkg, name), 0), 0
   );
   const exMilestonePct = execMilestoneCount > 0 ? execProgressSum / execMilestoneCount : 0;
   const exFinancialPct = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
@@ -125,13 +116,13 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   const perMilestoneAvg = EXECUTION_MILESTONES.map(name => ({
     name,
     avg: awardedPkgs.length > 0
-      ? awardedPkgs.reduce((s: number, pkg: any) => s + (execMilestones[pkg.id]?.[name] ?? 0), 0) / awardedPkgs.length
+      ? awardedPkgs.reduce((s, pkg) => s + milestoneProgress(pkg, name), 0) / awardedPkgs.length
       : 0,
   }));
 
   // Stage distribution
   const stageDist = STAGES.map(s => ({
-    label: s, count: allPkgs.filter((p: any) => p.currentStage === s).length,
+    label: s, count: allPkgs.filter(p => p.currentStage === s).length,
     color: s === "Award" ? "bg-emerald-500" : s === "Commercial Negotiation" ? "bg-blue-700"
          : s === "Technical Negotiation" ? "bg-blue-500" : s === "RFQ Float" ? "bg-blue-400" : "bg-slate-300",
   }));
@@ -142,16 +133,16 @@ export default function ProjectDetail({ projectId, onBack }: any) {
   const unbilledPct = barBase > 0 ? Math.min(100 - billedPct, (awardedNotBill / barBase) * 100) : 0;
   const balancePct  = barBase > 0 ? Math.max(0, (balance / barBase) * 100) : 100;
 
-  const projectCats = Array.from(new Set(allPkgs.map((p: any) => p.category || "Uncategorised"))) as string[];
+  const projectCats = Array.from(new Set(allPkgs.map(p => p.category || "Uncategorised"))) as string[];
 
   // ── filtered package lists ─────────────────────────────────────────────────
-  const filteredPurchasing = allPkgs.filter((p: any) =>
+  const filteredPurchasing = allPkgs.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) &&
     (filterCat === "All" || (p.category || "Uncategorised") === filterCat) &&
     (filterStage === "All" || p.currentStage === filterStage)
   );
 
-  const filteredExecution = awardedPkgs.filter((p: any) =>
+  const filteredExecution = awardedPkgs.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) &&
     (filterCat === "All" || (p.category || "Uncategorised") === filterCat)
   );
@@ -193,7 +184,7 @@ export default function ProjectDetail({ projectId, onBack }: any) {
     stage === "Award" ? "bg-emerald-500" : stage === "Commercial Negotiation" ? "bg-blue-700"
     : stage === "Technical Negotiation" ? "bg-blue-500" : stage === "RFQ Float" ? "bg-blue-400" : "bg-slate-400";
 
-  const calculateLeadTime = (p: any) => {
+  const calculateLeadTime = (p: PackageSummary) => {
     if (!p.rfqFloatDate) return null;
     const diff = Math.floor((p.awardDate ? new Date(p.awardDate).getTime() : Date.now()) - new Date(p.rfqFloatDate).getTime()) / 86400000;
     return p.awardDate ? `${Math.floor(diff)}d` : `${Math.floor(diff)}d (live)`;
@@ -382,9 +373,8 @@ export default function ProjectDetail({ projectId, onBack }: any) {
 
                     <div className="space-y-2.5">
                       {EXECUTION_MILESTONES.map((name, i) => {
-                        // Use execMilestones (already seeded from pkg data, live-updating)
                         const avg = awardedPkgs.length > 0
-                          ? awardedPkgs.reduce((s: number, p: any) => s + (execMilestones[p.id]?.[name] ?? 0), 0) / awardedPkgs.length
+                          ? awardedPkgs.reduce((s, p) => s + milestoneProgress(p, name), 0) / awardedPkgs.length
                           : 0;
                         return (
                           <div key={name} className="flex items-center gap-2">
@@ -560,7 +550,7 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPurchasing.map((pkg: any, idx: number) => {
+                    {filteredPurchasing.map((pkg: PackageSummary, idx: number) => {
                       const isAwarded   = pkg.currentStage === "Award";
                       const stageIdx    = STAGES.indexOf(pkg.currentStage);
                       const progressPct = ((stageIdx + 1) / STAGES.length) * 100;
@@ -758,13 +748,12 @@ export default function ProjectDetail({ projectId, onBack }: any) {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredExecution.map((pkg: any, idx: number) => {
-                      const pkgProgress = execMilestones[pkg.id] || {};
-                      const pkgSum      = EXECUTION_MILESTONES.reduce((s, n) => s + (pkgProgress[n] ?? 0), 0);
+                    {filteredExecution.map((pkg: PackageSummary, idx: number) => {
+                      const pkgSum      = EXECUTION_MILESTONES.reduce((s, n) => s + milestoneProgress(pkg, n), 0);
                       const pkgAvg      = pkgSum / EXECUTION_MILESTONES.length;
-                      const finPct      = (pkg.awardValue || 0) > 0
-                        ? Math.min(100, ((pkg.billedAmount || 0) / pkg.awardValue) * 100) : 0;
-                      const doneCount   = EXECUTION_MILESTONES.filter(n => (pkgProgress[n] ?? 0) === 100).length;
+                      const finPct      = (pkg.awardValue ?? 0) > 0
+                        ? Math.min(100, ((pkg.billedAmount || 0) / pkg.awardValue!) * 100) : 0;
+                      const doneCount   = EXECUTION_MILESTONES.filter(n => milestoneProgress(pkg, n) === 100).length;
 
                       return (
                         <div

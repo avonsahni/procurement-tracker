@@ -2,17 +2,17 @@
 
 import { useState } from "react";
 import { Plus, Trash2, CheckCircle2, TrendingDown, X } from "lucide-react";
-import { formatCurrency, Currency } from "@/lib/types";
+import { formatCurrency, Currency, Vendor } from "@/lib/types";
 
 interface VendorMatrixProps {
-  vendors: any[];
+  vendors: Vendor[];
   currency: Currency;
-  onAdd: (v: any) => void;
+  onAdd: (v: { name: string; quoted: number; revised: number }) => void;
   onDelete: (vid: string) => void;
-  onUpdate: (vid: string, updates: any) => void;
+  onUpdate: (vid: string, updates: Partial<Pick<Vendor, 'name' | 'quotedAmount' | 'revisedAmount'>>) => void;
   awardedVendorId?: string;
   awardValue?: number;
-  onSelectWinner?: (v: any) => void;
+  onSelectWinner?: (v: Vendor) => void;
   readonly?: boolean;
 }
 

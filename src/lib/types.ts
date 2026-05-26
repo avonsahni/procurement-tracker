@@ -122,3 +122,37 @@ export function formatCurrency(amount: number, currency: Currency = "INR"): stri
   const locale = currency === "INR" ? "en-IN" : "en-US";
   return symbol + amount.toLocaleString(locale);
 }
+
+/** Shape returned by assembleProjectSummary — packages include billing/vendor aggregates */
+export interface PackageSummary {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  origin: Origin;
+  currency: Currency;
+  currentStage: Stage;
+  rfqFloatDate?: string;
+  awardDate?: string;
+  awardValue?: number;
+  awardedVendorId?: string;
+  milestones: PackageMilestone[];
+  createdAt: string;
+  updatedAt: string;
+  // summary-only aggregates
+  billedAmount: number;
+  vendorCount: number;
+  milestonesProgressSum: number;
+  totalMilestones: number;
+}
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  client: string;
+  budget: number;
+  status: 'Active' | 'On Hold' | 'Completed';
+  packages: PackageSummary[];
+  createdAt: string;
+  updatedAt: string;
+}
