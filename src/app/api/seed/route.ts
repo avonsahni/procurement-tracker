@@ -4,7 +4,7 @@ import { guard } from '@/lib/auth';
 import { seedSampleData } from '@/lib/seed-data';
 
 export async function POST() {
-  const auth = await guard('editor');
+  const auth = await guard('admin');
   if (auth instanceof NextResponse) return auth;
   const supabase = await createServerSupabase();
   const result = await seedSampleData(supabase, auth.id);

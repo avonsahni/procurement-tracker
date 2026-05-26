@@ -285,12 +285,13 @@ function ProcurementPipelineSection({ projects }: { projects: any[] }) {
 interface ProjectCardProps {
   project: any; // ProjectSummary
   editMode: boolean;
+  isAdmin: boolean;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
   onUpdateStatus: (id: string, status: string) => void;
   onUpdateBudget: (id: string, budget: number) => void;
 }
-function ProjectCard({ project: p, editMode, onOpen, onDelete, onUpdateStatus, onUpdateBudget }: ProjectCardProps) {
+function ProjectCard({ project: p, editMode, isAdmin, onOpen, onDelete, onUpdateStatus, onUpdateBudget }: ProjectCardProps) {
   const awarded = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
   const billed = p.packages.reduce((s: any, pk: any) => s + (pk.billedAmount || 0), 0);
   const awardedPct = p.budget > 0 ? Math.min(100, (awarded / p.budget) * 100) : 0;
@@ -333,7 +334,7 @@ function ProjectCard({ project: p, editMode, onOpen, onDelete, onUpdateStatus, o
             <p className="text-xs text-slate-500 mt-0.5">{p.client}</p>
           </div>
           <div className="flex items-center gap-1.5 ml-3 flex-shrink-0">
-            {editMode && (
+            {editMode && isAdmin && (
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
                 className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
@@ -710,7 +711,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
             Project Portfolio
             <span className="bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-0.5 rounded-full">{filteredProjects.length} total</span>
           </h2>
-          {editMode && (
+          {editMode && user?.role === 'admin' && (
             <button onClick={() => setShowAddProject(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
               <Plus className="w-4 h-4" /> New Project
             </button>
@@ -732,6 +733,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
                 key={p.id}
                 project={p}
                 editMode={editMode}
+                isAdmin={user?.role === 'admin'}
                 onOpen={(id) => router.push(`/projects/${id}`)}
                 onDelete={handleDeleteProject}
                 onUpdateStatus={handleUpdateProjectStatus}

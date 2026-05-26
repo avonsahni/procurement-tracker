@@ -23,7 +23,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await guard('editor');
+  const auth = await guard('admin');
   if (auth instanceof NextResponse) return auth;
   const parsed = await parseBody(req, ProjectCreateSchema);
   if (!parsed.ok) return parsed.response;

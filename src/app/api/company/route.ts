@@ -28,7 +28,7 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  const auth = await guard('editor');
+  const auth = await guard('admin');
   if (auth instanceof NextResponse) return auth;
   const parsed = await parseBody(req, CompanyUpdateSchema);
   if (!parsed.ok) return parsed.response;
