@@ -122,7 +122,7 @@ create table if not exists public.package_milestones (
   package_id uuid not null references public.packages(id) on delete cascade,
   milestone_name text not null,
   display_order int not null,
-  completed boolean not null default false,
+  progress numeric not null default 0 check (progress >= 0 and progress <= 100),
   completed_at timestamptz,
   completed_by text,
   unique (package_id, milestone_name)

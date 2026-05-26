@@ -77,7 +77,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         package_id: pkgId,
         milestone_name: name,
         display_order: i + 1,
-        completed: false,
+        progress: 0,
       })),
       { onConflict: 'package_id,milestone_name', ignoreDuplicates: true }
     ),

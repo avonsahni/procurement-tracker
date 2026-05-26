@@ -11,7 +11,7 @@ export interface PackageMilestone {
   id: string;
   milestoneName: string;
   displayOrder: number;
-  completed: boolean;
+  progress: number;
   completedAt?: string;
   completedBy?: string;
 }

@@ -69,7 +69,7 @@ function mapPackageRow(
       id: m.id,
       milestoneName: m.milestone_name,
       displayOrder: m.display_order,
-      completed: m.completed,
+      progress: Number(m.progress || 0),
       completedAt: m.completed_at || undefined,
       completedBy: m.completed_by || undefined,
     })),
@@ -99,7 +99,7 @@ export async function assemblePackage(supabase: SupabaseClient, row: any) {
     supabase.from('documents').select('id, name, size, type, username, uploaded_at, storage_path').eq('package_id', id).order('uploaded_at'),
     supabase.from('audit_trail').select('id, username, field, old_value, new_value, timestamp').eq('package_id', id).order('timestamp'),
     supabase.from('invoices').select('id, amount, invoice_number, invoice_date, notes, username, created_at').eq('package_id', id).order('invoice_date'),
-    supabase.from('package_milestones').select('id, milestone_name, display_order, completed, completed_at, completed_by').eq('package_id', id).order('display_order'),
+    supabase.from('package_milestones').select('id, milestone_name, display_order, progress, completed_at, completed_by').eq('package_id', id).order('display_order'),
   ]);
 
   return mapPackageRow(
@@ -138,7 +138,7 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     const [invRes, vendorRes, milestoneRes] = await Promise.all([
       supabase.from('invoices').select('package_id, amount').in('package_id', ids),
       supabase.from('vendors').select('package_id').in('package_id', ids),
-      supabase.from('package_milestones').select('package_id, completed').in('package_id', ids),
+      supabase.from('package_milestones').select('package_id, progress').in('package_id', ids),
     ]);
     for (const inv of invRes.data || []) {
       billedByPkg[inv.package_id] = (billedByPkg[inv.package_id] || 0) + Number(inv.amount);
@@ -148,7 +148,7 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     }
     for (const m of milestoneRes.data || []) {
       milestonesTotalByPkg[m.package_id] = (milestonesTotalByPkg[m.package_id] || 0) + 1;
-      if (m.completed) milestonesCompletedByPkg[m.package_id] = (milestonesCompletedByPkg[m.package_id] || 0) + 1;
+      milestonesCompletedByPkg[m.package_id] = (milestonesCompletedByPkg[m.package_id] || 0) + Number(m.progress || 0);
     }
   }
 
@@ -168,7 +168,7 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     updatedAt: p.updated_at,
     billedAmount: billedByPkg[p.id] || 0,
     vendorCount: vendorCountByPkg[p.id] || 0,
-    completedMilestones: milestonesCompletedByPkg[p.id] || 0,
+    milestonesProgressSum: milestonesCompletedByPkg[p.id] || 0,
     totalMilestones: milestonesTotalByPkg[p.id] || 0,
     vendors: [],
     remarks: [],
@@ -221,7 +221,7 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
       supabase.from('documents').select('id, package_id, name, size, type, username, uploaded_at, storage_path').in('package_id', ids).order('uploaded_at'),
       supabase.from('audit_trail').select('id, package_id, username, field, old_value, new_value, timestamp').in('package_id', ids).order('timestamp'),
       supabase.from('invoices').select('id, package_id, amount, invoice_number, invoice_date, notes, username, created_at').in('package_id', ids).order('invoice_date'),
-      supabase.from('package_milestones').select('id, package_id, milestone_name, display_order, completed, completed_at, completed_by').in('package_id', ids).order('display_order'),
+      supabase.from('package_milestones').select('id, package_id, milestone_name, display_order, progress, completed_at, completed_by').in('package_id', ids).order('display_order'),
     ]);
 
     vendorsByPkg   = groupBy(vendorsRes.data    || [], 'package_id');

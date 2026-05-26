@@ -145,8 +145,8 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
     budget: projects.reduce((s, p) => s + p.budget, 0),
     awarded: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.awardValue || 0), 0), 0),
     billed: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.billedAmount || 0), 0), 0),
-    milestonesCompleted: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.completedMilestones || 0), 0), 0),
-    milestonesTotal: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').length * 6, 0),
+    milestonesProgressSum: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.milestonesProgressSum || 0), 0), 0),
+    milestonesCount: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.totalMilestones || 0), 0), 0),
   };
 
   if (loading) {
@@ -277,7 +277,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
                 <div className="border-l border-slate-200 pl-6">
                   <p className="text-xs text-slate-500 mb-1">Milestone Progress</p>
                   <p className="text-lg font-mono font-semibold text-blue-700">
-                    {stats.milestonesTotal > 0 ? ((stats.milestonesCompleted / stats.milestonesTotal) * 100).toFixed(1) : "0.0"}%
+                    {stats.milestonesCount > 0 ? (stats.milestonesProgressSum / stats.milestonesCount).toFixed(1) : "0.0"}%
                   </p>
                 </div>
               </div>
@@ -524,9 +524,9 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
               const awardedPct = p.budget > 0 ? Math.min(100, (awarded / p.budget) * 100) : 0;
               const financialPct = awarded > 0 ? Math.min(100, (billed / awarded) * 100) : 0;
               const awardedCount = p.packages.filter((pk: any) => pk.currentStage === "Award").length;
-              const completedMilestones = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.completedMilestones || 0), 0);
-              const totalMilestonesForProject = awardedCount * 6;
-              const taskPct = totalMilestonesForProject > 0 ? (completedMilestones / totalMilestonesForProject) * 100 : 0;
+              const milestonesProgressSum = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
+              const milestonesCount = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.totalMilestones || 0), 0);
+              const taskPct = milestonesCount > 0 ? milestonesProgressSum / milestonesCount : 0;
 
               return (
                 <div

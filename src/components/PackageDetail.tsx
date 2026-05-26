@@ -15,7 +15,7 @@ import {
   deleteDocument,
   addInvoice,
   deleteInvoice,
-  toggleMilestone,
+  updateMilestoneProgress,
 } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -330,8 +330,8 @@ export default function PackageDetail({
             <MilestoneTracker
               milestones={pkg.milestones || []}
               readonly={!editMode}
-              onToggle={async (name, completed) => {
-                await toggleMilestone(packageId, name, completed, user?.fullName);
+              onUpdate={async (name, progress) => {
+                await updateMilestoneProgress(packageId, name, progress, user?.fullName);
                 await reloadPackage();
               }}
             />

@@ -141,11 +141,11 @@ export async function deleteInvoice(pkgId: string, iid: string): Promise<void> {
 }
 
 // Milestones
-export async function toggleMilestone(pkgId: string, milestoneName: string, completed: boolean, user?: string): Promise<void> {
+export async function updateMilestoneProgress(pkgId: string, milestoneName: string, progress: number, user?: string): Promise<void> {
   await api(`/api/packages/${pkgId}/milestones`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ milestoneName, completed, user }),
+    body: JSON.stringify({ milestoneName, progress, user }),
   });
 }
 
