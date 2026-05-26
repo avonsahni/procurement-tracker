@@ -233,6 +233,11 @@ export default function ProjectDetail({ projectId, onBack }: any) {
     else onBack();
   };
 
+  const openExecView = () => {
+    setView("execution");
+    loadData(); // always fetch fresh milestone data when entering execution
+  };
+
   const handleMilestoneUpdate = async (pkgId: string, name: string, progress: number) => {
     try {
       await updateMilestoneProgress(pkgId, name, progress, user?.username);
@@ -393,7 +398,7 @@ export default function ProjectDetail({ projectId, onBack }: any) {
 
               {/* ── Execution Dashboard card ───────────────────────────────── */}
               <button
-                onClick={() => setView("execution")}
+                onClick={openExecView}
                 className="group text-left bg-white border border-slate-200 hover:border-emerald-400 hover:shadow-lg rounded-2xl p-6 transition-all duration-200 flex flex-col gap-5"
               >
                 <div className="flex items-start justify-between">

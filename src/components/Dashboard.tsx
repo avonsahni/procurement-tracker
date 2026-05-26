@@ -21,12 +21,12 @@ import {
   CompanyInfo,
   UserAccount
 } from "@/lib/store";
-import { formatCurrency } from "@/lib/types";
+import { formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import HelpGuide from "@/components/HelpGuide";
 import {
-  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight, Receipt, HelpCircle
+  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
@@ -343,6 +343,188 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
             </div>
           </div>
         </div>
+
+        {/* EXECUTION TRACKING — portfolio-level milestone progress */}
+        {(() => {
+          const allAwardedPkgs = projects.flatMap((p: any) =>
+            p.packages.filter((pk: any) => pk.currentStage === "Award")
+          );
+          if (allAwardedPkgs.length === 0) return null;
+
+          const portfolioMilestoneSum   = allAwardedPkgs.reduce((s: number, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
+          const portfolioMilestoneTotal = allAwardedPkgs.reduce((s: number, pk: any) => s + (pk.totalMilestones || 0), 0);
+          const portfolioMilestonePct   = portfolioMilestoneTotal > 0 ? portfolioMilestoneSum / portfolioMilestoneTotal : 0;
+          const portfolioFinancialPct   = stats.awarded > 0 ? Math.min(100, (stats.billed / stats.awarded) * 100) : 0;
+
+          const perMilestoneAvg = EXECUTION_MILESTONES.map(name => {
+            const sum = allAwardedPkgs.reduce((s: number, pkg: any) => {
+              const m = (pkg.milestones || []).find((x: any) => x.milestoneName === name);
+              return s + (m ? Number(m.progress) : 0);
+            }, 0);
+            return { name, avg: allAwardedPkgs.length > 0 ? sum / allAwardedPkgs.length : 0 };
+          });
+
+          const projectsWithExecution = projects.filter((p: any) =>
+            p.packages.some((pk: any) => pk.currentStage === "Award")
+          );
+
+          return (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Activity className="w-4 h-4 text-emerald-600" />
+                    <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Execution Tracking</p>
+                  </div>
+                  <h3 className="text-base font-semibold text-slate-900">Portfolio Milestone Progress</h3>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500">In Execution</p>
+                    <p className="text-xl font-mono font-semibold text-emerald-600">{allAwardedPkgs.length}</p>
+                    <p className="text-[10px] text-slate-400">packages</p>
+                  </div>
+                  <div className="w-px h-10 bg-slate-200" />
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500">Milestone Avg</p>
+                    <p className="text-xl font-mono font-semibold text-blue-600">{portfolioMilestonePct.toFixed(1)}%</p>
+                    <p className="text-[10px] text-slate-400">all milestones</p>
+                  </div>
+                  <div className="w-px h-10 bg-slate-200" />
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500">Financial</p>
+                    <p className="text-xl font-mono font-semibold text-violet-600">{portfolioFinancialPct.toFixed(1)}%</p>
+                    <p className="text-[10px] text-slate-400">billed / awarded</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Overall bars */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-blue-700 flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5" />Overall Milestone Progress
+                    </span>
+                    <span className="text-sm font-mono font-bold text-blue-700">{portfolioMilestonePct.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-3 w-full rounded-full bg-blue-100 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-700 ${portfolioMilestonePct >= 100 ? "bg-emerald-500" : "bg-blue-500"}`}
+                      style={{ width: `${Math.min(100, portfolioMilestonePct)}%` }} />
+                  </div>
+                  <p className="text-[10px] text-blue-400 mt-1">{allAwardedPkgs.length} packages · {EXECUTION_MILESTONES.length} milestones each</p>
+                </div>
+                <div className="bg-violet-50 border border-violet-100 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-violet-700 flex items-center gap-1.5">
+                      <Receipt className="w-3.5 h-3.5" />Overall Financial Progress
+                    </span>
+                    <span className="text-sm font-mono font-bold text-violet-700">{portfolioFinancialPct.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-3 w-full rounded-full bg-violet-100 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-700 ${portfolioFinancialPct >= 100 ? "bg-emerald-500" : "bg-violet-500"}`}
+                      style={{ width: `${Math.min(100, portfolioFinancialPct)}%` }} />
+                  </div>
+                  <p className="text-[10px] text-violet-400 mt-1">{formatCurrency(stats.billed)} billed of {formatCurrency(stats.awarded)} awarded</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Per-milestone pipeline */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-700 mb-4">
+                    Milestone Pipeline
+                    <span className="font-normal text-slate-400 ml-1">(portfolio avg across {allAwardedPkgs.length} package{allAwardedPkgs.length !== 1 ? "s" : ""})</span>
+                  </p>
+                  <div className="space-y-3">
+                    {perMilestoneAvg.map((m, i) => (
+                      <div key={m.name} className="flex items-center gap-3">
+                        <div className="flex-shrink-0 w-5 flex items-center justify-center">
+                          {m.avg >= 100
+                            ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                            : <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
+                          }
+                        </div>
+                        <span className={`text-xs font-medium flex-shrink-0 w-44 truncate ${m.avg >= 100 ? "text-slate-400 line-through" : "text-slate-700"}`}>
+                          {m.name}
+                        </span>
+                        <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${m.avg >= 100 ? "bg-emerald-500" : m.avg > 0 ? "bg-blue-500" : "bg-slate-200"}`}
+                            style={{ width: `${m.avg}%` }}
+                          />
+                        </div>
+                        <span className={`text-xs font-mono font-semibold w-10 text-right flex-shrink-0 ${
+                          m.avg >= 100 ? "text-emerald-600" : m.avg > 0 ? "text-blue-600" : "text-slate-400"
+                        }`}>{m.avg.toFixed(0)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Per-project execution snapshot */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-700 mb-4">Project Execution Snapshot</p>
+                  <div className="space-y-4">
+                    {projectsWithExecution.map((p: any) => {
+                      const projAwarded = p.packages.filter((pk: any) => pk.currentStage === "Award");
+                      const projMilestoneSum   = projAwarded.reduce((s: number, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
+                      const projMilestoneTotal = projAwarded.reduce((s: number, pk: any) => s + (pk.totalMilestones || 0), 0);
+                      const projMilestonePct   = projMilestoneTotal > 0 ? projMilestoneSum / projMilestoneTotal : 0;
+                      const projBilled  = p.packages.reduce((s: number, pk: any) => s + (pk.billedAmount || 0), 0);
+                      const projAwarded2 = p.packages.reduce((s: number, pk: any) => s + (pk.awardValue || 0), 0);
+                      const projFinPct  = projAwarded2 > 0 ? Math.min(100, (projBilled / projAwarded2) * 100) : 0;
+
+                      return (
+                        <div
+                          key={p.id}
+                          className="cursor-pointer group p-3 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition"
+                          onClick={() => router.push(`/projects/${p.id}`)}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-slate-800 truncate flex-1 group-hover:text-emerald-700 transition">{p.name}</span>
+                            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                              <span className="text-[10px] text-slate-400">{projAwarded.length} awarded</span>
+                              <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-emerald-500 transition" />
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-400 w-16 flex-shrink-0">Milestone</span>
+                              <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${projMilestonePct >= 100 ? "bg-emerald-500" : projMilestonePct > 0 ? "bg-blue-500" : "bg-slate-200"}`}
+                                  style={{ width: `${projMilestonePct}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-mono font-semibold text-slate-600 w-8 text-right flex-shrink-0">{projMilestonePct.toFixed(0)}%</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-400 w-16 flex-shrink-0">Financial</span>
+                              <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${projFinPct >= 100 ? "bg-emerald-500" : projFinPct > 0 ? "bg-violet-500" : "bg-slate-200"}`}
+                                  style={{ width: `${projFinPct}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-mono font-semibold text-slate-600 w-8 text-right flex-shrink-0">{projFinPct.toFixed(0)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-5 mt-4 pt-3 border-t border-slate-100">
+                    <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-blue-500 inline-block" />Milestone progress</span>
+                    <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-violet-500 inline-block" />Financial progress</span>
+                    <span className="flex items-center gap-1.5 text-[10px] text-slate-400"><span className="w-3 h-2 rounded-sm bg-emerald-500 inline-block" />Complete</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* STAT CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">

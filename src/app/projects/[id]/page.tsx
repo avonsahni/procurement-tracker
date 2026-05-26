@@ -1,18 +1,18 @@
 "use client";
 
-import { use, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { use, Suspense, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthContext";
 import ProjectDetail from "@/components/ProjectDetail";
 import LoginForm from "@/components/auth/LoginForm";
 
-// Inner component — needs Suspense because it calls useSearchParams()
+// Inner component wrapped in Suspense
 function ProjectPageInner({ id }: { id: string }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialCategory    = searchParams.get("cat")    || undefined;
-  const initialQuickFilter = searchParams.get("status") || undefined;
+  // A new timestamp on every mount forces ProjectDetail to remount (and re-fetch)
+  // whenever the user navigates back from the package detail page.
+  const [mountKey] = useState(() => Date.now().toString());
 
   if (loading) {
     return (
@@ -26,16 +26,10 @@ function ProjectPageInner({ id }: { id: string }) {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      {/*
-        key forces a remount (and fresh loadData) whenever the user returns
-        from a package page, so analytics + vendor counts are always current.
-      */}
       <ProjectDetail
-        key={`${id}-${initialCategory ?? ""}-${initialQuickFilter ?? ""}`}
+        key={`${id}-${mountKey}`}
         projectId={id}
         onBack={() => router.push("/")}
-        initialCategory={initialCategory}
-        initialQuickFilter={initialQuickFilter}
       />
     </main>
   );
