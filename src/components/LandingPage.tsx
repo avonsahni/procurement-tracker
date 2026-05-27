@@ -17,18 +17,22 @@ function AuthModal({ onClose, initialMode }: { onClose: () => void; initialMode?
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
     >
-      <div className="relative w-full max-w-md">
+      <div
+        className="relative w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* X button inside the card, top-right corner */}
         <button
           onClick={onClose}
-          className="absolute -top-10 right-0 text-white/70 hover:text-white flex items-center gap-1.5 text-sm transition"
+          className="absolute top-4 right-4 z-10 p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition"
+          aria-label="Close"
         >
-          <X className="w-4 h-4" /> Close
+          <X className="w-4 h-4" />
         </button>
         {/* Re-use existing LoginForm which handles both login + signup */}
-        <div className="rounded-2xl overflow-hidden shadow-2xl">
-          <LoginForm initialMode={initialMode} />
-        </div>
+        <LoginForm initialMode={initialMode} />
       </div>
     </div>
   );
