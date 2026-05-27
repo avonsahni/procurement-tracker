@@ -65,6 +65,27 @@ export const POST = withRoute(async (req: NextRequest) => {
 
   const admin = createAdminSupabase();
 
+  // ── Email domain restriction ────────────────────────────────────────────
+  // If the org has a registered email domain, only users with that domain
+  // can be invited. This prevents cross-company data leaks.
+  const { data: org } = await admin
+    .from('organizations')
+    .select('email_domain')
+    .eq('id', auth.orgId)
+    .single();
+
+  if (org?.email_domain) {
+    const invitedDomain = (username as string).split('@')[1]?.toLowerCase();
+    if (invitedDomain !== org.email_domain) {
+      return NextResponse.json({
+        error: `This organisation only allows users with an @${org.email_domain} email address. ` +
+               `The address "${username}" uses a different domain.`,
+        code: 'DOMAIN_MISMATCH',
+      }, { status: 400 });
+    }
+  }
+  // ───────────────────────────────────────────────────────────────────────
+
   // Pass org_id in metadata so the handle_new_user trigger joins the right org
   const { data, error } = await admin.auth.admin.createUser({
     email: username,
