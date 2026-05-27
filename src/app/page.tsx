@@ -5,9 +5,10 @@ import { useAuth } from "@/components/auth/AuthContext";
 import Dashboard from "@/components/Dashboard";
 import BudgetAnalytics from "@/components/BudgetAnalytics";
 import AdminPanel from "@/components/AdminPanel";
+import PlatformPanel from "@/components/PlatformPanel";
 import LoginForm from "@/components/auth/LoginForm";
 
-type View = "dashboard" | "budget-analytics" | "admin";
+type View = "dashboard" | "budget-analytics" | "admin" | "platform";
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -32,11 +33,20 @@ export default function Home() {
     );
   }
 
+  if (view === "platform") {
+    return (
+      <main className="min-h-screen bg-slate-50">
+        <PlatformPanel onBack={() => setView("dashboard")} />
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-50">
       <Dashboard
         onShowBudgetAnalytics={() => setView("budget-analytics")}
         onShowAdmin={() => setView("admin")}
+        onShowPlatform={() => setView("platform")}
       />
     </main>
   );

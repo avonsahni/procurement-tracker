@@ -10,6 +10,7 @@ export type AuthUser = {
   canEdit: boolean;
   orgId: string;
   orgRole: 'owner' | 'admin' | 'viewer';
+  isPlatformAdmin: boolean;
 };
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
@@ -20,7 +21,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   const admin = createAdminSupabase();
 
   const [{ data: profile, error: profileErr }, { data: memberships, error: memErr }] = await Promise.all([
-    admin.from('profiles').select('full_name, can_edit').eq('id', user.id).maybeSingle(),
+    admin.from('profiles').select('full_name, can_edit, is_platform_admin').eq('id', user.id).maybeSingle(),
     admin.from('organization_members').select('org_id, role').eq('user_id', user.id),
   ]);
 
@@ -46,6 +47,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     canEdit: profile?.can_edit ?? true,
     orgId: membership?.org_id ?? '',
     orgRole,
+    isPlatformAdmin: profile?.is_platform_admin ?? false,
   };
 }
 
@@ -56,7 +58,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
  *   - 'editor' — must have can_edit=true
  *   - 'admin'  — must be org owner or admin
  */
-export async function guard(role: 'user' | 'editor' | 'admin'): Promise<NextResponse | AuthUser> {
+export async function guard(role: 'user' | 'editor' | 'admin' | 'platform'): Promise<NextResponse | AuthUser> {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -66,6 +68,9 @@ export async function guard(role: 'user' | 'editor' | 'admin'): Promise<NextResp
   }
   if (role === 'admin' && !['owner', 'admin'].includes(user.orgRole)) {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  }
+  if (role === 'platform' && !user.isPlatformAdmin) {
+    return NextResponse.json({ error: 'Platform access required' }, { status: 403 });
   }
   return user;
 }

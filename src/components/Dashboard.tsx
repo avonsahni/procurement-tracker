@@ -16,7 +16,7 @@ import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import HelpGuide from "@/components/HelpGuide";
 import {
-  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target
+  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
@@ -389,7 +389,7 @@ function ProjectCard({ project: p, editMode, isAdmin, onOpen, onDelete, onUpdate
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin }: any) {
+export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPlatform }: any) {
   const { user, logout, editMode, setEditMode } = useAuth();
   const router = useRouter();
   const [projects, setProjects] = useState<any[]>([]);
@@ -534,6 +534,15 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin }: any) {
                 className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition"
               >
                 <Settings className="w-4 h-4" /> Admin
+              </button>
+            )}
+
+            {user?.isPlatformAdmin && (
+              <button
+                onClick={onShowPlatform}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 transition"
+              >
+                <Crown className="w-4 h-4" /> Platform
               </button>
             )}
 

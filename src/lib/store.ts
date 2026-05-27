@@ -16,6 +16,7 @@ export interface UserAccount {
   canEdit: boolean;
   orgId?: string;
   orgRole?: "owner" | "admin" | "viewer";
+  isPlatformAdmin?: boolean;
   password?: string;
 }
 

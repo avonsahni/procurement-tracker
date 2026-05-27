@@ -13,6 +13,7 @@ export async function GET() {
       canEdit: user.canEdit,
       orgId: user.orgId,
       orgRole: user.orgRole,
+      isPlatformAdmin: user.isPlatformAdmin,
     },
   });
 }
