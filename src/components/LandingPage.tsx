@@ -6,6 +6,7 @@ import {
   CheckCircle2, ArrowRight, BarChart3, FolderOpen, Users,
   Shield, FileText, Layers, ChevronRight, X, Star,
   TrendingUp, Clock, Award, Package, Building2, Zap,
+  Activity,
 } from "lucide-react";
 import LoginForm from "@/components/auth/LoginForm";
 
@@ -238,6 +239,65 @@ function TeamMockup() {
   );
 }
 
+function ExecutionMockup() {
+  const milestones = [
+    { name: "Mobilisation",              pct: 100, done: true  },
+    { name: "Preliminaries",             pct: 100, done: true  },
+    { name: "Procurement",               pct: 85,  done: false },
+    { name: "Installation",              pct: 40,  done: false },
+    { name: "Testing & Commissioning",   pct: 0,   done: false },
+    { name: "Handover",                  pct: 0,   done: false },
+  ];
+  const overall = Math.round(milestones.reduce((s, m) => s + m.pct, 0) / milestones.length);
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden select-none">
+      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-blue-600" />
+          <span className="text-xs font-semibold text-slate-800">Execution Milestones</span>
+        </div>
+        <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-bold">
+          {overall}% complete
+        </span>
+      </div>
+      {/* Overall bar */}
+      <div className="px-5 pt-3 pb-2">
+        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${overall}%` }} />
+        </div>
+      </div>
+      {/* Milestone rows */}
+      <div className="px-5 pb-4 space-y-3 mt-1">
+        {milestones.map(m => (
+          <div key={m.name}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 flex items-center justify-center ${
+                  m.done ? "bg-emerald-500" : m.pct > 0 ? "bg-blue-600" : "bg-slate-200"
+                }`}>
+                  {m.done && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
+                </div>
+                <span className={`text-[11px] font-medium ${m.done ? "text-emerald-700" : m.pct > 0 ? "text-slate-800" : "text-slate-400"}`}>
+                  {m.name}
+                </span>
+              </div>
+              <span className={`text-[10px] font-semibold ${m.done ? "text-emerald-600" : m.pct > 0 ? "text-blue-600" : "text-slate-300"}`}>
+                {m.pct}%
+              </span>
+            </div>
+            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden ml-5">
+              <div
+                className={`h-full rounded-full ${m.done ? "bg-emerald-500" : "bg-blue-500"}`}
+                style={{ width: `${m.pct}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Feature cards ────────────────────────────────────────────────────────────
 
 const FEATURES = [
@@ -452,6 +512,49 @@ export default function LandingPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Execution Dashboard spotlight ───────────────────────────────────── */}
+      <section className="py-20 px-6 bg-gradient-to-br from-blue-600 to-blue-800 text-white">
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-12 items-center">
+          {/* Copy */}
+          <div className="flex-1 space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-blue-100 text-xs font-medium">
+              <Activity className="w-3.5 h-3.5" /> Execution Dashboard
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-snug">
+              Track delivery progress,<br />not just procurement
+            </h2>
+            <p className="text-blue-200 leading-relaxed text-base">
+              Once a package is awarded, the work begins. ProcureTrack's Execution Dashboard
+              lets you track every delivery milestone — from Mobilisation to Handover — with
+              real-time progress bars your whole team can update.
+            </p>
+            <ul className="space-y-3">
+              {[
+                "6 standard milestones per package: Mobilisation → Handover",
+                "Drag-to-update progress bars — no forms to fill",
+                "Overall completion score calculated automatically",
+                "See which packages are lagging at a glance",
+              ].map(item => (
+                <li key={item} className="flex items-start gap-3 text-sm text-blue-100">
+                  <CheckCircle2 className="w-4 h-4 text-blue-300 flex-shrink-0 mt-0.5" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={openSignup}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-blue-600 text-sm font-bold rounded-xl hover:bg-blue-50 transition"
+            >
+              Try the execution dashboard <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+          {/* Mockup */}
+          <div className="flex-1 w-full max-w-md">
+            <ExecutionMockup />
           </div>
         </div>
       </section>
