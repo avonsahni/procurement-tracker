@@ -2,10 +2,33 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 // In Next.js 16 the edge middleware file is proxy.ts (renamed from middleware.ts).
-// This file does two things:
-//   1. Refreshes the Supabase auth session cookie on every request (required by @supabase/ssr).
-//   2. Injects security headers on every response.
+// This file does three things:
+//   1. CSRF protection on all state-changing API routes.
+//   2. Refreshes the Supabase auth session cookie on every request (required by @supabase/ssr).
+//   3. Injects security headers on every response.
 export async function proxy(request: NextRequest) {
+  // ── CSRF protection ───────────────────────────────────────────────────────
+  // Reject mutating requests to /api/ whose Origin header is present but
+  // doesn't match this host. Absent Origin (server-to-server, curl) is
+  // allowed so the API stays usable from non-browser clients.
+  const method = request.method;
+  const isApiMutation =
+    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
+    request.nextUrl.pathname.startsWith('/api/');
+
+  if (isApiMutation) {
+    const origin = request.headers.get('origin');
+    if (origin) {
+      const expectedOrigin = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+      if (origin !== expectedOrigin) {
+        return NextResponse.json(
+          { error: 'CSRF validation failed' },
+          { status: 403 }
+        );
+      }
+    }
+  }
+
   const response = NextResponse.next({ request });
 
   // ── Supabase session refresh ──────────────────────────────────────────────

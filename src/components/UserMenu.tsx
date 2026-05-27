@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthContext";
 import { LogOut, User, Shield, ChevronDown, Download, Loader2 } from "lucide-react";
+import { apiFetch } from "@/lib/apiFetch";
 
 /**
  * User avatar button + dropdown menu.
@@ -36,7 +37,7 @@ export default function UserMenu() {
   const handleDownloadData = async () => {
     setDownloading(true);
     try {
-      const res = await fetch('/api/user/data-export');
+      const res = await apiFetch('/api/user/data-export');
       if (!res.ok) throw new Error('Export failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

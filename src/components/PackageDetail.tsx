@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   fetchPackage,
   fetchProject,
@@ -324,7 +325,7 @@ export default function PackageDetail({
                 isAdmin={user?.role === 'admin'}
                 onAddRemark={async (t: any) => { await addRemark(packageId, t, user?.fullName); await reloadPackage(); }}
                 onEditRemark={async (rid, text) => {
-                  await fetch(`/api/packages/${packageId}/remarks/${rid}`, {
+                  await apiFetch(`/api/packages/${packageId}/remarks/${rid}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text }),
@@ -332,7 +333,7 @@ export default function PackageDetail({
                   await reloadPackage();
                 }}
                 onDeleteRemark={async (rid) => {
-                  await fetch(`/api/packages/${packageId}/remarks/${rid}`, { method: 'DELETE' })
+                  await apiFetch(`/api/packages/${packageId}/remarks/${rid}`, { method: 'DELETE' })
                     .then(r => { if (!r.ok) return r.json().then(d => { throw new Error(d.error); }); });
                   await reloadPackage();
                 }}

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { UserAccount } from "@/lib/store";
+import { apiFetch } from "@/lib/apiFetch";
 
 interface AuthContextType {
   user: UserAccount | null;
@@ -31,9 +32,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const res = await fetch('/api/auth/login', {
+    const res = await apiFetch('/api/auth/login', {
       method: 'POST',
-      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
@@ -46,9 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (email: string, password: string, fullName: string, orgName?: string) => {
-    const res = await fetch('/api/auth/signup', {
+    const res = await apiFetch('/api/auth/signup', {
       method: 'POST',
-      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, fullName, orgName }),
     });
@@ -62,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+    await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     setUser(null);
     setEditMode(false);
   };

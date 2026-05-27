@@ -21,7 +21,11 @@ export interface UserAccount {
 }
 
 async function api(path: string, opts?: RequestInit) {
-  const res = await fetch(path, opts);
+  // X-Requested-With prevents CSRF via cross-origin HTML form submissions
+  // (browsers block custom headers on cross-origin simple requests).
+  const headers = new Headers(opts?.headers);
+  headers.set('X-Requested-With', 'fetch');
+  const res = await fetch(path, { ...opts, headers });
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
     try {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   ArrowLeft, Shield, BarChart3, Building2, Users, FolderOpen,
   Calendar, ChevronDown, ChevronUp, Loader2, Search, Check,
@@ -356,7 +357,7 @@ function OrgsSection({
   });
 
   const handleSave = async (id: string, updates: any) => {
-    const res = await fetch(`/api/platform/orgs/${id}`, {
+    const res = await apiFetch(`/api/platform/orgs/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -368,7 +369,7 @@ function OrgsSection({
   };
 
   const handleDelete = async (id: string) => {
-    const res = await fetch(`/api/platform/orgs/${id}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/platform/orgs/${id}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to delete');
     setExpandedId(null);
@@ -590,7 +591,7 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
   const loadOrgs = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetch('/api/platform/orgs').then(r => r.json());
+      const data = await apiFetch('/api/platform/orgs').then(r => r.json());
       setOrgs(Array.isArray(data) ? data : []);
     } catch { /* silent */ } finally {
       setLoading(false);

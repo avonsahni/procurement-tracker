@@ -15,8 +15,11 @@ import {
   UserAccount, CompanyInfo,
 } from "@/lib/store";
 
-const API = (path: string, opts?: RequestInit) =>
-  fetch(path, opts).then(r => r.json());
+const API = (path: string, opts?: RequestInit) => {
+  const headers = new Headers(opts?.headers);
+  headers.set('X-Requested-With', 'fetch');
+  return fetch(path, { ...opts, headers }).then(r => r.json());
+};
 
 // ─────────────────────── small sub-components ───────────────────────
 
