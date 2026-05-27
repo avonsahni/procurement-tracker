@@ -40,12 +40,18 @@ export default function DocumentsSection({
       ? `${(bytes / 1024).toFixed(0)} KB`
       : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
+  const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+
   const uploadFiles = async (files: FileList | File[]) => {
     setUploadError(null);
     setUploading(true);
     const supabase = createBrowserSupabase();
     try {
       for (const f of Array.from(files)) {
+        if (f.size > MAX_FILE_BYTES) {
+          setUploadError(`"${f.name}" exceeds the 10 MB limit (${humanSize(f.size)}). Please compress or split the file.`);
+          continue;
+        }
         // Storage path: {orgId}/{packageId}/{uuid}_{filename} — org-scoped for isolation
         const safeFileName = f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const prefix = orgId || userId; // orgId preferred; userId as fallback for legacy uploads

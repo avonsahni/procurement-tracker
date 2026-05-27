@@ -8,18 +8,8 @@ import {
   deleteProject,
   updateProject,
   fetchCategories,
-  addCategory,
-  deleteCategory,
-  resetTrackerData,
-  seedTrackerData,
-  getUsers,
-  addUser,
-  deleteUser,
-  updateUserRights,
   getCompanyInfo,
-  updateCompanyInfo,
   CompanyInfo,
-  UserAccount
 } from "@/lib/store";
 import { formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -399,34 +389,26 @@ function ProjectCard({ project: p, editMode, isAdmin, onOpen, onDelete, onUpdate
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement }: any) {
+export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin }: any) {
   const { user, logout, editMode, setEditMode } = useAuth();
   const router = useRouter();
   const [projects, setProjects] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddProject, setShowAddProject] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
   const [company, setCompany] = useState<CompanyInfo>({ name: "", tagline: "" });
-  const [userList, setUserList] = useState<UserAccount[]>([]);
-  const [newUserName, setNewUserName] = useState("");
-  const [newUserFull, setNewUserFull] = useState("");
-  const [newUserPass, setNewUserPass] = useState("");
-  const [newCatName, setNewCatName] = useState("");
-
   const [newProj, setNewProj] = useState({ name: "", client: "", budget: "" });
   const [search, setSearch] = useState("");
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [p, c, ci, u] = await Promise.all([fetchProjects(), fetchCategories(), getCompanyInfo(), getUsers().catch(() => [])]);
+      const [p, c, ci] = await Promise.all([fetchProjects(), fetchCategories(), getCompanyInfo()]);
       setProjects(p);
       setCategories(c);
       setCompany(ci);
-      setUserList(u);
     } catch (e) {
       console.error("Load failed", e);
     } finally {
@@ -548,16 +530,10 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
 
             {user?.role === 'admin' && (
               <button
-                onClick={onShowUserManagement}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
+                onClick={onShowAdmin}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition"
               >
-                <Users className="w-4 h-4" /> Users
-              </button>
-            )}
-
-            {user?.role === 'admin' && (
-              <button onClick={() => setShowSettings(true)} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition" title="Settings">
-                <Settings className="w-4 h-4" />
+                <Settings className="w-4 h-4" /> Admin
               </button>
             )}
 
@@ -790,109 +766,6 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowUserManagement 
             >
               Initialize Project
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* SETTINGS MODAL */}
-      {showSettings && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={() => setShowSettings(false)}>
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-4xl p-8 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2"><Settings className="w-5 h-5 text-blue-600" /> System Settings</h2>
-              <button onClick={() => setShowSettings(false)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"><X className="w-4 h-4" /></button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <section className="space-y-8">
-                <div>
-                  <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-3 flex items-center gap-2"><Globe className="w-4 h-4" /> Branding</h3>
-                  <div className="space-y-3 bg-slate-50 border border-slate-200 p-5 rounded-xl">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Company Name</label>
-                      <input value={company.name} onChange={e => setCompany({ ...company, name: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Tagline</label>
-                      <input value={company.tagline} onChange={e => setCompany({ ...company, tagline: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
-                    </div>
-                    <button onClick={async () => { await updateCompanyInfo(company); loadData(); }} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium mt-2 transition">Save Configuration</button>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-3 flex items-center gap-2"><Tag className="w-4 h-4" /> Categories</h3>
-                  <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl">
-                    <div className="flex gap-2 mb-3">
-                      <input value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="New Category..." className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
-                      <button onClick={async () => { if (newCatName) { await addCategory(newCatName); setNewCatName(""); loadData(); } }} className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"><Plus className="w-4 h-4" /></button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {categories.map(c => (
-                        <div key={c} className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-700">
-                          {c}
-                          <button onClick={async () => { await deleteCategory(c); loadData(); }} className="text-slate-400 hover:text-red-600"><X className="w-3 h-3" /></button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="space-y-8">
-                <div>
-                  <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-3 flex items-center gap-2"><Users className="w-4 h-4" /> Access</h3>
-                  <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl">
-                    <div className="space-y-2 max-h-56 overflow-y-auto mb-4 pr-1">
-                      {userList.map(u => (
-                        <div key={u.id} className="bg-white border border-slate-200 p-3 rounded-lg flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-slate-900 text-sm">{u.fullName}</p>
-                            <p className="text-xs text-slate-500">@{u.username} · {u.role}</p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex flex-col items-end">
-                              <span className="text-[10px] text-slate-500 mb-1">Edit</span>
-                              <button
-                                onClick={async () => { await updateUserRights(u.id, !u.canEdit); loadData(); }}
-                                className={`w-9 h-5 rounded-full p-0.5 transition ${u.canEdit ? 'bg-blue-600' : 'bg-slate-300'}`}
-                              >
-                                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${u.canEdit ? 'translate-x-4' : 'translate-x-0'}`} />
-                              </button>
-                            </div>
-                            {u.role !== 'admin' && (
-                              <button onClick={async () => { await deleteUser(u.id); loadData(); }} className="p-1.5 text-slate-400 hover:text-red-600 transition"><Trash className="w-3.5 h-3.5" /></button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="border-t border-slate-200 pt-4">
-                      <p className="text-xs font-medium text-slate-600 mb-3">Add User</p>
-                      <div className="space-y-2">
-                        <input value={newUserFull} onChange={e => setNewUserFull(e.target.value)} placeholder="Full Name" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
-                        <div className="flex gap-2">
-                          <input value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="Username" className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
-                          <input type="password" value={newUserPass} onChange={e => setNewUserPass(e.target.value)} placeholder="Password" className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
-                        </div>
-                        <button onClick={async () => { if (newUserName && newUserPass) { await addUser({ username: newUserName, fullName: newUserFull, password: newUserPass, role: "user", canEdit: false }); setNewUserName(""); setNewUserFull(""); setNewUserPass(""); loadData(); } }} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">Provision User</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-xs font-medium text-slate-600 uppercase tracking-wide mb-3">Database Seeding</h3>
-                  <button onClick={async () => { await seedTrackerData(); loadData(); }} className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition">Load 5 Projects (21 Pkgs Each)</button>
-                </div>
-
-                <div>
-                  <h3 className="text-xs font-medium text-red-600 uppercase tracking-wide mb-3">Danger Zone</h3>
-                  <button onClick={async () => { if (confirm("ABORT: This will wipe ALL database records. Proceed?")) { await resetTrackerData(); loadData(); } }} className="w-full py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition">Wipe System Database</button>
-                </div>
-              </section>
-            </div>
           </div>
         </div>
       )}

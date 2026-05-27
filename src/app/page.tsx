@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthContext";
 import Dashboard from "@/components/Dashboard";
 import BudgetAnalytics from "@/components/BudgetAnalytics";
-import UserManagement from "@/components/UserManagement";
+import AdminPanel from "@/components/AdminPanel";
 import LoginForm from "@/components/auth/LoginForm";
 
-type View = "dashboard" | "budget-analytics" | "user-management";
+type View = "dashboard" | "budget-analytics" | "admin";
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -24,10 +24,10 @@ export default function Home() {
     );
   }
 
-  if (view === "user-management") {
+  if (view === "admin") {
     return (
       <main className="min-h-screen bg-slate-50">
-        <UserManagement onBack={() => setView("dashboard")} />
+        <AdminPanel onBack={() => setView("dashboard")} />
       </main>
     );
   }
@@ -36,7 +36,7 @@ export default function Home() {
     <main className="min-h-screen bg-slate-50">
       <Dashboard
         onShowBudgetAnalytics={() => setView("budget-analytics")}
-        onShowUserManagement={() => setView("user-management")}
+        onShowAdmin={() => setView("admin")}
       />
     </main>
   );
