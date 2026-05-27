@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
     orgRole: user.orgRole,
     isPlatformAdmin: user.isPlatformAdmin,
     orgStatus: user.orgStatus,
+    orgPlan: user.orgPlan,
     trialEndsAt: user.trialEndsAt,
   });
 }

@@ -8,7 +8,7 @@ import {
   ChevronRight, Loader2, Globe, Key, UserPlus, Lock,
   Download, FileSpreadsheet, Package, Layers, Receipt, Activity,
   Clock, FolderOpen, UserCheck, UserMinus, Database, Zap,
-  ShieldCheck, AtSign, ShieldOff,
+  ShieldCheck, AtSign, ShieldOff, TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
@@ -110,6 +110,72 @@ function OverviewSection({ users, orgName }: { users: UserAccount[]; orgName: st
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+const PLAN_LIMITS: Record<string, number> = { trial: 3, starter: 10, pro: 50, enterprise: Infinity };
+const PLAN_LABELS: Record<string, string> = { trial: 'Trial', starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
+const PLAN_COLORS: Record<string, string> = {
+  trial:      'bg-slate-100 text-slate-600 border-slate-200',
+  starter:    'bg-blue-50 text-blue-700 border-blue-200',
+  pro:        'bg-violet-50 text-violet-700 border-violet-200',
+  enterprise: 'bg-amber-50 text-amber-700 border-amber-200',
+};
+
+function PlanUsageCard({ userCount }: { userCount: number }) {
+  const { user } = useAuth();
+  const plan  = user?.orgPlan ?? 'trial';
+  const limit = PLAN_LIMITS[plan] ?? 3;
+  const unlimited = limit === Infinity;
+  const pct   = unlimited ? 0 : Math.min(100, Math.round((userCount / limit) * 100));
+  const nearLimit = !unlimited && pct >= 80;
+  const atLimit   = !unlimited && userCount >= limit;
+
+  return (
+    <div className={`rounded-xl border px-5 py-4 ${atLimit ? 'bg-red-50 border-red-200' : nearLimit ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Users className={`w-5 h-5 flex-shrink-0 ${atLimit ? 'text-red-500' : nearLimit ? 'text-amber-500' : 'text-slate-400'}`} />
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-slate-800">
+                {unlimited ? `${userCount} users` : `${userCount} / ${limit} users`}
+              </p>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${PLAN_COLORS[plan]}`}>
+                {PLAN_LABELS[plan]}
+              </span>
+            </div>
+            <p className={`text-xs mt-0.5 ${atLimit ? 'text-red-600 font-medium' : nearLimit ? 'text-amber-600' : 'text-slate-500'}`}>
+              {atLimit
+                ? `User limit reached — upgrade to add more members`
+                : unlimited
+                ? 'Unlimited users on Enterprise plan'
+                : `${limit - userCount} seat${limit - userCount === 1 ? '' : 's'} remaining on ${PLAN_LABELS[plan]} plan`}
+            </p>
+          </div>
+        </div>
+        {(atLimit || nearLimit) && !unlimited && (
+          <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
+            <TrendingUp className="w-3.5 h-3.5" /> Upgrade plan
+          </span>
+        )}
+      </div>
+
+      {!unlimited && (
+        <div className="mt-3">
+          <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${atLimit ? 'bg-red-500' : nearLimit ? 'bg-amber-500' : 'bg-blue-500'}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-[10px] text-slate-400">0</span>
+            <span className="text-[10px] text-slate-400">{limit} max</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -287,6 +353,9 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
           <UserPlus className="w-4 h-4" /> New User
         </button>
       </div>
+
+      {/* Plan usage */}
+      <PlanUsageCard userCount={users.length} />
 
       {/* Domain restriction */}
       <DomainRestrictionCard />

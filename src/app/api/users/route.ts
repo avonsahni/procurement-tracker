@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { guard } from '@/lib/auth';
+import { guard, PLAN_USER_LIMITS, type OrgPlan } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { addOrgAuditEntry } from '@/lib/db';
 import { withRoute } from '@/lib/withRoute';
@@ -65,15 +65,34 @@ export const POST = withRoute(async (req: NextRequest) => {
 
   const admin = createAdminSupabase();
 
-  // ── Email domain restriction ────────────────────────────────────────────
-  // If the org has a registered email domain, only users with that domain
-  // can be invited. This prevents cross-company data leaks.
+  // ── Fetch org settings (plan + email_domain) ────────────────────────────
   const { data: org } = await admin
     .from('organizations')
-    .select('email_domain')
+    .select('plan, email_domain')
     .eq('id', auth.orgId)
     .single();
 
+  // ── Plan user-limit check ────────────────────────────────────────────────
+  const plan      = (org?.plan as OrgPlan) ?? 'trial';
+  const userLimit = PLAN_USER_LIMITS[plan];
+
+  const { count: memberCount } = await admin
+    .from('organization_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('org_id', auth.orgId);
+
+  if ((memberCount ?? 0) >= userLimit) {
+    const limitLabel = userLimit === Number.MAX_SAFE_INTEGER ? 'unlimited' : String(userLimit);
+    return NextResponse.json({
+      error: `Your ${plan} plan allows a maximum of ${limitLabel} users. ` +
+             `You have reached the limit. Upgrade your plan to invite more members.`,
+      code: 'USER_LIMIT_REACHED',
+      limit: userLimit,
+      current: memberCount,
+    }, { status: 402 });
+  }
+
+  // ── Email domain restriction ─────────────────────────────────────────────
   if (org?.email_domain) {
     const invitedDomain = (username as string).split('@')[1]?.toLowerCase();
     if (invitedDomain !== org.email_domain) {
@@ -84,7 +103,7 @@ export const POST = withRoute(async (req: NextRequest) => {
       }, { status: 400 });
     }
   }
-  // ───────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────────────
 
   // Pass org_id in metadata so the handle_new_user trigger joins the right org
   const { data, error } = await admin.auth.admin.createUser({

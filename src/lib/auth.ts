@@ -3,6 +3,15 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 
 export type OrgStatus = 'trial' | 'active' | 'paused' | 'canceled';
+export type OrgPlan  = 'trial' | 'starter' | 'pro' | 'enterprise';
+
+/** Maximum users allowed per plan. Enterprise = unlimited (Number.MAX_SAFE_INTEGER). */
+export const PLAN_USER_LIMITS: Record<OrgPlan, number> = {
+  trial:      3,
+  starter:    10,
+  pro:        50,
+  enterprise: Number.MAX_SAFE_INTEGER,
+};
 
 export type AuthUser = {
   id: string;
@@ -15,6 +24,8 @@ export type AuthUser = {
   isPlatformAdmin: boolean;
   /** Current subscription/lifecycle status of the org */
   orgStatus: OrgStatus;
+  /** Billing plan for the org */
+  orgPlan: OrgPlan;
   /** ISO timestamp when trial ends; null if not on trial */
   trialEndsAt: string | null;
 };
@@ -45,17 +56,19 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
   const orgRole = (membership?.role as 'owner' | 'admin' | 'viewer') ?? 'viewer';
 
-  // Fetch org subscription status if there's a membership
+  // Fetch org subscription status + plan if there's a membership
   let orgStatus: OrgStatus = 'active';
+  let orgPlan: OrgPlan     = 'trial';
   let trialEndsAt: string | null = null;
   if (membership?.org_id) {
     const { data: org } = await admin
       .from('organizations')
-      .select('subscription_status, trial_ends_at')
+      .select('subscription_status, trial_ends_at, plan')
       .eq('id', membership.org_id)
       .maybeSingle();
     if (org) {
-      orgStatus = (org.subscription_status as OrgStatus) ?? 'active';
+      orgStatus   = (org.subscription_status as OrgStatus) ?? 'active';
+      orgPlan     = (org.plan              as OrgPlan)     ?? 'trial';
       trialEndsAt = org.trial_ends_at ?? null;
     }
   }
@@ -70,6 +83,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     orgRole,
     isPlatformAdmin: profile?.is_platform_admin ?? false,
     orgStatus,
+    orgPlan,
     trialEndsAt,
   };
 }

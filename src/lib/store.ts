@@ -18,6 +18,7 @@ export interface UserAccount {
   orgRole?: "owner" | "admin" | "viewer";
   isPlatformAdmin?: boolean;
   orgStatus?: "trial" | "active" | "paused" | "canceled";
+  orgPlan?: "trial" | "starter" | "pro" | "enterprise";
   trialEndsAt?: string | null;
   password?: string;
 }

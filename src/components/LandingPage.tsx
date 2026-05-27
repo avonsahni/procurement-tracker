@@ -309,7 +309,7 @@ const PRICING = [
     price: "Free",
     period: "14 days",
     highlight: false,
-    features: ["Unlimited packages", "3 team members", "All core features", "No credit card needed"],
+    features: ["Up to 3 team members", "Unlimited packages", "All core features", "No credit card needed"],
     cta: "Start free trial",
   },
   {
@@ -317,7 +317,7 @@ const PRICING = [
     price: "£49",
     period: "per month",
     highlight: true,
-    features: ["Unlimited packages", "Up to 10 members", "Budget analytics", "Document storage", "Audit trail", "Email support"],
+    features: ["Up to 10 team members", "Unlimited packages", "Budget analytics", "Document storage", "Audit trail", "Email support"],
     cta: "Get started",
   },
   {
@@ -325,7 +325,7 @@ const PRICING = [
     price: "£149",
     period: "per month",
     highlight: false,
-    features: ["Everything in Starter", "Unlimited members", "GDPR data export", "Priority support", "Custom branding", "Dedicated onboarding"],
+    features: ["Up to 50 team members", "Everything in Starter", "GDPR data export", "Priority support", "Custom branding", "Dedicated onboarding"],
     cta: "Contact us",
   },
 ];
