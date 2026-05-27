@@ -3,6 +3,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { SignupSchema, parseBody } from '@/lib/validation';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { seedSampleData } from '@/lib/seed-data';
 
 export async function POST(req: NextRequest) {
   // Rate limit: 5 registrations per IP per hour
@@ -73,6 +74,9 @@ export async function POST(req: NextRequest) {
         .update({ job_title: jobTitle })
         .eq('id', data.user.id);
     }
+
+    // Seed sample projects for the new org so the dashboard isn't empty on first login
+    await seedSampleData(admin, data.user.id);
   }
 
   if (!data.session) {
