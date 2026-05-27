@@ -363,7 +363,7 @@ const FEATURES = [
     icon: Package,
     color: "text-violet-600 bg-violet-50",
     title: "Package Lifecycle",
-    desc: "Track every project package through fixed stages — from Spec Received to Award. Always know what's waiting on you.",
+    desc: "Track every procurement package through fixed stages — from Spec Received to Award. Always know what's waiting on you.",
     mockup: <StageMockup />,
   },
   {
@@ -405,7 +405,7 @@ const HOW_IT_WORKS = [
   {
     step: "02",
     title: "Create a project and add packages",
-    desc: "Each project holds work packages. Add a package per scope item — civils, M&E, fit-out, FF&E — however you structure your work.",
+    desc: "Each project holds procurement packages. Add a package per scope item — civils, M&E, fit-out, FF&E — however you structure your work.",
   },
   {
     step: "03",
@@ -464,7 +464,7 @@ export default function LandingPage() {
             <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
               <Package className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-slate-900 text-lg tracking-tight">ProjectTrack</span>
+            <span className="font-bold text-slate-900 text-lg tracking-tight">ProcureTrack</span>
           </div>
           <div className="flex items-center gap-3">
             <a href="#features" className="hidden sm:block text-sm text-slate-500 hover:text-slate-900 transition">Features</a>
@@ -492,7 +492,7 @@ export default function LandingPage() {
             <Zap className="w-3 h-3" /> Built for project managers · No spreadsheets
           </div>
           <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight mb-4">
-            Project tracking<br />
+            Procurement tracking<br />
             <span className="text-blue-600">made simple</span>
           </h1>
           <p className="text-xl sm:text-2xl font-semibold text-slate-700 mb-4">
@@ -529,7 +529,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto px-6 grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
           {[
             { value: "100+",  label: "Packages per project" },
-            { value: "6",     label: "Project stages"   },
+            { value: "6",     label: "Procurement stages"   },
             { value: "GDPR",  label: "Compliant by design"  },
             { value: "14-day", label: "Free trial, no card" },
           ].map(s => (
@@ -579,10 +579,10 @@ export default function LandingPage() {
               <Activity className="w-3.5 h-3.5" /> Execution Dashboard
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-snug">
-              Track delivery progress,<br />not just packages
+              Track delivery progress,<br />not just procurement
             </h2>
             <p className="text-blue-200 leading-relaxed text-base">
-              Once a package is awarded, the work begins. ProjectTrack's Execution Dashboard
+              Once a package is awarded, the work begins. ProcureTrack's Execution Dashboard
               lets you track every delivery milestone — from Mobilisation to Handover — with
               real-time progress bars your whole team can update.
             </p>
@@ -652,8 +652,8 @@ export default function LandingPage() {
               <span className="text-blue-600">built for clarity</span>
             </h2>
             <p className="text-slate-500 leading-relaxed">
-              Most project tools overwhelm managers with data they don't need.
-              ProjectTrack gives decision-makers a single, clear view of every package —
+              Most procurement tools overwhelm managers with data they don't need.
+              ProcureTrack gives decision-makers a single, clear view of every package —
               <em>what's the status, who are the vendors, and what was awarded?</em>
             </p>
             <ul className="space-y-3">
@@ -757,7 +757,7 @@ export default function LandingPage() {
           </h2>
           <p className="text-blue-200 text-base mb-8 leading-relaxed">
             Set up your organisation in 30 seconds. No credit card. No sales call.
-            Just a cleaner way to track your projects.
+            Just a cleaner way to track procurement.
           </p>
           <button
             onClick={openSignup}
@@ -775,10 +775,10 @@ export default function LandingPage() {
             <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center">
               <Package className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="font-bold text-slate-700 text-sm">ProjectTrack</span>
+            <span className="font-bold text-slate-700 text-sm">ProcureTrack</span>
           </div>
           <p className="text-xs text-slate-400 text-center">
-            © {new Date().getFullYear()} ProjectTrack · GDPR compliant · Data hosted in EU · All rights reserved
+            © {new Date().getFullYear()} ProcureTrack · GDPR compliant · Data hosted in EU · All rights reserved
           </p>
           <div className="flex items-center gap-4 text-xs text-slate-400">
             <a href="#features" className="hover:text-slate-600 transition">Features</a>
