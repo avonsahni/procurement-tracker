@@ -6,7 +6,7 @@ import Dashboard from "@/components/Dashboard";
 import BudgetAnalytics from "@/components/BudgetAnalytics";
 import AdminPanel from "@/components/AdminPanel";
 import PlatformPanel from "@/components/PlatformPanel";
-import LoginForm from "@/components/auth/LoginForm";
+import LandingPage from "@/components/LandingPage";
 import SubscriptionGate from "@/components/SubscriptionGate";
 
 type View = "dashboard" | "budget-analytics" | "admin" | "platform";
@@ -16,7 +16,7 @@ export default function Home() {
   const [view, setView] = useState<View>("dashboard");
 
   if (loading) return null;
-  if (!user) return <LoginForm />;
+  if (!user) return <LandingPage />;
   if (isOrgBlocked) return <SubscriptionGate />;
 
   if (view === "budget-analytics") {

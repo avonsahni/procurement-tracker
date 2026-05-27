@@ -7,9 +7,9 @@ import { Lock, Mail, User, ArrowRight, CheckCircle2, Building2 } from "lucide-re
 
 type Mode = "login" | "signup";
 
-export default function LoginForm() {
+export default function LoginForm({ initialMode = "login" }: { initialMode?: Mode }) {
   const [company, setCompany] = useState<CompanyInfo>({ name: "Procurement Dashboard", tagline: "Enterprise Access" });
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -40,11 +40,16 @@ export default function LoginForm() {
         await login(email, password);
       } else {
         const { needsConfirmation } = await signup(email, password, fullName, orgName);
+        // Always land on sign-in after registration.
+        // If email confirmation is required, show a prompt; otherwise the
+        // AuthContext will have set the user and the app redirects automatically.
         if (needsConfirmation) {
           setConfirmMessage(`Check ${email} to confirm your account, then sign in.`);
-          setMode("login");
-          setPassword("");
+        } else {
+          setConfirmMessage("Organisation created! You can now sign in.");
         }
+        setMode("login");
+        setPassword("");
       }
     } catch (err: any) {
       setError(err.message || "Something went wrong");
