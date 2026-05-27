@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth/AuthContext";
 import {
   Building2, Globe, Phone, MapPin, User, Mail, Lock,
   ChevronRight, ChevronLeft, CheckCircle2, Package,
-  Briefcase, ArrowRight, Loader2, Eye, EyeOff,
+  Briefcase, ArrowRight, Loader2, Eye, EyeOff, Tag, X,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -29,12 +29,14 @@ interface FormData {
   password:     string;
   confirmPassword: string;
   agreeTerms:   boolean;
+  couponCode:   string;
 }
 
 const EMPTY: FormData = {
   orgName: "", orgType: "", website: "",
   addressLine1: "", city: "", stateRegion: "", country: "", phone: "",
   fullName: "", jobTitle: "", email: "", password: "", confirmPassword: "", agreeTerms: false,
+  couponCode: "",
 };
 
 const ORG_TYPES = [
@@ -223,10 +225,14 @@ function Step2({ data, onChange, errors }: {
   );
 }
 
-function Step3({ data, onChange, errors }: {
+function Step3({ data, onChange, errors, couponStatus, couponChecking, setCouponStatus, applyCoupon }: {
   data: FormData;
   onChange: (k: keyof FormData, v: string | boolean) => void;
   errors: Partial<Record<keyof FormData, string>>;
+  couponStatus: { valid: boolean; benefit?: string; error?: string } | null;
+  couponChecking: boolean;
+  setCouponStatus: (s: { valid: boolean; benefit?: string; error?: string } | null) => void;
+  applyCoupon: () => void;
 }) {
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -307,6 +313,44 @@ function Step3({ data, onChange, errors }: {
         </div>
       )}
 
+      {/* Coupon code */}
+      <div>
+        <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+          Coupon Code <span className="text-slate-400 font-normal">(optional)</span>
+        </label>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Tag className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              placeholder="Enter coupon code"
+              value={data.couponCode}
+              onChange={e => { onChange("couponCode", e.target.value.toUpperCase()); setCouponStatus(null); }}
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm text-slate-900 placeholder-slate-400 bg-white transition"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={applyCoupon}
+            disabled={!data.couponCode.trim() || couponChecking}
+            className="px-4 py-2.5 bg-slate-800 text-white text-sm font-semibold rounded-xl hover:bg-slate-700 transition disabled:opacity-40"
+          >
+            {couponChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+          </button>
+        </div>
+        {couponStatus && (
+          <div className={`mt-2 flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${
+            couponStatus.valid
+              ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+              : 'bg-red-50 border border-red-200 text-red-600'
+          }`}>
+            {couponStatus.valid
+              ? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+              : <X className="w-3.5 h-3.5 flex-shrink-0" />}
+            {couponStatus.valid ? couponStatus.benefit : couponStatus.error}
+          </div>
+        )}
+      </div>
+
       <label className="flex items-start gap-3 cursor-pointer group">
         <input
           type="checkbox"
@@ -328,8 +372,9 @@ function Step3({ data, onChange, errors }: {
 
 // ─── Success screen ───────────────────────────────────────────────────────────
 
-function SuccessScreen({ orgName, email, onGoToLogin }: {
+function SuccessScreen({ orgName, email, onGoToLogin, couponApplied, couponBenefit }: {
   orgName: string; email: string; onGoToLogin: () => void;
+  couponApplied?: boolean; couponBenefit?: string;
 }) {
   return (
     <div className="text-center py-6 space-y-5">
@@ -349,7 +394,10 @@ function SuccessScreen({ orgName, email, onGoToLogin }: {
       <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm text-slate-600 text-left space-y-1.5 max-w-sm mx-auto">
         <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Private workspace created</p>
         <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> You are the organisation admin</p>
-        <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> 14-day free trial started</p>
+        <p className="flex items-center gap-2">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+          {couponApplied && couponBenefit ? couponBenefit : '14-day free trial started'}
+        </p>
       </div>
       <button
         onClick={onGoToLogin}
@@ -374,8 +422,32 @@ export default function RegisterPage() {
   const [apiError, setApiError] = useState("");
   const [done, setDone] = useState(false);
 
+  const [couponStatus, setCouponStatus] = useState<{ valid: boolean; benefit?: string; error?: string } | null>(null);
+  const [couponChecking, setCouponChecking] = useState(false);
+
   const set = (k: keyof FormData, v: string | boolean) =>
     setData(d => ({ ...d, [k]: v }));
+
+  const applyCoupon = async () => {
+    if (!data.couponCode.trim()) return;
+    setCouponChecking(true);
+    setCouponStatus(null);
+    try {
+      const res = await fetch(`/api/coupons/validate?code=${encodeURIComponent(data.couponCode.trim())}`, {
+        headers: { 'X-Requested-With': 'fetch' },
+      });
+      const body = await res.json();
+      if (res.ok && body.valid) {
+        setCouponStatus({ valid: true, benefit: body.benefit });
+      } else {
+        setCouponStatus({ valid: false, error: body.error || 'Invalid coupon code' });
+      }
+    } catch {
+      setCouponStatus({ valid: false, error: 'Could not check coupon — please try again' });
+    } finally {
+      setCouponChecking(false);
+    }
+  };
 
   // ── Validation per step ──────────────────────────────────────────────────
 
@@ -438,7 +510,6 @@ export default function RegisterPage() {
     try {
       const { needsConfirmation } = await signup(
         data.email, data.password, data.fullName, data.orgName,
-        // Extra fields via extended signup
         {
           jobTitle: data.jobTitle,
           orgType: data.orgType,
@@ -448,6 +519,7 @@ export default function RegisterPage() {
           stateRegion: data.stateRegion,
           country: data.country,
           phone: data.phone,
+          couponCode: data.couponCode,
         }
       );
       setDone(true);
@@ -497,6 +569,8 @@ export default function RegisterPage() {
                 orgName={data.orgName}
                 email={data.email}
                 onGoToLogin={() => router.push("/")}
+                couponApplied={!!(couponStatus?.valid && data.couponCode)}
+                couponBenefit={couponStatus?.benefit}
               />
             ) : (
               <>
@@ -511,7 +585,17 @@ export default function RegisterPage() {
                 <form onSubmit={handleSubmit}>
                   {step === 1 && <Step1 data={data} onChange={set} errors={errors} />}
                   {step === 2 && <Step2 data={data} onChange={set} errors={errors} />}
-                  {step === 3 && <Step3 data={data} onChange={set} errors={errors} />}
+                  {step === 3 && (
+                    <Step3
+                      data={data}
+                      onChange={set}
+                      errors={errors}
+                      couponStatus={couponStatus}
+                      couponChecking={couponChecking}
+                      setCouponStatus={setCouponStatus}
+                      applyCoupon={applyCoupon}
+                    />
+                  )}
 
                   {/* Navigation buttons */}
                   <div className="flex items-center justify-between mt-8 pt-5 border-t border-slate-100">

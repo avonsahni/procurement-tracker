@@ -38,6 +38,7 @@ export const SignupSchema = z.object({
   stateRegion:  z.string().trim().max(100).optional().default(''),
   country:      z.string().trim().max(100).optional().default(''),
   phone:        z.string().trim().max(50).optional().default(''),
+  couponCode:   z.string().trim().max(50).optional().default(''),
 });
 
 export const ProjectCreateSchema = z.object({

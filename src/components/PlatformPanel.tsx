@@ -7,7 +7,8 @@ import {
   Calendar, ChevronDown, ChevronUp, Loader2, Search, Check,
   AlertTriangle, Pause, Play, Trash2, Edit2, X, Globe,
   Crown, Activity, RefreshCw, CheckCircle2, XCircle, Clock,
-  Bug, Terminal, Smartphone,
+  Bug, Terminal, Smartphone, Tag, Percent, Gift,
+  ToggleLeft, ToggleRight, IndianRupee, Plus,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -752,13 +753,434 @@ function ErrorLogSection() {
   );
 }
 
+// ─── Plans & Coupons Section ──────────────────────────────────────────────────
+
+function PlansSection() {
+  type PricingRow = { tier: string; price_inr: number; period: string; description: string | null; updated_by: string | null; updated_at: string };
+  type CouponRow  = { id: string; code: string; type: 'free' | 'discount'; discount_pct: number | null; free_plan: string | null; valid_days: number; max_uses: number | null; used_count: number; is_active: boolean; expires_at: string | null; notes: string | null };
+
+  const [pricing, setPricing]           = useState<PricingRow[]>([]);
+  const [editTier, setEditTier]         = useState<string | null>(null);
+  const [editForm, setEditForm]         = useState({ price_inr: 0, period: 'month', description: '' });
+  const [savingPrice, setSavingPrice]   = useState(false);
+  const [priceMsg, setPriceMsg]         = useState('');
+
+  const [coupons, setCoupons]           = useState<CouponRow[]>([]);
+  const [loadingData, setLoadingData]   = useState(false);
+  const [showCouponForm, setShowCouponForm] = useState(false);
+  const [couponForm, setCouponForm]     = useState({
+    code: '', type: 'free' as 'free' | 'discount',
+    free_plan: 'starter' as 'starter' | 'pro' | 'enterprise',
+    discount_pct: 10, valid_days: 30, max_uses: '', expires_at: '', notes: '',
+  });
+  const [couponError, setCouponError]   = useState('');
+  const [savingCoupon, setSavingCoupon] = useState(false);
+
+  const loadAll = useCallback(async () => {
+    setLoadingData(true);
+    try {
+      const [pRes, cRes] = await Promise.all([
+        apiFetch('/api/platform/pricing').then(r => r.json()),
+        apiFetch('/api/platform/coupons').then(r => r.json()),
+      ]);
+      if (Array.isArray(pRes)) setPricing(pRes);
+      if (Array.isArray(cRes)) setCoupons(cRes);
+    } catch { /* silent */ } finally { setLoadingData(false); }
+  }, []);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  const startEditPrice = (p: PricingRow) => {
+    setEditTier(p.tier);
+    setEditForm({ price_inr: p.price_inr, period: p.period, description: p.description ?? '' });
+    setPriceMsg('');
+  };
+
+  const savePrice = async (tier: string) => {
+    setSavingPrice(true); setPriceMsg('');
+    try {
+      const res = await apiFetch('/api/platform/pricing', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier, ...editForm, price_inr: Number(editForm.price_inr) }),
+      });
+      const body = await res.json();
+      if (!res.ok) { setPriceMsg(body.error || 'Save failed'); return; }
+      setPricing(prev => prev.map(p => p.tier === tier ? body : p));
+      setEditTier(null);
+      setPriceMsg('Saved!');
+      setTimeout(() => setPriceMsg(''), 2500);
+    } catch { setPriceMsg('Network error'); }
+    finally { setSavingPrice(false); }
+  };
+
+  const createCoupon = async () => {
+    setCouponError('');
+    if (!couponForm.code.trim()) { setCouponError('Code is required'); return; }
+    if (couponForm.valid_days < 1) { setCouponError('Valid days must be ≥ 1'); return; }
+    setSavingCoupon(true);
+    try {
+      const payload: Record<string, unknown> = {
+        code: couponForm.code.trim().toUpperCase(),
+        type: couponForm.type,
+        valid_days: Number(couponForm.valid_days),
+        max_uses: couponForm.max_uses ? Number(couponForm.max_uses) : null,
+        expires_at: couponForm.expires_at ? new Date(couponForm.expires_at).toISOString() : null,
+        notes: couponForm.notes || null,
+      };
+      if (couponForm.type === 'free') payload.free_plan = couponForm.free_plan;
+      else payload.discount_pct = Number(couponForm.discount_pct);
+      const res = await apiFetch('/api/platform/coupons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      if (!res.ok) { setCouponError(body.error || 'Create failed'); return; }
+      setCoupons(prev => [body, ...prev]);
+      setCouponForm({ code: '', type: 'free', free_plan: 'starter', discount_pct: 10, valid_days: 30, max_uses: '', expires_at: '', notes: '' });
+      setShowCouponForm(false);
+    } catch { setCouponError('Network error'); }
+    finally { setSavingCoupon(false); }
+  };
+
+  const toggleCoupon = async (c: CouponRow) => {
+    try {
+      const res = await apiFetch(`/api/platform/coupons/${encodeURIComponent(c.code)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !c.is_active }),
+      });
+      const body = await res.json();
+      if (res.ok) setCoupons(prev => prev.map(x => x.id === c.id ? body : x));
+    } catch { /* silent */ }
+  };
+
+  const deleteCoupon = async (c: CouponRow) => {
+    if (!confirm(`Delete coupon "${c.code}"? This cannot be undone.`)) return;
+    try {
+      await apiFetch(`/api/platform/coupons/${encodeURIComponent(c.code)}`, { method: 'DELETE' });
+      setCoupons(prev => prev.filter(x => x.id !== c.id));
+    } catch { /* silent */ }
+  };
+
+  const TIER_LABELS: Record<string, string> = { trial: 'Trial', starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
+  const TIER_BG: Record<string, string> = {
+    trial: 'bg-slate-50 border-slate-200', starter: 'bg-blue-50 border-blue-200',
+    pro: 'bg-violet-50 border-violet-200', enterprise: 'bg-amber-50 border-amber-200',
+  };
+  const TIER_TEXT: Record<string, string> = {
+    trial: 'text-slate-700', starter: 'text-blue-800', pro: 'text-violet-800', enterprise: 'text-amber-800',
+  };
+
+  return (
+    <div className="space-y-10">
+      <div>
+        <h2 className="text-xl font-semibold text-slate-900 mb-1">Plans & Pricing</h2>
+        <p className="text-sm text-slate-500">Set per-tier pricing in ₹ and manage promotional coupons.</p>
+      </div>
+
+      {/* ── Pricing ──────────────────────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            <IndianRupee className="w-4 h-4 text-emerald-600" /> Plan Pricing
+          </h3>
+          {priceMsg && (
+            <span className={`text-xs font-semibold ${priceMsg === 'Saved!' ? 'text-emerald-600' : 'text-red-500'}`}>
+              {priceMsg}
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {loadingData && pricing.length === 0
+            ? [1,2,3,4].map(i => <div key={i} className="h-28 rounded-xl bg-slate-100 animate-pulse" />)
+            : pricing.map(p => (
+              <div key={p.tier} className={`rounded-xl border p-5 ${TIER_BG[p.tier] ?? 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex items-start justify-between mb-2">
+                  <p className={`text-xs font-bold uppercase tracking-widest ${TIER_TEXT[p.tier]}`}>
+                    {TIER_LABELS[p.tier] ?? p.tier}
+                  </p>
+                  {editTier !== p.tier ? (
+                    <button onClick={() => startEditPrice(p)}
+                      className="text-xs text-slate-500 border border-slate-300 bg-white px-2.5 py-1 rounded-lg hover:bg-slate-50 transition flex items-center gap-1.5">
+                      <Edit2 className="w-3 h-3" /> Edit
+                    </button>
+                  ) : (
+                    <div className="flex gap-1.5">
+                      <button onClick={() => savePrice(p.tier)} disabled={savingPrice}
+                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-1">
+                        {savingPrice ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Save
+                      </button>
+                      <button onClick={() => setEditTier(null)}
+                        className="text-xs border border-slate-200 bg-white px-2 py-1 rounded-lg hover:bg-slate-50 transition">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {editTier !== p.tier ? (
+                  <>
+                    <p className={`text-2xl font-extrabold ${TIER_TEXT[p.tier]}`}>
+                      {Number(p.price_inr) === 0 ? 'Free' : `₹${Number(p.price_inr).toLocaleString('en-IN')}`}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">per {p.period}</p>
+                    {p.description && <p className="text-xs text-slate-400 mt-1">{p.description}</p>}
+                    {p.updated_by && (
+                      <p className="text-[10px] text-slate-400 mt-2">Updated by {p.updated_by} · {fmtDate(p.updated_at)}</p>
+                    )}
+                  </>
+                ) : (
+                  <div className="space-y-2.5 mt-1">
+                    <div>
+                      <label className="text-[11px] text-slate-500 font-medium block mb-1">Price (₹)</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">₹</span>
+                        <input type="number" min="0" step="1"
+                          value={editForm.price_inr}
+                          onChange={e => setEditForm(f => ({ ...f, price_inr: Number(e.target.value) }))}
+                          className="w-full pl-7 pr-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-slate-500 font-medium block mb-1">Period</label>
+                      <select value={editForm.period}
+                        onChange={e => setEditForm(f => ({ ...f, period: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-white">
+                        {['14 days','month','3 months','6 months','year'].map(o => <option key={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-slate-500 font-medium block mb-1">Description</label>
+                      <input value={editForm.description}
+                        onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                        placeholder="e.g. Up to 10 team members"
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Coupons ──────────────────────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            <Tag className="w-4 h-4 text-blue-600" /> Promotional Coupons
+          </h3>
+          <button onClick={() => { setShowCouponForm(v => !v); setCouponError(''); }}
+            className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition">
+            <Plus className="w-3.5 h-3.5" /> New Coupon
+          </button>
+        </div>
+
+        {showCouponForm && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-blue-900 flex items-center gap-2">
+                <Gift className="w-4 h-4" /> Create Coupon
+              </h4>
+              <button onClick={() => setShowCouponForm(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {couponError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{couponError}</p>}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] text-slate-600 font-semibold block mb-1">Code *</label>
+                <input value={couponForm.code}
+                  onChange={e => setCouponForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                  placeholder="LAUNCH50"
+                  className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-white font-mono tracking-wider"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-600 font-semibold block mb-1">Type *</label>
+                <div className="flex gap-2 mt-1">
+                  {(['free','discount'] as const).map(t => (
+                    <label key={t} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer text-xs font-medium transition ${
+                      couponForm.type === t ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-blue-200 text-slate-600 hover:bg-blue-50'
+                    }`}>
+                      <input type="radio" name="coupon-type" value={t} checked={couponForm.type === t}
+                        onChange={() => setCouponForm(f => ({ ...f, type: t }))} className="hidden" />
+                      {t === 'free' ? <Gift className="w-3 h-3" /> : <Percent className="w-3 h-3" />}
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {couponForm.type === 'free' ? (
+                <div>
+                  <label className="text-[11px] text-slate-600 font-semibold block mb-1">Free Plan *</label>
+                  <select value={couponForm.free_plan}
+                    onChange={e => setCouponForm(f => ({ ...f, free_plan: e.target.value as 'starter' | 'pro' | 'enterprise' }))}
+                    className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-white">
+                    <option value="starter">Starter</option>
+                    <option value="pro">Pro</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[11px] text-slate-600 font-semibold block mb-1">Discount % *</label>
+                  <input type="number" min="1" max="100"
+                    value={couponForm.discount_pct}
+                    onChange={e => setCouponForm(f => ({ ...f, discount_pct: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="text-[11px] text-slate-600 font-semibold block mb-1">Valid Days *</label>
+                <input type="number" min="1"
+                  value={couponForm.valid_days}
+                  onChange={e => setCouponForm(f => ({ ...f, valid_days: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-600 font-semibold block mb-1">
+                  Max Uses <span className="text-slate-400 font-normal">(blank = unlimited)</span>
+                </label>
+                <input type="number" min="1"
+                  value={couponForm.max_uses}
+                  onChange={e => setCouponForm(f => ({ ...f, max_uses: e.target.value }))}
+                  placeholder="e.g. 100"
+                  className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-600 font-semibold block mb-1">
+                  Expires <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                <input type="date"
+                  value={couponForm.expires_at}
+                  onChange={e => setCouponForm(f => ({ ...f, expires_at: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] text-slate-600 font-semibold block mb-1">
+                Notes <span className="text-slate-400 font-normal">(internal only)</span>
+              </label>
+              <input value={couponForm.notes}
+                onChange={e => setCouponForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="e.g. Launch promotion Q1 2026"
+                className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={createCoupon} disabled={savingCoupon}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
+                {savingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {savingCoupon ? 'Creating…' : 'Create Coupon'}
+              </button>
+              <button onClick={() => setShowCouponForm(false)}
+                className="px-4 py-2 border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-white transition">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {coupons.length === 0 && !loadingData ? (
+          <div className="bg-white border border-slate-200 rounded-xl px-5 py-10 text-center text-slate-400 text-sm">
+            No coupons yet. Create your first promotional coupon above.
+          </div>
+        ) : (
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Code</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Benefit</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Uses</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Expires</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {coupons.map(c => {
+                  const benefit = c.type === 'free'
+                    ? `${c.free_plan ? c.free_plan.charAt(0).toUpperCase() + c.free_plan.slice(1) : '?'} free / ${c.valid_days}d`
+                    : `${c.discount_pct}% off / ${c.valid_days}d`;
+                  const expired   = !!c.expires_at && new Date(c.expires_at) < new Date();
+                  const exhausted = c.max_uses !== null && c.used_count >= c.max_uses;
+                  return (
+                    <tr key={c.id} className="hover:bg-slate-50 transition">
+                      <td className="px-4 py-3">
+                        <span className="font-mono font-bold text-slate-800 text-xs tracking-wider">{c.code}</span>
+                        {c.notes && <p className="text-[10px] text-slate-400 mt-0.5">{c.notes}</p>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 ${
+                          c.type === 'free'
+                            ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                            : 'bg-blue-50 text-blue-700 ring-blue-200'
+                        }`}>
+                          {c.type === 'free' ? <Gift className="w-3 h-3" /> : <Percent className="w-3 h-3" />}
+                          {benefit}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`text-xs font-semibold ${exhausted ? 'text-red-600' : 'text-slate-700'}`}>
+                          {c.used_count}{c.max_uses !== null ? ` / ${c.max_uses}` : ''}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`text-xs ${expired ? 'text-red-500 font-medium' : 'text-slate-500'}`}>
+                          {c.expires_at ? fmtDate(c.expires_at) : '—'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ring-1 ${
+                          !c.is_active     ? 'bg-slate-100 text-slate-500 ring-slate-200' :
+                          expired || exhausted ? 'bg-amber-50 text-amber-700 ring-amber-200' :
+                          'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                        }`}>
+                          {!c.is_active ? 'Inactive' : expired ? 'Expired' : exhausted ? 'Exhausted' : 'Active'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => toggleCoupon(c)}
+                            title={c.is_active ? 'Deactivate' : 'Activate'}
+                            className={`p-1.5 rounded-lg transition ${c.is_active ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}`}>
+                            {c.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                          </button>
+                          <button onClick={() => deleteCoupon(c)} title="Delete"
+                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main PlatformPanel ───────────────────────────────────────────────────────
 
-type PlatformTab = 'overview' | 'orgs' | 'errors';
+type PlatformTab = 'overview' | 'orgs' | 'plans' | 'errors';
 
 const NAV: { id: PlatformTab; icon: any; label: string }[] = [
   { id: 'overview', icon: BarChart3,  label: 'Overview' },
   { id: 'orgs',     icon: Building2,  label: 'Organisations' },
+  { id: 'plans',    icon: Tag,        label: 'Plans & Coupons' },
   { id: 'errors',   icon: Bug,        label: 'Error Log' },
 ];
 
@@ -849,6 +1271,7 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
         <main className="flex-1 overflow-y-auto p-8">
           {tab === 'overview' && <OverviewSection orgs={orgs} />}
           {tab === 'orgs'     && <OrgsSection orgs={orgs} loading={loading} onRefresh={loadOrgs} />}
+          {tab === 'plans'    && <PlansSection />}
           {tab === 'errors'   && <ErrorLogSection />}
         </main>
       </div>

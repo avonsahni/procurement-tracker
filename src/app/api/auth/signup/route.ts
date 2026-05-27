@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     email, password, fullName, jobTitle,
     orgName, orgType, website,
     addressLine1, city, stateRegion, country, phone,
+    couponCode,
   } = parsed.data;
 
   const supabase = await createServerSupabase();
@@ -77,6 +78,32 @@ export async function POST(req: NextRequest) {
 
     // Seed sample projects for the new org so the dashboard isn't empty on first login
     await seedSampleData(admin, data.user.id);
+
+    // Apply coupon if provided
+    if (couponCode && membership?.org_id) {
+      const { data: coupon } = await admin
+        .from('coupons')
+        .select('*')
+        .eq('code', couponCode.toUpperCase().trim())
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (coupon &&
+        (coupon.max_uses === null || coupon.used_count < coupon.max_uses) &&
+        (!coupon.expires_at || new Date(coupon.expires_at) >= new Date())
+      ) {
+        const orgUpdates: Record<string, unknown> = { coupon_code: coupon.code };
+        if (coupon.type === 'free' && coupon.free_plan) {
+          orgUpdates.plan = coupon.free_plan;
+          orgUpdates.subscription_status = 'active';
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + coupon.valid_days);
+          orgUpdates.trial_ends_at = expiresAt.toISOString();
+        }
+        await admin.from('organizations').update(orgUpdates).eq('id', membership.org_id);
+        await admin.from('coupons').update({ used_count: (coupon.used_count ?? 0) + 1 }).eq('id', coupon.id);
+      }
+    }
   }
 
   if (!data.session) {
