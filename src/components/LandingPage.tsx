@@ -4,39 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2, ArrowRight, BarChart3, FolderOpen, Users,
-  Shield, FileText, Layers, ChevronRight, X, Star,
+  Shield, FileText, Layers, ChevronRight, Star,
   TrendingUp, Clock, Award, Package, Building2, Zap,
   Activity,
 } from "lucide-react";
-import LoginForm from "@/components/auth/LoginForm";
-
-// ─── Auth modal ───────────────────────────────────────────────────────────────
-
-function AuthModal({ onClose, initialMode }: { onClose: () => void; initialMode?: "login" | "signup" }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)" }}
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* X button inside the card, top-right corner */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition"
-          aria-label="Close"
-        >
-          <X className="w-4 h-4" />
-        </button>
-        {/* Re-use existing LoginForm which handles both login + signup */}
-        <LoginForm initialMode={initialMode} />
-      </div>
-    </div>
-  );
-}
+import { LoginModal } from "@/components/auth/LoginForm";
 
 // ─── Inline UI mockups ────────────────────────────────────────────────────────
 
@@ -739,7 +711,7 @@ export default function LandingPage() {
       </footer>
 
       {/* ── Auth modal ───────────────────────────────────────────────────────── */}
-      {showAuth && <AuthModal onClose={closeAuth} initialMode="login" />}
+      {showAuth && <LoginModal onClose={closeAuth} initialMode={authMode ?? "login"} />}
     </div>
   );
 }
