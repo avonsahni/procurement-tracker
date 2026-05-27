@@ -44,9 +44,6 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (membership?.org_id) {
-      // Extract domain from admin email — e.g. "tata.com" from "jane@tata.com"
-      const emailDomain = email.split('@')[1]?.toLowerCase() ?? null;
-
       // Update organisation with all registration details
       await admin.from('organizations').update({
         name:          orgName || 'My Organisation',
@@ -60,7 +57,6 @@ export async function POST(req: NextRequest) {
         contact_name:  fullName,
         contact_title: jobTitle     || null,
         contact_email: email,
-        email_domain:  emailDomain,
       }).eq('id', membership.org_id);
 
       // Keep company_info display name in sync

@@ -65,14 +65,13 @@ export const POST = withRoute(async (req: NextRequest) => {
 
   const admin = createAdminSupabase();
 
-  // ── Fetch org settings (plan + email_domain) ────────────────────────────
+  // ── Fetch org plan + enforce user-limit ─────────────────────────────────
   const { data: org } = await admin
     .from('organizations')
-    .select('plan, email_domain')
+    .select('plan')
     .eq('id', auth.orgId)
     .single();
 
-  // ── Plan user-limit check ────────────────────────────────────────────────
   const plan      = (org?.plan as OrgPlan) ?? 'trial';
   const userLimit = PLAN_USER_LIMITS[plan];
 
@@ -91,19 +90,7 @@ export const POST = withRoute(async (req: NextRequest) => {
       current: memberCount,
     }, { status: 402 });
   }
-
-  // ── Email domain restriction ─────────────────────────────────────────────
-  if (org?.email_domain) {
-    const invitedDomain = (username as string).split('@')[1]?.toLowerCase();
-    if (invitedDomain !== org.email_domain) {
-      return NextResponse.json({
-        error: `This organisation only allows users with an @${org.email_domain} email address. ` +
-               `The address "${username}" uses a different domain.`,
-        code: 'DOMAIN_MISMATCH',
-      }, { status: 400 });
-    }
-  }
-  // ────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Pass org_id in metadata so the handle_new_user trigger joins the right org
   const { data, error } = await admin.auth.admin.createUser({

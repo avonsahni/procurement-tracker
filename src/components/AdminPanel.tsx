@@ -8,7 +8,7 @@ import {
   ChevronRight, Loader2, Globe, Key, UserPlus, Lock,
   Download, FileSpreadsheet, Package, Layers, Receipt, Activity,
   Clock, FolderOpen, UserCheck, UserMinus, Database, Zap,
-  ShieldCheck, AtSign, ShieldOff, TrendingUp,
+  TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
@@ -183,113 +183,6 @@ function PlanUsageCard({ userCount }: { userCount: number }) {
   );
 }
 
-function DomainRestrictionCard() {
-  const [domain, setDomain]     = useState<string | null>(null);
-  const [editing, setEditing]   = useState(false);
-  const [draft, setDraft]       = useState("");
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState("");
-  const [loaded, setLoaded]     = useState(false);
-
-  useEffect(() => {
-    fetch('/api/admin/domain', {
-      headers: { 'X-Requested-With': 'fetch' },
-      credentials: 'same-origin',
-    })
-      .then(r => r.json())
-      .then(d => { setDomain(d.emailDomain ?? null); setLoaded(true); })
-      .catch(() => setLoaded(true));
-  }, []);
-
-  const save = async () => {
-    setSaving(true); setError("");
-    try {
-      const res = await fetch('/api/admin/domain', {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' },
-        body: JSON.stringify({ emailDomain: draft.trim() || null }),
-      });
-      const body = await res.json();
-      if (!res.ok) { setError(body.error || "Save failed"); return; }
-      setDomain(body.emailDomain);
-      setEditing(false);
-    } catch { setError("Network error"); }
-    finally { setSaving(false); }
-  };
-
-  if (!loaded) return null;
-
-  return (
-    <div className={`rounded-xl border px-5 py-4 ${domain ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          {domain
-            ? <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-            : <ShieldOff  className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-          }
-          <div>
-            <p className={`text-sm font-semibold ${domain ? "text-emerald-800" : "text-amber-800"}`}>
-              {domain ? "Email domain restriction active" : "No email domain restriction"}
-            </p>
-            {domain ? (
-              <p className="text-xs text-emerald-700 mt-0.5">
-                Only users with an <strong>@{domain}</strong> email address can be invited to this organisation.
-              </p>
-            ) : (
-              <p className="text-xs text-amber-700 mt-0.5">
-                Any email address can be invited. Set a domain restriction to limit invites to your company only.
-              </p>
-            )}
-          </div>
-        </div>
-        {!editing && (
-          <button
-            onClick={() => { setDraft(domain ?? ""); setEditing(true); setError(""); }}
-            className="text-xs text-slate-500 hover:text-slate-800 border border-slate-200 bg-white px-3 py-1.5 rounded-lg transition flex-shrink-0"
-          >
-            {domain ? "Change" : "Set domain"}
-          </button>
-        )}
-      </div>
-
-      {editing && (
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-              <input
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                placeholder="acme.com"
-                className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
-              />
-            </div>
-            <button
-              onClick={save}
-              disabled={saving}
-              className="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-            {domain && (
-              <button
-                onClick={async () => { setDraft(""); await save(); }}
-                disabled={saving}
-                className="px-3 py-2 text-xs text-red-600 border border-red-200 bg-white rounded-lg hover:bg-red-50 transition"
-              >
-                Remove
-              </button>
-            )}
-            <button onClick={() => setEditing(false)} className="text-slate-400 hover:text-slate-600 text-xs">Cancel</button>
-          </div>
-          {error && <p className="text-xs text-red-600">{error}</p>}
-          <p className="text-xs text-slate-400">Enter just the domain, e.g. <code>acme.com</code> — not the @ sign.</p>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function StorageUsageCard() {
   const [data, setData] = useState<{
@@ -426,9 +319,6 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
 
       {/* Plan usage */}
       <PlanUsageCard userCount={users.length} />
-
-      {/* Domain restriction */}
-      <DomainRestrictionCard />
 
       {/* Filters */}
       <div className="flex items-center gap-3">
