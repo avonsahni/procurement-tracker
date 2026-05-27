@@ -14,6 +14,8 @@ export async function GET() {
       orgId: user.orgId,
       orgRole: user.orgRole,
       isPlatformAdmin: user.isPlatformAdmin,
+      orgStatus: user.orgStatus,
+      trialEndsAt: user.trialEndsAt,
     },
   });
 }

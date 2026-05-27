@@ -7,15 +7,17 @@ import BudgetAnalytics from "@/components/BudgetAnalytics";
 import AdminPanel from "@/components/AdminPanel";
 import PlatformPanel from "@/components/PlatformPanel";
 import LoginForm from "@/components/auth/LoginForm";
+import SubscriptionGate from "@/components/SubscriptionGate";
 
 type View = "dashboard" | "budget-analytics" | "admin" | "platform";
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, loading, isOrgBlocked } = useAuth();
   const [view, setView] = useState<View>("dashboard");
 
   if (loading) return null;
   if (!user) return <LoginForm />;
+  if (isOrgBlocked) return <SubscriptionGate />;
 
   if (view === "budget-analytics") {
     return (

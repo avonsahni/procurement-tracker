@@ -12,6 +12,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, fullName: string, orgName?: string) => Promise<{ needsConfirmation: boolean }>;
   logout: () => Promise<void>;
+  /** True when the org is paused, canceled, or the trial has expired */
+  isOrgBlocked: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -66,8 +68,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setEditMode(false);
   };
 
+  const isOrgBlocked = (() => {
+    if (!user) return false;
+    if (user.isPlatformAdmin) return false;
+    if (user.orgStatus === 'paused' || user.orgStatus === 'canceled') return true;
+    if (user.orgStatus === 'trial' && user.trialEndsAt) {
+      return new Date(user.trialEndsAt) < new Date();
+    }
+    return false;
+  })();
+
   return (
-    <AuthContext.Provider value={{ user, loading, editMode, setEditMode, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, editMode, setEditMode, login, signup, logout, isOrgBlocked }}>
       {children}
     </AuthContext.Provider>
   );

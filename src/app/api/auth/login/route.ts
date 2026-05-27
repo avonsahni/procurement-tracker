@@ -39,5 +39,7 @@ export async function POST(req: NextRequest) {
     orgId: user.orgId,
     orgRole: user.orgRole,
     isPlatformAdmin: user.isPlatformAdmin,
+    orgStatus: user.orgStatus,
+    trialEndsAt: user.trialEndsAt,
   });
 }

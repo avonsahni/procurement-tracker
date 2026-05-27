@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 
+export type OrgStatus = 'trial' | 'active' | 'paused' | 'canceled';
+
 export type AuthUser = {
   id: string;
   email: string;
@@ -11,6 +13,10 @@ export type AuthUser = {
   orgId: string;
   orgRole: 'owner' | 'admin' | 'viewer';
   isPlatformAdmin: boolean;
+  /** Current subscription/lifecycle status of the org */
+  orgStatus: OrgStatus;
+  /** ISO timestamp when trial ends; null if not on trial */
+  trialEndsAt: string | null;
 };
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
@@ -39,6 +45,21 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
   const orgRole = (membership?.role as 'owner' | 'admin' | 'viewer') ?? 'viewer';
 
+  // Fetch org subscription status if there's a membership
+  let orgStatus: OrgStatus = 'active';
+  let trialEndsAt: string | null = null;
+  if (membership?.org_id) {
+    const { data: org } = await admin
+      .from('organizations')
+      .select('subscription_status, trial_ends_at')
+      .eq('id', membership.org_id)
+      .maybeSingle();
+    if (org) {
+      orgStatus = (org.subscription_status as OrgStatus) ?? 'active';
+      trialEndsAt = org.trial_ends_at ?? null;
+    }
+  }
+
   return {
     id: user.id,
     email: user.email ?? '',
@@ -48,7 +69,22 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     orgId: membership?.org_id ?? '',
     orgRole,
     isPlatformAdmin: profile?.is_platform_admin ?? false,
+    orgStatus,
+    trialEndsAt,
   };
+}
+
+/**
+ * Returns true if the org's subscription is blocked (paused, canceled, or trial expired).
+ * Platform admins always bypass subscription checks.
+ */
+export function isOrgBlocked(user: AuthUser): boolean {
+  if (user.isPlatformAdmin) return false;
+  if (user.orgStatus === 'paused' || user.orgStatus === 'canceled') return true;
+  if (user.orgStatus === 'trial' && user.trialEndsAt) {
+    return new Date(user.trialEndsAt) < new Date();
+  }
+  return false;
 }
 
 /**
@@ -57,12 +93,26 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
  *   - 'user'   — any authenticated user
  *   - 'editor' — must have can_edit=true
  *   - 'admin'  — must be org owner or admin
+ *   - 'platform' — must be platform super-admin
+ *
+ * All roles (except platform routes) also enforce org subscription status.
+ * Paused / canceled / trial-expired orgs receive 402.
  */
 export async function guard(role: 'user' | 'editor' | 'admin' | 'platform'): Promise<NextResponse | AuthUser> {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
+
+  // Subscription check — platform admins bypass, platform-role routes bypass
+  if (role !== 'platform' && isOrgBlocked(user)) {
+    const reason =
+      user.orgStatus === 'paused' ? 'Your organisation has been paused. Please contact support.' :
+      user.orgStatus === 'canceled' ? 'Your subscription has been canceled.' :
+      'Your free trial has expired. Please upgrade to continue.';
+    return NextResponse.json({ error: reason, code: 'ORG_BLOCKED' }, { status: 402 });
+  }
+
   if (role === 'editor' && !user.canEdit) {
     return NextResponse.json({ error: 'Edit permission required' }, { status: 403 });
   }
