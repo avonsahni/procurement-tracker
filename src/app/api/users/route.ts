@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { addOrgAuditEntry } from '@/lib/db';
+import { withRoute } from '@/lib/withRoute';
 
-export async function GET() {
+export const GET = withRoute(async () => {
   const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
 
@@ -48,9 +49,9 @@ export async function GET() {
     });
 
   return NextResponse.json(orgUsers);
-}
+}, { route: '/api/users' });
 
-export async function POST(req: NextRequest) {
+export const POST = withRoute(async (req: NextRequest) => {
   const auth = await guard('admin');
   if (auth instanceof NextResponse) return auth;
 
@@ -93,4 +94,4 @@ export async function POST(req: NextRequest) {
     canEdit: canEdit ?? true,
     orgRole,
   });
-}
+}, { route: '/api/users' });

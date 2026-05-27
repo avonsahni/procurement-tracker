@@ -4,8 +4,9 @@ import { assembleProject, assembleProjectSummary, addOrgAuditEntry } from '@/lib
 import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { ProjectCreateSchema, parseBody } from '@/lib/validation';
+import { withRoute } from '@/lib/withRoute';
 
-export async function GET() {
+export const GET = withRoute(async () => {
   const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
 
@@ -21,9 +22,9 @@ export async function GET() {
   // dashboard only needs stage, awardValue, and category per package.
   const projects = await Promise.all((rows || []).map(r => assembleProjectSummary(supabase, r)));
   return NextResponse.json(projects);
-}
+}, { route: '/api/projects' });
 
-export async function POST(req: NextRequest) {
+export const POST = withRoute(async (req: NextRequest) => {
   const auth = await guard('admin');
   if (auth instanceof NextResponse) return auth;
   const parsed = await parseBody(req, ProjectCreateSchema);
@@ -45,4 +46,4 @@ export async function POST(req: NextRequest) {
     { client, budget });
 
   return NextResponse.json(await assembleProjectSummary(supabase, row), { status: 201 });
-}
+}, { route: '/api/projects' });

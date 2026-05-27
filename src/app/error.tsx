@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
+import { apiFetch } from "@/lib/apiFetch";
 
 /**
  * Route-level error boundary (App Router).
- * Catches unhandled errors within any page/layout segment and shows a
- * friendly message with a retry button instead of a blank screen.
+ * Catches unhandled errors within any page/layout segment, reports them to
+ * /api/errors (logged to Supabase), and shows a friendly retry UI.
  */
 export default function Error({
   error,
@@ -14,6 +17,22 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    // Fire-and-forget — don't let logging failure surface to the user
+    apiFetch("/api/errors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: error.message || "Unknown client error",
+        stack: error.stack,
+        route: pathname,
+        context: { digest: error.digest ?? null },
+      }),
+    }).catch(() => {});
+  }, [error, pathname]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 max-w-md w-full text-center space-y-4">

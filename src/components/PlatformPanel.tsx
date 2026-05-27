@@ -7,6 +7,7 @@ import {
   Calendar, ChevronDown, ChevronUp, Loader2, Search, Check,
   AlertTriangle, Pause, Play, Trash2, Edit2, X, Globe,
   Crown, Activity, RefreshCw, CheckCircle2, XCircle, Clock,
+  Bug, Terminal, Smartphone,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -574,13 +575,191 @@ function OrgsSection({
   );
 }
 
+// ─── Error Log Section ────────────────────────────────────────────────────────
+
+interface ErrorEntry {
+  id: string;
+  created_at: string;
+  level: 'error' | 'warn' | 'info';
+  source: 'server' | 'client' | 'api';
+  route: string | null;
+  message: string;
+  stack: string | null;
+  context: Record<string, unknown> | null;
+  user_id: string | null;
+  org_id: string | null;
+}
+
+const LEVEL_STYLES = {
+  error: 'bg-red-50 text-red-700 ring-red-200',
+  warn:  'bg-amber-50 text-amber-700 ring-amber-200',
+  info:  'bg-blue-50 text-blue-700 ring-blue-200',
+};
+
+const SOURCE_ICONS: Record<string, any> = {
+  server: Terminal,
+  api:    Terminal,
+  client: Smartphone,
+};
+
+function ErrorLogSection() {
+  const [entries, setEntries] = useState<ErrorEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'error' | 'warn' | 'info'>('all');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/api/platform/errors');
+      const data = await res.json();
+      setEntries(Array.isArray(data) ? data : []);
+    } catch { /* silent */ } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = entries.filter(e => filter === 'all' || e.level === filter);
+
+  const errorCount = entries.filter(e => e.level === 'error').length;
+  const warnCount  = entries.filter(e => e.level === 'warn').length;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Error Log</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Last 200 application errors from server and client</p>
+        </div>
+        <button
+          onClick={load}
+          disabled={loading}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 transition disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+
+      {/* Summary chips */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {[
+          { id: 'all',   label: `All (${entries.length})` },
+          { id: 'error', label: `Errors (${errorCount})` },
+          { id: 'warn',  label: `Warnings (${warnCount})` },
+        ].map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => setFilter(id as any)}
+            className={`px-3 py-1 text-xs font-medium rounded-full border transition ${
+              filter === id
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Bug className="w-8 h-8 text-slate-300 mb-3" />
+          <p className="text-slate-500 font-medium">No errors logged</p>
+          <p className="text-slate-400 text-sm mt-1">
+            {filter === 'all' ? 'The error log is empty.' : `No ${filter}-level entries.`}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(entry => {
+            const Icon = SOURCE_ICONS[entry.source] ?? Terminal;
+            const isOpen = expanded === entry.id;
+            return (
+              <div key={entry.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                {/* Header row */}
+                <button
+                  onClick={() => setExpanded(isOpen ? null : entry.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition"
+                >
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ring-1 uppercase tracking-wide flex-shrink-0 ${LEVEL_STYLES[entry.level]}`}>
+                    {entry.level}
+                  </span>
+                  <Icon className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                  <span className="flex-1 text-sm text-slate-700 font-medium truncate">{entry.message}</span>
+                  {entry.route && (
+                    <span className="text-[11px] font-mono text-slate-400 hidden sm:block flex-shrink-0 max-w-[160px] truncate">
+                      {entry.route}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-slate-400 flex-shrink-0">{fmtRelative(entry.created_at)}</span>
+                  {isOpen ? <ChevronUp className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />}
+                </button>
+
+                {/* Expanded detail */}
+                {isOpen && (
+                  <div className="px-4 pb-4 border-t border-slate-100 space-y-3 pt-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                      <div>
+                        <p className="text-slate-400 mb-0.5">Source</p>
+                        <p className="font-medium text-slate-700 capitalize">{entry.source}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 mb-0.5">Route</p>
+                        <p className="font-mono text-slate-700 truncate">{entry.route ?? '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 mb-0.5">Time</p>
+                        <p className="font-medium text-slate-700">{new Date(entry.created_at).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 mb-0.5">User ID</p>
+                        <p className="font-mono text-slate-700 truncate">{entry.user_id ?? '—'}</p>
+                      </div>
+                    </div>
+
+                    {entry.stack && (
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">Stack trace</p>
+                        <pre className="text-[11px] font-mono bg-slate-950 text-slate-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                          {entry.stack}
+                        </pre>
+                      </div>
+                    )}
+
+                    {entry.context && Object.keys(entry.context).length > 0 && (
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">Context</p>
+                        <pre className="text-[11px] font-mono bg-slate-50 text-slate-700 rounded-lg p-3 overflow-x-auto">
+                          {JSON.stringify(entry.context, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main PlatformPanel ───────────────────────────────────────────────────────
 
-type PlatformTab = 'overview' | 'orgs';
+type PlatformTab = 'overview' | 'orgs' | 'errors';
 
 const NAV: { id: PlatformTab; icon: any; label: string }[] = [
   { id: 'overview', icon: BarChart3,  label: 'Overview' },
   { id: 'orgs',     icon: Building2,  label: 'Organisations' },
+  { id: 'errors',   icon: Bug,        label: 'Error Log' },
 ];
 
 export default function PlatformPanel({ onBack }: { onBack: () => void }) {
@@ -670,6 +849,7 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
         <main className="flex-1 overflow-y-auto p-8">
           {tab === 'overview' && <OverviewSection orgs={orgs} />}
           {tab === 'orgs'     && <OrgsSection orgs={orgs} loading={loading} onRefresh={loadOrgs} />}
+          {tab === 'errors'   && <ErrorLogSection />}
         </main>
       </div>
     </div>
