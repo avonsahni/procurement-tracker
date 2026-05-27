@@ -6,6 +6,7 @@ import {
   Plus, Trash2, X, RefreshCw, Edit2, Crown, Eye,
   Building2, Palette, AlertTriangle, Check, Search,
   ChevronRight, Loader2, Globe, Key, UserPlus, Lock,
+  Download, FileSpreadsheet, Package, Layers, Receipt, Activity,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
@@ -533,15 +534,245 @@ function DangerSection({ onReset }: { onReset: () => void }) {
   );
 }
 
+// ─────────────────────── export section ───────────────────────
+
+const fmt = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtDate = (s?: string) => s ? new Date(s).toLocaleDateString('en-GB') : '';
+
+function ExportSection({ orgName }: { orgName: string }) {
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ projects: number; packages: number; vendors: number; invoices: number; milestones: number } | null>(null);
+
+  const fetchPreview = useCallback(async () => {
+    try {
+      const data = await fetch('/api/export').then(r => r.json());
+      setPreview({
+        projects:   (data.projects   || []).length,
+        packages:   (data.packages   || []).length,
+        vendors:    (data.vendors    || []).length,
+        invoices:   (data.invoices   || []).length,
+        milestones: (data.milestones || []).length,
+      });
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => { fetchPreview(); }, [fetchPreview]);
+
+  const handleExport = async () => {
+    setLoading(true);
+    setStatus('Fetching data…');
+    try {
+      const data = await fetch('/api/export').then(r => r.json());
+      if (data.error) { setStatus(`Error: ${data.error}`); return; }
+
+      setStatus('Building spreadsheet…');
+      const XLSX = await import('xlsx');
+
+      const wb = XLSX.utils.book_new();
+      const now = new Date();
+
+      // ── Sheet 1: Projects ───────────────────────────────
+      const projectRows = [
+        ['Project Name', 'Client', 'Budget (INR)', 'Status', 'Total Packages', 'Awarded Packages', 'Total Award Value', 'Total Billed', 'Created Date'],
+        ...(data.projects || []).map((p: any) => {
+          const pkgs = (data.packages || []).filter((pk: any) => pk.project_id === p.id);
+          const awarded = pkgs.filter((pk: any) => pk.current_stage === 'Award');
+          const awardVal = awarded.reduce((s: number, pk: any) => s + (Number(pk.award_value) || 0), 0);
+          const billed   = awarded.reduce((s: number, pk: any) => s + (Number(pk.billedAmount) || 0), 0);
+          return [
+            p.name, p.client || '', Number(p.budget) || 0, p.status,
+            pkgs.length, awarded.length,
+            awardVal, billed,
+            fmtDate(p.created_at),
+          ];
+        }),
+      ];
+      const wsProjects = XLSX.utils.aoa_to_sheet(projectRows);
+      wsProjects['!cols'] = [30,25,18,12,16,18,20,18,14].map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsProjects, 'Projects');
+
+      // ── Sheet 2: Packages ───────────────────────────────
+      const pkgRows = [
+        ['Project', 'Client', 'Package Name', 'Category', 'Origin', 'Currency', 'Stage', 'Awarded Vendor', 'Award Value', 'Billed Amount', 'Created Date'],
+        ...(data.packages || []).map((pk: any) => [
+          pk.projectName, projectClientById(data.projects, pk.project_id),
+          pk.name, pk.category || '', pk.origin || '', pk.currency || '',
+          pk.current_stage || '', pk.awardedVendorName || '',
+          Number(pk.award_value) || 0, Number(pk.billedAmount) || 0,
+          fmtDate(pk.created_at),
+        ]),
+      ];
+      const wsPkgs = XLSX.utils.aoa_to_sheet(pkgRows);
+      wsPkgs['!cols'] = [25,20,30,16,12,10,22,25,18,18,14].map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsPkgs, 'Packages');
+
+      // ── Sheet 3: Vendors ────────────────────────────────
+      const vendorRows = [
+        ['Project', 'Package', 'Vendor Name', 'Quoted Amount', 'Revised Amount'],
+        ...(data.vendors || []).map((v: any) => [
+          v.projectName, v.packageName, v.name,
+          Number(v.quoted_amount) || 0, Number(v.revised_amount) || 0,
+        ]),
+      ];
+      const wsVendors = XLSX.utils.aoa_to_sheet(vendorRows);
+      wsVendors['!cols'] = [25,30,30,18,18].map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsVendors, 'Vendors');
+
+      // ── Sheet 4: Invoices ───────────────────────────────
+      const invoiceRows = [
+        ['Project', 'Package', 'Invoice No.', 'Amount', 'Invoice Date', 'Notes', 'Uploaded By'],
+        ...(data.invoices || []).map((inv: any) => [
+          inv.projectName, inv.packageName,
+          inv.invoice_number || '', Number(inv.amount) || 0,
+          fmtDate(inv.invoice_date), inv.notes || '', inv.username || '',
+        ]),
+      ];
+      const wsInvoices = XLSX.utils.aoa_to_sheet(invoiceRows);
+      wsInvoices['!cols'] = [25,30,16,18,14,30,20].map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsInvoices, 'Invoices');
+
+      // ── Sheet 5: Milestones ─────────────────────────────
+      const milestoneRows = [
+        ['Project', 'Package', 'Milestone', 'Progress %', 'Completed At', 'Completed By'],
+        ...(data.milestones || []).map((m: any) => [
+          m.projectName, m.packageName,
+          m.milestone_name, Number(m.progress) || 0,
+          fmtDate(m.completed_at), m.completed_by || '',
+        ]),
+      ];
+      const wsMilestones = XLSX.utils.aoa_to_sheet(milestoneRows);
+      wsMilestones['!cols'] = [25,30,28,14,16,20].map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsMilestones, 'Milestones');
+
+      // ── Sheet 6: Summary ────────────────────────────────
+      const totalBudget  = (data.projects || []).reduce((s: number, p: any) => s + (Number(p.budget) || 0), 0);
+      const totalAwarded = (data.packages || []).filter((pk: any) => pk.current_stage === 'Award').reduce((s: number, pk: any) => s + (Number(pk.award_value) || 0), 0);
+      const totalBilled  = (data.packages || []).reduce((s: number, pk: any) => s + (Number(pk.billedAmount) || 0), 0);
+      const summaryRows = [
+        ['Export Summary', ''],
+        ['Exported At', now.toLocaleString('en-GB')],
+        ['Organisation', orgName],
+        ['', ''],
+        ['Metric', 'Value'],
+        ['Total Projects', (data.projects || []).length],
+        ['Total Packages', (data.packages || []).length],
+        ['Awarded Packages', (data.packages || []).filter((pk: any) => pk.current_stage === 'Award').length],
+        ['Total Vendors', (data.vendors || []).length],
+        ['Total Invoices', (data.invoices || []).length],
+        ['Total Budget (INR)', totalBudget],
+        ['Total Award Value (INR)', totalAwarded],
+        ['Total Billed (INR)', totalBilled],
+        ['Billing Rate (%)', totalAwarded > 0 ? +((totalBilled / totalAwarded) * 100).toFixed(1) : 0],
+      ];
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      wsSummary['!cols'] = [28, 30].map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+      // ── Download ─────────────────────────────────────────
+      const dateStr = now.toISOString().slice(0, 10);
+      const fileName = `${orgName.replace(/[^a-zA-Z0-9]/g, '_')}_export_${dateStr}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      setStatus(`✓ Downloaded: ${fileName}`);
+      setTimeout(() => setStatus(null), 5000);
+    } catch (e: any) {
+      setStatus(`Failed: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold text-slate-900">Export Data</h2>
+        <p className="text-sm text-slate-500 mt-0.5">Download a complete Excel workbook of all your organisation's procurement data.</p>
+      </div>
+
+      {/* Preview cards */}
+      {preview && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { icon: Layers,          label: 'Projects',   value: preview.projects },
+            { icon: Package,         label: 'Packages',   value: preview.packages },
+            { icon: Users,           label: 'Vendors',    value: preview.vendors },
+            { icon: Receipt,         label: 'Invoices',   value: preview.invoices },
+            { icon: Activity,        label: 'Milestones', value: preview.milestones },
+          ].map(({ icon: Icon, label, value }) => (
+            <div key={label} className="bg-white border border-slate-200 rounded-xl p-4 text-center">
+              <Icon className="w-5 h-5 text-blue-500 mx-auto mb-1.5" />
+              <p className="text-2xl font-bold text-slate-900">{value}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Sheets breakdown */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
+          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Workbook Contents (6 sheets)
+          </h3>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {[
+            { sheet: 'Summary',    desc: 'High-level totals — budget, award value, billing rate, record counts' },
+            { sheet: 'Projects',   desc: 'All projects with budget, status, awarded package count, billed amount' },
+            { sheet: 'Packages',   desc: 'Every package — stage, category, origin, currency, award value, billed' },
+            { sheet: 'Vendors',    desc: 'All vendor quotes (quoted and revised amounts) per package' },
+            { sheet: 'Invoices',   desc: 'All invoice records with date, amount, invoice number and notes' },
+            { sheet: 'Milestones', desc: 'Execution milestone progress per package (0–100% per milestone)' },
+          ].map(({ sheet, desc }) => (
+            <div key={sheet} className="px-5 py-3 flex items-start gap-3">
+              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-mono mt-0.5 flex-shrink-0">{sheet}</span>
+              <p className="text-sm text-slate-600">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Download button */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={handleExport}
+          disabled={loading}
+          className="flex items-center gap-2.5 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 shadow-sm"
+        >
+          {loading
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <Download className="w-4 h-4" />}
+          {loading ? 'Generating…' : 'Download Excel (.xlsx)'}
+        </button>
+        {status && (
+          <p className={`text-sm font-medium ${status.startsWith('✓') ? 'text-emerald-600' : status.startsWith('Failed') ? 'text-red-600' : 'text-slate-500'}`}>
+            {status}
+          </p>
+        )}
+      </div>
+
+      <p className="text-xs text-slate-400">
+        All amounts in the base currency of each package. Export includes all data visible to your organisation only.
+      </p>
+    </div>
+  );
+}
+
+// Helper used inside ExportSection
+function projectClientById(projects: any[], projectId: string): string {
+  return projects.find((p: any) => p.id === projectId)?.client || '';
+}
+
 // ─────────────────────── main component ───────────────────────
 
-type Tab = "overview" | "users" | "branding" | "categories" | "danger";
+type Tab = "overview" | "users" | "branding" | "categories" | "export" | "danger";
 
 const NAV: { id: Tab; icon: any; label: string }[] = [
-  { id: "overview",    icon: BarChart3,   label: "Overview" },
-  { id: "users",       icon: Users,       label: "Users" },
-  { id: "branding",    icon: Globe,       label: "Branding" },
-  { id: "categories",  icon: Tag,         label: "Categories" },
+  { id: "overview",    icon: BarChart3,     label: "Overview" },
+  { id: "users",       icon: Users,         label: "Users" },
+  { id: "branding",    icon: Globe,         label: "Branding" },
+  { id: "categories",  icon: Tag,           label: "Categories" },
+  { id: "export",      icon: Download,      label: "Export Data" },
   { id: "danger",      icon: AlertTriangle, label: "Danger Zone" },
 ];
 
@@ -613,6 +844,7 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
           {tab === "users"      && <UsersSection     users={users} onRefresh={loadUsers} />}
           {tab === "branding"   && <BrandingSection  onSaved={loadBranding} />}
           {tab === "categories" && <CategoriesSection />}
+          {tab === "export"     && <ExportSection    orgName={orgName} />}
           {tab === "danger"     && <DangerSection    onReset={() => { loadUsers(); }} />}
         </main>
       </div>

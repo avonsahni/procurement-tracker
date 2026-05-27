@@ -1,0 +1,121 @@
+import { NextResponse } from 'next/server';
+import { guard } from '@/lib/auth';
+import { createAdminSupabase } from '@/lib/supabase/admin';
+
+// Returns all org data as JSON for client-side Excel generation.
+// Admin-only: only org owners and admins may export.
+export async function GET() {
+  const auth = await guard('admin');
+  if (auth instanceof NextResponse) return auth;
+
+  const admin = createAdminSupabase();
+  const orgId = auth.orgId;
+
+  // 1. All projects in this org
+  const { data: projects, error: projErr } = await admin
+    .from('projects')
+    .select('id, name, client, budget, status, created_at, updated_at')
+    .eq('org_id', orgId)
+    .order('created_at');
+
+  if (projErr) return NextResponse.json({ error: projErr.message }, { status: 500 });
+  if (!projects || projects.length === 0) {
+    return NextResponse.json({ projects: [], packages: [], vendors: [], invoices: [], milestones: [] });
+  }
+
+  const projectIds = projects.map((p: any) => p.id);
+
+  // 2. All packages in those projects
+  const { data: packages } = await admin
+    .from('packages')
+    .select('id, project_id, name, category, origin, currency, current_stage, award_value, awarded_vendor_id, created_at')
+    .in('project_id', projectIds)
+    .order('created_at');
+
+  const packageIds = (packages || []).map((p: any) => p.id);
+
+  // 3. Parallel fetch of vendors, invoices, milestones, awarded vendor names
+  const [vendorsRes, invoicesRes, milestonesRes, awardedVendorsRes, invoiceTotalsRes] = await Promise.all([
+    packageIds.length
+      ? admin.from('vendors').select('id, package_id, name, quoted_amount, revised_amount').in('package_id', packageIds)
+      : { data: [] },
+    packageIds.length
+      ? admin.from('invoices').select('id, package_id, amount, invoice_number, invoice_date, notes, username, created_at').in('package_id', packageIds).order('invoice_date')
+      : { data: [] },
+    packageIds.length
+      ? admin.from('package_milestones').select('package_id, milestone_name, progress, display_order, completed_at, completed_by').in('package_id', packageIds).order('display_order')
+      : { data: [] },
+    // Resolve awarded vendor names
+    packageIds.length
+      ? admin.from('vendors').select('id, name').in('package_id', packageIds)
+      : { data: [] },
+    // Sum of invoices per package
+    packageIds.length
+      ? admin.from('invoices').select('package_id, amount').in('package_id', packageIds)
+      : { data: [] },
+  ]);
+
+  // Build vendor name lookup
+  const vendorNameById: Record<string, string> = {};
+  for (const v of (awardedVendorsRes.data || [])) {
+    vendorNameById[v.id] = v.name;
+  }
+
+  // Build billed amount per package
+  const billedByPkg: Record<string, number> = {};
+  for (const inv of (invoiceTotalsRes.data || [])) {
+    billedByPkg[inv.package_id] = (billedByPkg[inv.package_id] || 0) + Number(inv.amount);
+  }
+
+  // Build project name lookup
+  const projectNameById: Record<string, string> = {};
+  const projectClientById: Record<string, string> = {};
+  for (const p of projects) {
+    projectNameById[p.id] = p.name;
+    projectClientById[p.id] = p.client;
+  }
+
+  // Enrich packages with project name, awarded vendor name, billed amount
+  const enrichedPackages = (packages || []).map((pkg: any) => ({
+    ...pkg,
+    projectName: projectNameById[pkg.project_id] || '',
+    awardedVendorName: pkg.awarded_vendor_id ? (vendorNameById[pkg.awarded_vendor_id] || '') : '',
+    billedAmount: billedByPkg[pkg.id] || 0,
+  }));
+
+  // Build package name lookup for vendors/invoices/milestones
+  const pkgNameById: Record<string, string> = {};
+  const pkgProjectById: Record<string, string> = {};
+  for (const pkg of (packages || [])) {
+    pkgNameById[pkg.id] = pkg.name;
+    pkgProjectById[pkg.id] = projectNameById[pkg.project_id] || '';
+  }
+
+  const enrichedVendors = (vendorsRes.data || []).map((v: any) => ({
+    ...v,
+    packageName: pkgNameById[v.package_id] || '',
+    projectName: pkgProjectById[v.package_id] || '',
+  }));
+
+  const enrichedInvoices = (invoicesRes.data || []).map((inv: any) => ({
+    ...inv,
+    packageName: pkgNameById[inv.package_id] || '',
+    projectName: pkgProjectById[inv.package_id] || '',
+  }));
+
+  const enrichedMilestones = (milestonesRes.data || []).map((m: any) => ({
+    ...m,
+    packageName: pkgNameById[m.package_id] || '',
+    projectName: pkgProjectById[m.package_id] || '',
+  }));
+
+  return NextResponse.json({
+    exportedAt: new Date().toISOString(),
+    orgId,
+    projects,
+    packages: enrichedPackages,
+    vendors: enrichedVendors,
+    invoices: enrichedInvoices,
+    milestones: enrichedMilestones,
+  });
+}
