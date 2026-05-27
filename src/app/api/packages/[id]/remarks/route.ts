@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: row, error } = await supabase
     .from('remarks')
-    .insert({ package_id: pkgId, username: auth.fullName, text })
+    .insert({ package_id: pkgId, username: auth.fullName, text, user_id: auth.id })
     .select()
     .single();
 

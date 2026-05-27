@@ -320,7 +320,22 @@ export default function PackageDetail({
               <RemarksSection
                 remarks={pkg.remarks}
                 readonly={!editMode || isAwarded}
+                currentUserId={user?.id}
+                isAdmin={user?.role === 'admin'}
                 onAddRemark={async (t: any) => { await addRemark(packageId, t, user?.fullName); await reloadPackage(); }}
+                onEditRemark={async (rid, text) => {
+                  await fetch(`/api/packages/${packageId}/remarks/${rid}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text }),
+                  }).then(r => { if (!r.ok) return r.json().then(d => { throw new Error(d.error); }); });
+                  await reloadPackage();
+                }}
+                onDeleteRemark={async (rid) => {
+                  await fetch(`/api/packages/${packageId}/remarks/${rid}`, { method: 'DELETE' })
+                    .then(r => { if (!r.ok) return r.json().then(d => { throw new Error(d.error); }); });
+                  await reloadPackage();
+                }}
               />
               <DocumentsSection
                 documents={pkg.documents}
