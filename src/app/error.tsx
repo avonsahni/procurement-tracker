@@ -1,12 +1,11 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
-import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 
 /**
  * Route-level error boundary (App Router).
- * Sentry captures the error; the UI shows a friendly message.
+ * Catches unhandled errors within any page/layout segment and shows a
+ * friendly message with a retry button instead of a blank screen.
  */
 export default function Error({
   error,
@@ -15,10 +14,6 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    Sentry.captureException(error);
-  }, [error]);
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 max-w-md w-full text-center space-y-4">
@@ -29,7 +24,7 @@ export default function Error({
         </div>
         <h2 className="text-lg font-semibold text-slate-800">Something went wrong</h2>
         <p className="text-sm text-slate-500">
-          An unexpected error occurred. The team has been notified automatically.
+          An unexpected error occurred. Please try again or contact support if the problem persists.
         </p>
         {error.digest && (
           <p className="text-[11px] font-mono text-slate-400">ref: {error.digest}</p>

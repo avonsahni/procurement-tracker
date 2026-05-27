@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { guard } from '@/lib/auth';
 import { EXECUTION_MILESTONES } from '@/lib/types';
-import { captureApiError } from '@/lib/sentry';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
@@ -44,7 +43,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }, { onConflict: 'package_id,milestone_name' });
 
   if (error) {
-    captureApiError(error, { route: 'milestones PATCH', pkgId, milestoneName, userId: auth.id });
     console.error('[milestones PATCH] upsert error:', error.message, error.code, error.details);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

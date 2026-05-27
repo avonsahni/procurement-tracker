@@ -1,8 +1,5 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
-import { useEffect } from "react";
-
 /**
  * Global error boundary — catches errors in the root layout itself.
  * Must include <html> and <body> because it replaces the entire document.
@@ -14,10 +11,6 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    Sentry.captureException(error);
-  }, [error]);
-
   return (
     <html lang="en">
       <body
@@ -46,7 +39,7 @@ export default function GlobalError({
             Application error
           </h2>
           <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "1rem" }}>
-            A critical error occurred. The team has been notified.
+            A critical error occurred. Please reload the page or contact support.
           </p>
           {error.digest && (
             <p style={{ color: "#94a3b8", fontSize: "0.7rem", fontFamily: "monospace" }}>
