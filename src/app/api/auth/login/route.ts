@@ -37,5 +37,7 @@ export async function POST(req: NextRequest) {
     role: user.role,
     canEdit: user.canEdit,
     orgId: user.orgId,
+    orgRole: user.orgRole,
+    isPlatformAdmin: user.isPlatformAdmin,
   });
 }
