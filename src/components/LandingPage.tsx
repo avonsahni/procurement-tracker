@@ -491,10 +491,13 @@ export default function LandingPage() {
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium mb-6">
             <Zap className="w-3 h-3" /> Built for project managers · No spreadsheets
           </div>
-          <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight mb-5">
+          <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight mb-4">
             Project tracking<br />
             <span className="text-blue-600">made simple</span>
           </h1>
+          <p className="text-xl sm:text-2xl font-semibold text-slate-700 mb-4">
+            One Dashboard &mdash; The End of Weekly Reports
+          </p>
           <p className="text-lg text-slate-500 leading-relaxed max-w-2xl mx-auto mb-8">
             From spec to award — every package tracked, every vendor compared, every decision logged.
             The dashboard your project team will actually use.
