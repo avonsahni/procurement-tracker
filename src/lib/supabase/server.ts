@@ -23,9 +23,13 @@ export async function createServerSupabase() {
       },
       setAll(cookiesToSet) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            // Strip maxAge / expires so auth cookies become session-only.
+            // The session is lost when the browser is closed — users must
+            // log in again on every new browser session.
+            const { maxAge: _m, expires: _e, ...sessionOptions } = options ?? {};
+            cookieStore.set(name, value, sessionOptions);
+          });
         } catch {
           // setAll can fail in server components — safe to ignore, middleware would set
         }
