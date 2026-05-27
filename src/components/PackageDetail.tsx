@@ -326,6 +326,7 @@ export default function PackageDetail({
                 documents={pkg.documents}
                 packageId={packageId}
                 userId={user?.id ?? ""}
+                orgId={user?.orgId}
                 readonly={!editMode || isAwarded}
                 onAddDocument={async (d) => { await addDocument(packageId, d, user?.fullName); await reloadPackage(); }}
                 onDeleteDocument={async (did: string) => { await deleteDocument(packageId, did, user?.fullName); await reloadPackage(); }}

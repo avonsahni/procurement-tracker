@@ -12,6 +12,7 @@ interface DocumentsSectionProps {
   documents: Document[];
   packageId: string;
   userId: string;
+  orgId?: string;
   onAddDocument: (d: { name: string; size: string; type: string; storagePath: string }) => Promise<void>;
   onDeleteDocument: (id: string) => Promise<void>;
   readonly?: boolean;
@@ -27,7 +28,7 @@ const iconForType = (type: string = "") => {
 };
 
 export default function DocumentsSection({
-  documents, packageId, userId, onAddDocument, onDeleteDocument, readonly,
+  documents, packageId, userId, orgId, onAddDocument, onDeleteDocument, readonly,
 }: DocumentsSectionProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -45,9 +46,10 @@ export default function DocumentsSection({
     const supabase = createBrowserSupabase();
     try {
       for (const f of Array.from(files)) {
-        // Storage path: {userId}/{packageId}/{uuid}_{filename}
+        // Storage path: {orgId}/{packageId}/{uuid}_{filename} — org-scoped for isolation
         const safeFileName = f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const storagePath = `${userId}/${packageId}/${crypto.randomUUID()}_${safeFileName}`;
+        const prefix = orgId || userId; // orgId preferred; userId as fallback for legacy uploads
+        const storagePath = `${prefix}/${packageId}/${crypto.randomUUID()}_${safeFileName}`;
 
         const { error: storageErr } = await supabase.storage
           .from("package-documents")

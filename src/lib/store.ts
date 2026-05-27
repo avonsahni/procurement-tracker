@@ -14,6 +14,8 @@ export interface UserAccount {
   fullName: string;
   role: "admin" | "user";
   canEdit: boolean;
+  orgId?: string;
+  orgRole?: "owner" | "admin" | "viewer";
   password?: string;
 }
 

@@ -11,6 +11,8 @@ export async function GET() {
       fullName: user.fullName,
       role: user.role,
       canEdit: user.canEdit,
+      orgId: user.orgId,
+      orgRole: user.orgRole,
     },
   });
 }
