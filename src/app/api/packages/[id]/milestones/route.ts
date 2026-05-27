@@ -2,21 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { guard } from '@/lib/auth';
 import { EXECUTION_MILESTONES } from '@/lib/types';
+import { withRoute } from '@/lib/withRoute';
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withRoute(async (req: NextRequest, ctx) => {
   const auth = await guard('editor');
-  if (auth instanceof NextResponse) {
-    console.error('[milestones PATCH] guard failed — user not authenticated or canEdit=false');
-    return auth;
-  }
-  const { id: pkgId } = await params;
+  if (auth instanceof NextResponse) return auth;
+
+  const { id: pkgId } = await ctx!.params as { id: string };
   const body = await req.json();
   const { milestoneName, progress } = body;
 
-  console.log('[milestones PATCH] pkgId=%s milestone=%s progress=%s user=%s', pkgId, milestoneName, progress, auth.fullName);
-
   if (typeof progress !== 'number' || progress < 0 || progress > 100) {
-    console.error('[milestones PATCH] invalid progress value:', progress);
     return NextResponse.json({ error: 'progress must be a number 0–100' }, { status: 400 });
   }
 
@@ -43,10 +39,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }, { onConflict: 'package_id,milestone_name' });
 
   if (error) {
-    console.error('[milestones PATCH] upsert error:', error.message, error.code, error.details);
+    console.error('[milestones PATCH] upsert error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  console.log('[milestones PATCH] saved ok — pkgId=%s milestone=%s progress=%s', pkgId, milestoneName, progress);
   return NextResponse.json({ ok: true });
-}
+}, { route: '/api/packages/[id]/milestones' });

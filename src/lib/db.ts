@@ -2,6 +2,36 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Helpers that turn raw Postgres rows into the camelCase shape the client expects.
 
+/**
+ * Writes one entry to org_audit_log (org-level admin events).
+ * Uses the admin/service-role client so it always succeeds regardless of RLS.
+ * Errors are swallowed — audit failures must never block the primary operation.
+ */
+export async function addOrgAuditEntry(
+  admin: SupabaseClient,
+  orgId: string,
+  userId: string,
+  userName: string,
+  action: string,
+  category: string,
+  entityName?: string,
+  details?: Record<string, any>
+): Promise<void> {
+  try {
+    await admin.from('org_audit_log').insert({
+      org_id: orgId,
+      user_id: userId || null,
+      user_name: userName,
+      action,
+      category,
+      entity_name: entityName ?? null,
+      details: details ?? null,
+    });
+  } catch (e) {
+    console.error('[addOrgAuditEntry] failed:', e);
+  }
+}
+
 export async function addAuditEntry(
   supabase: SupabaseClient,
   pkgId: string,
@@ -48,7 +78,7 @@ function mapPackageRow(
       id: v.id, name: v.name, quotedAmount: Number(v.quoted_amount), revisedAmount: Number(v.revised_amount),
     })),
     remarks: (remarksByPkg[id] || []).map((r: any) => ({
-      id: r.id, user: r.username, text: r.text, timestamp: r.timestamp,
+      id: r.id, user: r.username, text: r.text, timestamp: r.timestamp, userId: r.user_id,
     })),
     documents: (docsByPkg[id] || []).map((d: any) => ({
       id: d.id, name: d.name, size: d.size || '', type: d.type || '', uploadedBy: d.username, uploadedAt: d.uploaded_at, storagePath: d.storage_path || '',
@@ -95,7 +125,7 @@ export async function assemblePackage(supabase: SupabaseClient, row: any) {
   const id = row.id;
   const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes] = await Promise.all([
     supabase.from('vendors').select('id, name, quoted_amount, revised_amount').eq('package_id', id),
-    supabase.from('remarks').select('id, username, text, timestamp').eq('package_id', id).order('timestamp'),
+    supabase.from('remarks').select('id, username, text, timestamp, user_id').eq('package_id', id).order('timestamp'),
     supabase.from('documents').select('id, name, size, type, username, uploaded_at, storage_path').eq('package_id', id).order('uploaded_at'),
     supabase.from('audit_trail').select('id, username, field, old_value, new_value, timestamp').eq('package_id', id).order('timestamp'),
     supabase.from('invoices').select('id, amount, invoice_number, invoice_date, notes, username, created_at').eq('package_id', id).order('invoice_date'),
@@ -232,7 +262,7 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
 
     const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes] = await Promise.all([
       supabase.from('vendors').select('id, package_id, name, quoted_amount, revised_amount').in('package_id', ids),
-      supabase.from('remarks').select('id, package_id, username, text, timestamp').in('package_id', ids).order('timestamp'),
+      supabase.from('remarks').select('id, package_id, username, text, timestamp, user_id').in('package_id', ids).order('timestamp'),
       supabase.from('documents').select('id, package_id, name, size, type, username, uploaded_at, storage_path').in('package_id', ids).order('uploaded_at'),
       supabase.from('audit_trail').select('id, package_id, username, field, old_value, new_value, timestamp').in('package_id', ids).order('timestamp'),
       supabase.from('invoices').select('id, package_id, amount, invoice_number, invoice_date, notes, username, created_at').in('package_id', ids).order('invoice_date'),

@@ -22,14 +22,23 @@ const role = z.enum(['admin', 'user']);
 
 export const LoginSchema = z.object({
   email: z.string().trim().email('valid email required'),
-  password: z.string().min(1, 'password required'),
+  password: z.string().min(8, 'password must be at least 8 characters'),
 });
 
 export const SignupSchema = z.object({
-  email: z.string().trim().email('valid email required'),
-  password: z.string().min(8, 'password must be at least 8 characters'),
-  fullName: trimmedString('fullName', 1, 200),
-  orgName: z.string().trim().max(200).optional().default('My Organisation'),
+  email:        z.string().trim().email('valid email required'),
+  password:     z.string().min(8, 'password must be at least 8 characters'),
+  fullName:     trimmedString('fullName', 1, 200),
+  jobTitle:     z.string().trim().max(200).optional().default(''),
+  orgName:      z.string().trim().max(200).optional().default('My Organisation'),
+  orgType:      z.string().trim().max(100).optional().default(''),
+  website:      z.string().trim().max(300).optional().default(''),
+  addressLine1: z.string().trim().max(300).optional().default(''),
+  city:         z.string().trim().max(100).optional().default(''),
+  stateRegion:  z.string().trim().max(100).optional().default(''),
+  country:      z.string().trim().max(100).optional().default(''),
+  phone:        z.string().trim().max(50).optional().default(''),
+  couponCode:   z.string().trim().max(50).optional().default(''),
 });
 
 export const ProjectCreateSchema = z.object({
@@ -89,6 +98,7 @@ export const RemarkCreateSchema = z.object({
 export const DocumentCreateSchema = z.object({
   name: trimmedString('name'),
   size: z.string().max(50).optional().default(''),
+  sizeBytes: z.number().int().min(0).optional().default(0),
   type: z.string().max(200).optional().default(''),
   storagePath: z.string().max(1000).optional().default(''),
 });

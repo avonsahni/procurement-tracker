@@ -4,30 +4,22 @@ import { useRef, useState } from "react";
 import { Document } from "@/lib/types";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import {
-  Paperclip, Upload, Trash2, FileText, FileSpreadsheet,
-  File, Image, Download, Loader2,
+  Paperclip, Upload, Trash2, FileText,
+  Download, Loader2,
 } from "lucide-react";
 
 interface DocumentsSectionProps {
   documents: Document[];
   packageId: string;
   userId: string;
-  onAddDocument: (d: { name: string; size: string; type: string; storagePath: string }) => Promise<void>;
+  orgId?: string;
+  onAddDocument: (d: { name: string; size: string; sizeBytes: number; type: string; storagePath: string }) => Promise<void>;
   onDeleteDocument: (id: string) => Promise<void>;
   readonly?: boolean;
 }
 
-const iconForType = (type: string = "") => {
-  const t = type || "";
-  if (t.includes("pdf")) return <FileText className="w-4 h-4 text-red-500" />;
-  if (t.includes("sheet") || t.includes("excel") || t.includes("xlsx")) return <FileSpreadsheet className="w-4 h-4 text-emerald-600" />;
-  if (t.includes("image")) return <Image className="w-4 h-4 text-violet-600" />;
-  if (t.includes("word") || t.includes("doc")) return <FileText className="w-4 h-4 text-blue-600" />;
-  return <File className="w-4 h-4 text-slate-400" />;
-};
-
 export default function DocumentsSection({
-  documents, packageId, userId, onAddDocument, onDeleteDocument, readonly,
+  documents, packageId, userId, orgId, onAddDocument, onDeleteDocument, readonly,
 }: DocumentsSectionProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -39,15 +31,51 @@ export default function DocumentsSection({
       ? `${(bytes / 1024).toFixed(0)} KB`
       : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
+  const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB per file
+
   const uploadFiles = async (files: FileList | File[]) => {
     setUploadError(null);
     setUploading(true);
     const supabase = createBrowserSupabase();
     try {
       for (const f of Array.from(files)) {
-        // Storage path: {userId}/{packageId}/{uuid}_{filename}
+        // ── PDF-only restriction ───────────────────────────────────────────
+        const isPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+        if (!isPdf) {
+          setUploadError(`"${f.name}" is not a PDF. Only PDF files are accepted.`);
+          continue;
+        }
+
+        // ── Per-file size limit ────────────────────────────────────────────
+        if (f.size > MAX_FILE_BYTES) {
+          setUploadError(`"${f.name}" exceeds the 50 MB limit (${humanSize(f.size)}). Please compress the file.`);
+          continue;
+        }
+
+        // ── Pre-check org storage quota ────────────────────────────────────
+        try {
+          const usageRes = await fetch('/api/storage/usage', {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'fetch' },
+          });
+          if (usageRes.ok) {
+            const usage = await usageRes.json();
+            if (f.size > usage.remainingBytes) {
+              setUploadError(
+                `Storage limit reached. Your organisation has used ${usage.usedLabel} of ${usage.limitLabel}. ` +
+                `This file is ${humanSize(f.size)} but only ${usage.remainingLabel} remains.`
+              );
+              continue;
+            }
+          }
+        } catch {
+          // Non-fatal — server will enforce the quota too
+        }
+
+        // Storage path: {orgId}/{packageId}/{uuid}_{filename}
         const safeFileName = f.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const storagePath = `${userId}/${packageId}/${crypto.randomUUID()}_${safeFileName}`;
+        const prefix = orgId || userId;
+        const storagePath = `${prefix}/${packageId}/${crypto.randomUUID()}_${safeFileName}`;
 
         const { error: storageErr } = await supabase.storage
           .from("package-documents")
@@ -58,12 +86,20 @@ export default function DocumentsSection({
           continue;
         }
 
-        await onAddDocument({
-          name: f.name,
-          size: humanSize(f.size),
-          type: f.type || "application/octet-stream",
-          storagePath,
-        });
+        // Register document metadata — server enforces quota again
+        try {
+          await onAddDocument({
+            name: f.name,
+            size: humanSize(f.size),
+            sizeBytes: f.size,
+            type: f.type || "application/pdf",
+            storagePath,
+          });
+        } catch (apiErr: any) {
+          // Server rejected (e.g. quota exceeded) — remove the orphaned file from storage
+          await supabase.storage.from("package-documents").remove([storagePath]);
+          setUploadError(apiErr.message || "Failed to register document.");
+        }
       }
     } finally {
       setUploading(false);
@@ -87,12 +123,11 @@ export default function DocumentsSection({
       const supabase = createBrowserSupabase();
       const { data, error } = await supabase.storage
         .from("package-documents")
-        .createSignedUrl(doc.storagePath, 3600); // 1-hour signed URL
+        .createSignedUrl(doc.storagePath, 3600);
       if (error || !data?.signedUrl) {
         alert("Could not generate download link. Please try again.");
         return;
       }
-      // Open in new tab — browser will decide to preview or download
       window.open(data.signedUrl, "_blank", "noopener,noreferrer");
     } finally {
       setDownloadingId(null);
@@ -110,6 +145,7 @@ export default function DocumentsSection({
         <Paperclip className="w-4 h-4 text-blue-600" />
         <h3 className="font-semibold text-slate-900 text-sm">Documents</h3>
         <span className="text-xs text-slate-400 ml-1">({documents.length})</span>
+        <span className="ml-auto text-xs text-slate-400">PDF only · 50 MB max</span>
       </div>
 
       {!readonly && (
@@ -131,10 +167,18 @@ export default function DocumentsSection({
                 <span className="text-sm text-slate-600">
                   Drag & drop or <span className="text-blue-600 font-medium">browse</span>
                 </span>
-                <span className="text-xs text-slate-400">PDF, Excel, Word, Images — up to 50 MB</span>
+                <span className="text-xs text-slate-400">PDF files only — up to 50 MB</span>
               </>
             )}
-            <input ref={fileRef} type="file" multiple onChange={handleFiles} className="hidden" disabled={uploading} />
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              accept="application/pdf,.pdf"
+              onChange={handleFiles}
+              className="hidden"
+              disabled={uploading}
+            />
           </div>
           {uploadError && (
             <p className="mt-2 text-xs text-red-600">{uploadError}</p>
@@ -148,13 +192,12 @@ export default function DocumentsSection({
         <div className="divide-y divide-slate-100 mt-2">
           {documents.map((doc) => (
             <div key={doc.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50/60 transition group">
-              {iconForType(doc.type)}
+              <FileText className="w-4 h-4 text-red-500 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-700 truncate">{doc.name}</p>
                 <p className="text-xs text-slate-500 mt-0.5">{doc.size} • {doc.uploadedBy} • {formatDate(doc.uploadedAt)}</p>
               </div>
 
-              {/* Download/View button — shown when there's a real file */}
               {doc.storagePath && (
                 <button
                   onClick={() => handleDownload(doc)}

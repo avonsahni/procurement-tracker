@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   fetchPackage,
   fetchProject,
@@ -320,12 +321,28 @@ export default function PackageDetail({
               <RemarksSection
                 remarks={pkg.remarks}
                 readonly={!editMode || isAwarded}
+                currentUserId={user?.id}
+                isAdmin={user?.role === 'admin'}
                 onAddRemark={async (t: any) => { await addRemark(packageId, t, user?.fullName); await reloadPackage(); }}
+                onEditRemark={async (rid, text) => {
+                  await apiFetch(`/api/packages/${packageId}/remarks/${rid}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text }),
+                  }).then(r => { if (!r.ok) return r.json().then(d => { throw new Error(d.error); }); });
+                  await reloadPackage();
+                }}
+                onDeleteRemark={async (rid) => {
+                  await apiFetch(`/api/packages/${packageId}/remarks/${rid}`, { method: 'DELETE' })
+                    .then(r => { if (!r.ok) return r.json().then(d => { throw new Error(d.error); }); });
+                  await reloadPackage();
+                }}
               />
               <DocumentsSection
                 documents={pkg.documents}
                 packageId={packageId}
                 userId={user?.id ?? ""}
+                orgId={user?.orgId}
                 readonly={!editMode || isAwarded}
                 onAddDocument={async (d) => { await addDocument(packageId, d, user?.fullName); await reloadPackage(); }}
                 onDeleteDocument={async (did: string) => { await deleteDocument(packageId, did, user?.fullName); await reloadPackage(); }}

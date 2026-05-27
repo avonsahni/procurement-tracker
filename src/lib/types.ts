@@ -62,6 +62,7 @@ export interface Remark {
   user: string;
   text: string;
   timestamp: string;
+  userId?: string;
 }
 
 export interface Document {

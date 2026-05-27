@@ -14,11 +14,21 @@ export interface UserAccount {
   fullName: string;
   role: "admin" | "user";
   canEdit: boolean;
+  orgId?: string;
+  orgRole?: "owner" | "admin" | "viewer";
+  isPlatformAdmin?: boolean;
+  orgStatus?: "trial" | "active" | "paused" | "canceled";
+  orgPlan?: "trial" | "starter" | "pro" | "enterprise";
+  trialEndsAt?: string | null;
   password?: string;
 }
 
 async function api(path: string, opts?: RequestInit) {
-  const res = await fetch(path, opts);
+  // X-Requested-With prevents CSRF via cross-origin HTML form submissions
+  // (browsers block custom headers on cross-origin simple requests).
+  const headers = new Headers(opts?.headers);
+  headers.set('X-Requested-With', 'fetch');
+  const res = await fetch(path, { ...opts, headers });
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
     try {
@@ -118,7 +128,7 @@ export async function addRemark(pkgId: string, text: string, user: string = 'Use
 }
 
 // Documents
-export async function addDocument(pkgId: string, d: { name: string; size: string; type: string; storagePath?: string }, user: string = 'User'): Promise<void> {
+export async function addDocument(pkgId: string, d: { name: string; size: string; sizeBytes?: number; type: string; storagePath?: string }, user: string = 'User'): Promise<void> {
   await api(`/api/packages/${pkgId}/documents`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, user }) });
 }
 export async function deleteDocument(pkgId: string, did: string, user: string = 'System'): Promise<void> {

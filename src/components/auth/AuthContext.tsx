@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { UserAccount } from "@/lib/store";
+import { apiFetch } from "@/lib/apiFetch";
 
 interface AuthContextType {
   user: UserAccount | null;
@@ -9,8 +10,10 @@ interface AuthContextType {
   editMode: boolean;
   setEditMode: (mode: boolean) => void;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, fullName: string, orgName?: string) => Promise<{ needsConfirmation: boolean }>;
+  signup: (email: string, password: string, fullName: string, orgName?: string, extra?: Record<string, string>) => Promise<{ needsConfirmation: boolean }>;
   logout: () => Promise<void>;
+  /** True when the org is paused, canceled, or the trial has expired */
+  isOrgBlocked: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,9 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const res = await fetch('/api/auth/login', {
+    const res = await apiFetch('/api/auth/login', {
       method: 'POST',
-      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
@@ -45,12 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData);
   };
 
-  const signup = async (email: string, password: string, fullName: string, orgName?: string) => {
-    const res = await fetch('/api/auth/signup', {
+  const signup = async (email: string, password: string, fullName: string, orgName?: string, extra?: Record<string, string>) => {
+    const res = await apiFetch('/api/auth/signup', {
       method: 'POST',
-      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, fullName, orgName }),
+      body: JSON.stringify({ email, password, fullName, orgName, ...extra }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || 'Sign up failed');
@@ -62,13 +63,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+    await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     setUser(null);
     setEditMode(false);
   };
 
+  const isOrgBlocked = (() => {
+    if (!user) return false;
+    if (user.isPlatformAdmin) return false;
+    if (user.orgStatus === 'paused' || user.orgStatus === 'canceled') return true;
+    if (user.orgStatus === 'trial' && user.trialEndsAt) {
+      return new Date(user.trialEndsAt) < new Date();
+    }
+    return false;
+  })();
+
   return (
-    <AuthContext.Provider value={{ user, loading, editMode, setEditMode, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, editMode, setEditMode, login, signup, logout, isOrgBlocked }}>
       {children}
     </AuthContext.Provider>
   );

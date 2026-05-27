@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { guard } from '@/lib/auth';
+import { guard, PLAN_USER_LIMITS, type OrgPlan } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { addOrgAuditEntry } from '@/lib/db';
+import { withRoute } from '@/lib/withRoute';
 
-export async function GET() {
+export const GET = withRoute(async () => {
   const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
 
@@ -47,9 +49,9 @@ export async function GET() {
     });
 
   return NextResponse.json(orgUsers);
-}
+}, { route: '/api/users' });
 
-export async function POST(req: NextRequest) {
+export const POST = withRoute(async (req: NextRequest) => {
   const auth = await guard('admin');
   if (auth instanceof NextResponse) return auth;
 
@@ -62,6 +64,33 @@ export async function POST(req: NextRequest) {
   const orgRole = role === 'admin' ? 'admin' : 'viewer';
 
   const admin = createAdminSupabase();
+
+  // ── Fetch org plan + enforce user-limit ─────────────────────────────────
+  const { data: org } = await admin
+    .from('organizations')
+    .select('plan')
+    .eq('id', auth.orgId)
+    .single();
+
+  const plan      = (org?.plan as OrgPlan) ?? 'trial';
+  const userLimit = PLAN_USER_LIMITS[plan];
+
+  const { count: memberCount } = await admin
+    .from('organization_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('org_id', auth.orgId);
+
+  if ((memberCount ?? 0) >= userLimit) {
+    const limitLabel = userLimit === Number.MAX_SAFE_INTEGER ? 'unlimited' : String(userLimit);
+    return NextResponse.json({
+      error: `Your ${plan} plan allows a maximum of ${limitLabel} users. ` +
+             `You have reached the limit. Upgrade your plan to invite more members.`,
+      code: 'USER_LIMIT_REACHED',
+      limit: userLimit,
+      current: memberCount,
+    }, { status: 402 });
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Pass org_id in metadata so the handle_new_user trigger joins the right org
   const { data, error } = await admin.auth.admin.createUser({
@@ -80,6 +109,10 @@ export async function POST(req: NextRequest) {
   // Update can_edit on the profile the trigger just created
   await admin.from('profiles').update({ can_edit: canEdit ?? true }).eq('id', data.user.id);
 
+  await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,
+    'User Invited', 'user_mgmt', fullName || username,
+    { email: username, role: role || 'user' });
+
   return NextResponse.json({
     id: data.user.id,
     username: data.user.email ?? '',
@@ -88,4 +121,4 @@ export async function POST(req: NextRequest) {
     canEdit: canEdit ?? true,
     orgRole,
   });
-}
+}, { route: '/api/users' });

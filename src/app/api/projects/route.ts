@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { assembleProject, assembleProjectSummary } from '@/lib/db';
+import { assembleProject, assembleProjectSummary, addOrgAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 import { ProjectCreateSchema, parseBody } from '@/lib/validation';
+import { withRoute } from '@/lib/withRoute';
 
-export async function GET() {
+export const GET = withRoute(async () => {
   const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
 
@@ -20,10 +22,10 @@ export async function GET() {
   // dashboard only needs stage, awardValue, and category per package.
   const projects = await Promise.all((rows || []).map(r => assembleProjectSummary(supabase, r)));
   return NextResponse.json(projects);
-}
+}, { route: '/api/projects' });
 
-export async function POST(req: NextRequest) {
-  const auth = await guard('editor');
+export const POST = withRoute(async (req: NextRequest) => {
+  const auth = await guard('admin');
   if (auth instanceof NextResponse) return auth;
   const parsed = await parseBody(req, ProjectCreateSchema);
   if (!parsed.ok) return parsed.response;
@@ -38,5 +40,10 @@ export async function POST(req: NextRequest) {
 
   if (error || !row) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
 
+  const adminClient = createAdminSupabase();
+  await addOrgAuditEntry(adminClient, auth.orgId, auth.id, auth.fullName,
+    'Project Created', 'project', name,
+    { client, budget });
+
   return NextResponse.json(await assembleProjectSummary(supabase, row), { status: 201 });
-}
+}, { route: '/api/projects' });
