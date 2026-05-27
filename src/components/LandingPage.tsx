@@ -311,22 +311,25 @@ const PRICING = [
     highlight: false,
     features: ["Up to 3 team members", "Unlimited packages", "All core features", "No credit card needed"],
     cta: "Start free trial",
+    contactAdmin: false,
   },
   {
     name: "Starter",
-    price: "£49",
+    price: "₹ — Contact admin",
     period: "per month",
     highlight: true,
     features: ["Up to 10 team members", "Unlimited packages", "Budget analytics", "Document storage", "Audit trail", "Email support"],
-    cta: "Get started",
+    cta: "Contact admin",
+    contactAdmin: true,
   },
   {
     name: "Pro",
-    price: "£149",
+    price: "₹ — Contact admin",
     period: "per month",
     highlight: false,
     features: ["Up to 50 team members", "Everything in Starter", "GDPR data export", "Priority support", "Custom branding", "Dedicated onboarding"],
-    cta: "Contact us",
+    cta: "Contact admin",
+    contactAdmin: true,
   },
 ];
 
@@ -488,17 +491,17 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-12 items-center">
           <div className="flex-1 space-y-6">
             <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-snug">
-              Built for the site office,<br />
-              <span className="text-blue-600">not the boardroom</span>
+              A management dashboard<br />
+              <span className="text-blue-600">built for clarity</span>
             </h2>
             <p className="text-slate-500 leading-relaxed">
-              Most procurement tools are built for finance teams — dense with configurations
-              and buried under approval workflows. ProcureTrack is built for the project
-              manager who needs to know: <em>what stage is this package at, and who won the bid?</em>
+              Most procurement tools overwhelm managers with data they don't need.
+              ProcureTrack gives decision-makers a single, clear view of every package —
+              <em>what's the status, who are the vendors, and what was awarded?</em>
             </p>
             <ul className="space-y-3">
               {[
-                "No training required — intuitive enough for any PM",
+                "No training required — intuitive enough for any manager",
                 "Works on desktop, tablet, and mobile",
                 "Your org's data is private — fully isolated from other companies",
                 "GDPR-compliant with one-click data export",
@@ -546,10 +549,21 @@ export default function LandingPage() {
                   <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${plan.highlight ? "text-blue-200" : "text-slate-400"}`}>
                     {plan.name}
                   </p>
-                  <div className="flex items-end gap-1">
-                    <span className={`text-4xl font-extrabold ${plan.highlight ? "text-white" : "text-slate-900"}`}>{plan.price}</span>
-                    <span className={`text-sm mb-1 ${plan.highlight ? "text-blue-200" : "text-slate-400"}`}>/{plan.period}</span>
-                  </div>
+                  {plan.contactAdmin ? (
+                    <div>
+                      <p className={`text-2xl font-extrabold ${plan.highlight ? "text-white" : "text-slate-900"}`}>
+                        Contact admin
+                      </p>
+                      <p className={`text-xs mt-1 ${plan.highlight ? "text-blue-200" : "text-slate-400"}`}>
+                        Pricing in ₹ — get a quote
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-end gap-1">
+                      <span className={`text-4xl font-extrabold ${plan.highlight ? "text-white" : "text-slate-900"}`}>{plan.price}</span>
+                      <span className={`text-sm mb-1 ${plan.highlight ? "text-blue-200" : "text-slate-400"}`}>/{plan.period}</span>
+                    </div>
+                  )}
                 </div>
                 <ul className="space-y-2.5 flex-1 mb-7">
                   {plan.features.map(f => (
@@ -560,7 +574,7 @@ export default function LandingPage() {
                   ))}
                 </ul>
                 <button
-                  onClick={plan.name === "Pro" ? openLogin : openSignup}
+                  onClick={plan.contactAdmin ? openLogin : openSignup}
                   className={`w-full py-2.5 rounded-xl text-sm font-semibold transition ${
                     plan.highlight
                       ? "bg-white text-blue-600 hover:bg-blue-50"
@@ -573,7 +587,7 @@ export default function LandingPage() {
             ))}
           </div>
           <p className="text-center text-xs text-slate-400 mt-6">
-            All prices exclude VAT · Cancel anytime · No lock-in
+            Pricing in Indian Rupees (₹) · Contact your admin for a quote · Cancel anytime
           </p>
         </div>
       </section>
