@@ -37,9 +37,17 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
   const admin = createAdminSupabase();
 
+  // Two parallel queries instead of three sequential ones:
+  //   1. profiles — user settings
+  //   2. organization_members joined with organizations — role + plan in one round trip
   const [{ data: profile, error: profileErr }, { data: memberships, error: memErr }] = await Promise.all([
-    admin.from('profiles').select('full_name, can_edit, is_platform_admin').eq('id', user.id).maybeSingle(),
-    admin.from('organization_members').select('org_id, role').eq('user_id', user.id),
+    admin.from('profiles')
+      .select('full_name, can_edit, is_platform_admin')
+      .eq('id', user.id)
+      .maybeSingle(),
+    admin.from('organization_members')
+      .select('org_id, role, organizations(subscription_status, trial_ends_at, plan)')
+      .eq('user_id', user.id),
   ]);
 
   if (profileErr) console.error('[getCurrentUser] profile error:', profileErr.message);
@@ -51,27 +59,13 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     (a, b) => (priority[a.role as keyof typeof priority] ?? 9) - (priority[b.role as keyof typeof priority] ?? 9)
   )[0] ?? null;
 
-  console.log('[getCurrentUser] user=%s memberships=%d role=%s orgId=%s',
-    user.email, (memberships || []).length, membership?.role, membership?.org_id);
-
   const orgRole = (membership?.role as 'owner' | 'admin' | 'viewer') ?? 'viewer';
 
-  // Fetch org subscription status + plan if there's a membership
-  let orgStatus: OrgStatus = 'active';
-  let orgPlan: OrgPlan     = 'trial';
-  let trialEndsAt: string | null = null;
-  if (membership?.org_id) {
-    const { data: org } = await admin
-      .from('organizations')
-      .select('subscription_status, trial_ends_at, plan')
-      .eq('id', membership.org_id)
-      .maybeSingle();
-    if (org) {
-      orgStatus   = (org.subscription_status as OrgStatus) ?? 'active';
-      orgPlan     = (org.plan              as OrgPlan)     ?? 'trial';
-      trialEndsAt = org.trial_ends_at ?? null;
-    }
-  }
+  // Org data comes from the joined select — no extra round trip needed
+  const org = membership ? (membership as any).organizations : null;
+  const orgStatus   = (org?.subscription_status as OrgStatus) ?? 'active';
+  const orgPlan     = (org?.plan              as OrgPlan)     ?? 'trial';
+  const trialEndsAt = org?.trial_ends_at ?? null;
 
   return {
     id: user.id,
