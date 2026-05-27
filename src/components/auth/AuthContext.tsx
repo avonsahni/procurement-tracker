@@ -78,8 +78,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return false;
   })();
 
+  // When the org is blocked, force read-only: editMode can never be true.
+  const effectiveEditMode = isOrgBlocked ? false : editMode;
+  const effectiveSetEditMode = isOrgBlocked ? (_: boolean) => {} : setEditMode;
+
   return (
-    <AuthContext.Provider value={{ user, loading, editMode, setEditMode, login, signup, logout, isOrgBlocked }}>
+    <AuthContext.Provider value={{ user, loading, editMode: effectiveEditMode, setEditMode: effectiveSetEditMode, login, signup, logout, isOrgBlocked }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1094,10 +1094,22 @@ const NAV: { id: Tab; icon: any; label: string }[] = [
   { id: "danger",      icon: AlertTriangle, label: "Danger Zone" },
 ];
 
+// Tabs available when the org is expired/paused — read-only + export only.
+const BLOCKED_TABS: Tab[] = ["overview", "audit", "export"];
+
 export default function AdminPanel({ onBack, initialTab }: { onBack: () => void; initialTab?: Tab }) {
-  const [tab, setTab] = useState<Tab>(initialTab ?? "overview");
+  const { isOrgBlocked } = useAuth();
+  const defaultTab = isOrgBlocked ? "export" : (initialTab ?? "overview");
+  const [tab, setTab] = useState<Tab>(defaultTab);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [orgName, setOrgName] = useState("My Organisation");
+
+  // When org becomes blocked, snap to an allowed tab
+  useEffect(() => {
+    if (isOrgBlocked && !BLOCKED_TABS.includes(tab)) {
+      setTab("export");
+    }
+  }, [isOrgBlocked, tab]);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -1117,6 +1129,10 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
     loadUsers();
     loadBranding();
   }, [loadUsers, loadBranding]);
+
+  const visibleNav = isOrgBlocked
+    ? NAV.filter(n => BLOCKED_TABS.includes(n.id))
+    : NAV;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -1138,13 +1154,18 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
             <span className="text-xs text-slate-400 ml-2">{orgName}</span>
           </div>
         </div>
+        {isOrgBlocked && (
+          <span className="ml-auto inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+            <Lock className="w-3 h-3" /> Read-only mode
+          </span>
+        )}
       </header>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <aside className="w-56 bg-white border-r border-slate-200 p-4 flex-shrink-0 sticky top-[61px] self-start h-[calc(100vh-61px)]">
           <nav className="space-y-1">
-            {NAV.map(n => (
+            {visibleNav.map(n => (
               <NavItem
                 key={n.id}
                 icon={n.icon}
@@ -1154,6 +1175,13 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
               />
             ))}
           </nav>
+          {isOrgBlocked && (
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <p className="text-xs text-slate-400 leading-snug">
+                Other settings are locked while the subscription is inactive.
+              </p>
+            </div>
+          )}
         </aside>
 
         {/* Main content */}

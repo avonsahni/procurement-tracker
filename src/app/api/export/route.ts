@@ -5,9 +5,15 @@ import { addOrgAuditEntry } from '@/lib/db';
 
 // Returns all org data as JSON for client-side Excel generation.
 // Admin-only: only org owners and admins may export.
+// This endpoint intentionally bypasses the org-blocked check so that
+// admins of expired/paused orgs can still export their data.
 export async function GET() {
-  const auth = await guard('admin');
+  // Use 'user' guard so expired orgs are not blocked, then manually verify admin role.
+  const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
+  if (!['owner', 'admin'].includes(auth.orgRole)) {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  }
 
   const admin = createAdminSupabase();
   const orgId = auth.orgId;

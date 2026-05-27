@@ -4,9 +4,14 @@ import { createAdminSupabase } from '@/lib/supabase/admin';
 import { withRoute } from '@/lib/withRoute';
 
 // GET /api/admin/audit — returns last 200 org audit log entries, admin only.
+// Uses 'user' guard so audit log remains readable even for expired orgs,
+// then manually verifies admin role.
 export const GET = withRoute(async () => {
-  const auth = await guard('admin');
+  const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
+  if (!['owner', 'admin'].includes(auth.orgRole)) {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  }
 
   const admin = createAdminSupabase();
 

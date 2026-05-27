@@ -390,7 +390,7 @@ function ProjectCard({ project: p, editMode, isAdmin, onOpen, onDelete, onUpdate
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPlatform }: any) {
-  const { user, logout, editMode, setEditMode } = useAuth();
+  const { user, logout, editMode, setEditMode, isOrgBlocked } = useAuth();
   const router = useRouter();
   const [projects, setProjects] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -514,7 +514,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
               <BarChart3 className="w-4 h-4" /> Analytics
             </button>
 
-            {user?.canEdit && (
+            {user?.canEdit && !isOrgBlocked && (
               <button
                 onClick={() => setEditMode(!editMode)}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border transition ${
