@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { assemblePackage, addAuditEntry } from '@/lib/db';
+import { assemblePackage, addAuditEntry, addOrgAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 import { AwardSchema, parseBody } from '@/lib/validation';
 import { formatCurrency, EXECUTION_MILESTONES } from '@/lib/types';
 
@@ -68,10 +69,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (error || !row) return NextResponse.json({ error: error?.message || 'Award failed' }, { status: 500 });
 
+  // Grab package name for audit label
+  const { data: pkgInfo } = await supabase.from('packages').select('name').eq('id', pkgId).maybeSingle();
+
+  const adminClient = createAdminSupabase();
   await Promise.all([
     addAuditEntry(supabase, pkgId, auth.fullName, 'Stage', pkg.current_stage, 'Award'),
     addAuditEntry(supabase, pkgId, auth.fullName, 'Awarded Vendor', '', awardedVendor),
     addAuditEntry(supabase, pkgId, auth.fullName, 'Award Value', '', String(awardValue)),
+    addOrgAuditEntry(adminClient, auth.orgId, auth.id, auth.fullName,
+      'Package Awarded', 'package', pkgInfo?.name || pkgId,
+      { vendor: awardedVendor, value: awardValue }),
     supabase.from('package_milestones').upsert(
       EXECUTION_MILESTONES.map((name, i) => ({
         package_id: pkgId,

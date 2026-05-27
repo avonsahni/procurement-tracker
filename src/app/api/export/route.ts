@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { addOrgAuditEntry } from '@/lib/db';
 
 // Returns all org data as JSON for client-side Excel generation.
 // Admin-only: only org owners and admins may export.
@@ -108,6 +109,10 @@ export async function GET() {
     packageName: pkgNameById[m.package_id] || '',
     projectName: pkgProjectById[m.package_id] || '',
   }));
+
+  await addOrgAuditEntry(admin, orgId, auth.id, auth.fullName,
+    'Data Exported', 'admin', undefined,
+    { projects: projects.length, packages: (packages || []).length });
 
   return NextResponse.json({
     exportedAt: new Date().toISOString(),

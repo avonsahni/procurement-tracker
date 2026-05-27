@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { addOrgAuditEntry } from '@/lib/db';
 
 export async function GET() {
   const auth = await guard('user');
@@ -79,6 +80,10 @@ export async function POST(req: NextRequest) {
 
   // Update can_edit on the profile the trigger just created
   await admin.from('profiles').update({ can_edit: canEdit ?? true }).eq('id', data.user.id);
+
+  await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,
+    'User Invited', 'user_mgmt', fullName || username,
+    { email: username, role: role || 'user' });
 
   return NextResponse.json({
     id: data.user.id,

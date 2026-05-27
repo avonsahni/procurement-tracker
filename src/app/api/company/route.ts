@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { addOrgAuditEntry } from '@/lib/db';
 import { CompanyUpdateSchema, parseBody } from '@/lib/validation';
 
 export async function GET() {
@@ -60,6 +61,9 @@ export async function PUT(req: NextRequest) {
       primary_color: primaryColor ?? null,
     });
   }
+
+  await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,
+    'Branding Updated', 'settings', name);
 
   return NextResponse.json({ ok: true });
 }

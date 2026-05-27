@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { assembleProject, assembleProjectSummary } from '@/lib/db';
+import { assembleProject, assembleProjectSummary, addOrgAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 import { ProjectCreateSchema, parseBody } from '@/lib/validation';
 
 export async function GET() {
@@ -37,6 +38,11 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !row) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
+
+  const adminClient = createAdminSupabase();
+  await addOrgAuditEntry(adminClient, auth.orgId, auth.id, auth.fullName,
+    'Project Created', 'project', name,
+    { client, budget });
 
   return NextResponse.json(await assembleProjectSummary(supabase, row), { status: 201 });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { addOrgAuditEntry } from '@/lib/db';
 import { z } from 'zod';
 
 const uuidSchema = z.string().uuid();
@@ -11,7 +12,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (auth instanceof NextResponse) return auth;
   const { id: rawId } = await params;
 
-  // Validate UUID param
   const parsed = uuidSchema.safeParse(rawId);
   if (!parsed.success) return NextResponse.json({ error: 'Invalid user id' }, { status: 400 });
   const id = parsed.data;
@@ -25,7 +25,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json();
   const admin = createAdminSupabase();
 
-  // Verify target is in the same org when updating someone else
   if (!isSelf) {
     const { data: membership } = await admin
       .from('organization_members')
@@ -35,6 +34,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       .single();
     if (!membership) return NextResponse.json({ error: 'User not in your organisation' }, { status: 403 });
   }
+
+  // Grab target user info for audit label before making changes
+  const { data: targetProfile } = await admin.from('profiles').select('full_name').eq('id', id).maybeSingle();
+  const targetName = targetProfile?.full_name || id;
 
   const updates: Record<string, any> = {};
   if (body.fullName !== undefined) updates.full_name = body.fullName;
@@ -54,6 +57,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (pwErr) return NextResponse.json({ error: pwErr.message }, { status: 400 });
   }
 
+  // Audit (only log admin changes to other users, not self-edits)
+  if (isOrgAdmin && !isSelf) {
+    const changes: string[] = [];
+    if (body.role !== undefined) changes.push(`role → ${body.role}`);
+    if (body.canEdit !== undefined) changes.push(`can_edit → ${body.canEdit}`);
+    if (body.fullName !== undefined) changes.push(`name → ${body.fullName}`);
+    await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,
+      'User Updated', 'user_mgmt', targetName,
+      { changes: changes.join(', ') });
+  }
+
   return NextResponse.json({ ok: true });
 }
 
@@ -62,7 +76,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (auth instanceof NextResponse) return auth;
   const { id: rawId } = await params;
 
-  // Validate UUID param
   const parsed = uuidSchema.safeParse(rawId);
   if (!parsed.success) return NextResponse.json({ error: 'Invalid user id' }, { status: 400 });
   const id = parsed.data;
@@ -73,7 +86,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const admin = createAdminSupabase();
 
-  // Verify target is in the same org
   const { data: membership } = await admin
     .from('organization_members')
     .select('org_id, role')
@@ -82,7 +94,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     .single();
   if (!membership) return NextResponse.json({ error: 'User not in your organisation' }, { status: 403 });
 
-  // Guard: cannot remove the last owner of the org
   if (membership.role === 'owner') {
     const { data: owners } = await admin
       .from('organization_members')
@@ -97,8 +108,17 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     }
   }
 
+  // Grab name before deleting
+  const { data: targetProfile } = await admin.from('profiles').select('full_name').eq('id', id).maybeSingle();
+  const { data: targetAuthUser } = await admin.auth.admin.getUserById(id);
+  const targetName = targetProfile?.full_name || targetAuthUser?.user?.email || id;
+
   const { error } = await admin.auth.admin.deleteUser(id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,
+    'User Removed', 'user_mgmt', targetName,
+    { role: membership.role });
 
   return NextResponse.json({ ok: true });
 }

@@ -2,6 +2,36 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Helpers that turn raw Postgres rows into the camelCase shape the client expects.
 
+/**
+ * Writes one entry to org_audit_log (org-level admin events).
+ * Uses the admin/service-role client so it always succeeds regardless of RLS.
+ * Errors are swallowed — audit failures must never block the primary operation.
+ */
+export async function addOrgAuditEntry(
+  admin: SupabaseClient,
+  orgId: string,
+  userId: string,
+  userName: string,
+  action: string,
+  category: string,
+  entityName?: string,
+  details?: Record<string, any>
+): Promise<void> {
+  try {
+    await admin.from('org_audit_log').insert({
+      org_id: orgId,
+      user_id: userId || null,
+      user_name: userName,
+      action,
+      category,
+      entity_name: entityName ?? null,
+      details: details ?? null,
+    });
+  } catch (e) {
+    console.error('[addOrgAuditEntry] failed:', e);
+  }
+}
+
 export async function addAuditEntry(
   supabase: SupabaseClient,
   pkgId: string,

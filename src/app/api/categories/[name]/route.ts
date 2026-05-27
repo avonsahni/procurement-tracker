@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { guard } from '@/lib/auth';
+import { addOrgAuditEntry } from '@/lib/db';
 import { CategoryUpdateSchema, parseBody } from '@/lib/validation';
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ name: string }> }) {
@@ -15,11 +16,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ name
 
   const admin = createAdminSupabase();
 
-  // Rename category across all packages in this org
   await admin.from('categories').update({ name: newName })
     .eq('org_id', auth.orgId).eq('name', oldName);
 
-  // Update package.category labels in all org projects
   const { data: projects } = await admin
     .from('projects')
     .select('id')
@@ -32,6 +31,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ name
       .eq('category', oldName);
   }
 
+  await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,
+    'Category Renamed', 'settings', `${oldName} → ${newName}`);
+
   return NextResponse.json({ ok: true });
 }
 
@@ -39,11 +41,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const auth = await guard('editor');
   if (auth instanceof NextResponse) return auth;
   const { name } = await params;
+  const catName = decodeURIComponent(name);
 
   const admin = createAdminSupabase();
   await admin.from('categories').delete()
     .eq('org_id', auth.orgId)
-    .eq('name', decodeURIComponent(name));
+    .eq('name', catName);
+
+  await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,
+    'Category Deleted', 'settings', catName);
 
   return NextResponse.json({ ok: true });
 }
