@@ -91,6 +91,9 @@ function OverviewSection({ users, orgName }: { users: UserAccount[]; orgName: st
         <StatCard label="View Only"     value={viewers}      color="amber"    sub="read access" />
       </div>
 
+      {/* Storage usage */}
+      <StorageUsageCard />
+
       <div className="bg-white border border-slate-200 rounded-xl p-6">
         <h3 className="text-sm font-semibold text-slate-900 mb-4">User Breakdown</h3>
         <div className="space-y-2">
@@ -284,6 +287,73 @@ function DomainRestrictionCard() {
           <p className="text-xs text-slate-400">Enter just the domain, e.g. <code>acme.com</code> — not the @ sign.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+function StorageUsageCard() {
+  const [data, setData] = useState<{
+    usedBytes: number; limitBytes: number; remainingBytes: number;
+    pct: number; usedLabel: string; limitLabel: string; remainingLabel: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/storage/usage', {
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'fetch' },
+    })
+      .then(r => r.json())
+      .then(setData)
+      .catch(() => {});
+  }, []);
+
+  if (!data) return null;
+
+  const nearLimit = data.pct >= 80;
+  const atLimit   = data.pct >= 100;
+
+  return (
+    <div className={`rounded-xl border px-5 py-4 ${atLimit ? 'bg-red-50 border-red-200' : nearLimit ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Database className={`w-5 h-5 flex-shrink-0 ${atLimit ? 'text-red-500' : nearLimit ? 'text-amber-500' : 'text-slate-400'}`} />
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-slate-800">
+                {data.usedLabel} / {data.limitLabel} storage used
+              </p>
+              {atLimit && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide bg-red-100 text-red-700 border-red-200">
+                  Full
+                </span>
+              )}
+            </div>
+            <p className={`text-xs mt-0.5 ${atLimit ? 'text-red-600 font-medium' : nearLimit ? 'text-amber-600' : 'text-slate-500'}`}>
+              {atLimit
+                ? 'Storage limit reached — no further uploads allowed'
+                : `${data.remainingLabel} remaining (${data.pct}% used)`}
+            </p>
+          </div>
+        </div>
+        {(atLimit || nearLimit) && (
+          <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
+            <TrendingUp className="w-3.5 h-3.5" /> Contact support to expand
+          </span>
+        )}
+      </div>
+
+      <div className="mt-3">
+        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${atLimit ? 'bg-red-500' : nearLimit ? 'bg-amber-500' : 'bg-blue-500'}`}
+            style={{ width: `${data.pct}%` }}
+          />
+        </div>
+        <div className="flex justify-between mt-1">
+          <span className="text-[10px] text-slate-400">0</span>
+          <span className="text-[10px] text-slate-400">{data.limitLabel} max</span>
+        </div>
+      </div>
     </div>
   );
 }
