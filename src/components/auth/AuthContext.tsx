@@ -10,7 +10,7 @@ interface AuthContextType {
   editMode: boolean;
   setEditMode: (mode: boolean) => void;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, fullName: string, orgName?: string) => Promise<{ needsConfirmation: boolean }>;
+  signup: (email: string, password: string, fullName: string, orgName?: string, extra?: Record<string, string>) => Promise<{ needsConfirmation: boolean }>;
   logout: () => Promise<void>;
   /** True when the org is paused, canceled, or the trial has expired */
   isOrgBlocked: boolean;
@@ -47,11 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData);
   };
 
-  const signup = async (email: string, password: string, fullName: string, orgName?: string) => {
+  const signup = async (email: string, password: string, fullName: string, orgName?: string, extra?: Record<string, string>) => {
     const res = await apiFetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, fullName, orgName }),
+      body: JSON.stringify({ email, password, fullName, orgName, ...extra }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || 'Sign up failed');

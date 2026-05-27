@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   CheckCircle2, ArrowRight, BarChart3, FolderOpen, Users,
   Shield, FileText, Layers, ChevronRight, X, Star,
@@ -332,10 +333,11 @@ const PRICING = [
 // ─── Main landing page ────────────────────────────────────────────────────────
 
 export default function LandingPage() {
-  const [authMode, setAuthMode] = useState<"login" | "signup" | null>(null);
+  const router = useRouter();
+  const [authMode, setAuthMode] = useState<"login" | null>(null);
   const showAuth = authMode !== null;
   const openLogin  = () => setAuthMode("login");
-  const openSignup = () => setAuthMode("signup");
+  const openSignup = () => router.push("/register");
   const closeAuth  = () => setAuthMode(null);
 
   return (
@@ -616,7 +618,7 @@ export default function LandingPage() {
       </footer>
 
       {/* ── Auth modal ───────────────────────────────────────────────────────── */}
-      {showAuth && <AuthModal onClose={closeAuth} initialMode={authMode ?? "login"} />}
+      {showAuth && <AuthModal onClose={closeAuth} initialMode="login" />}
     </div>
   );
 }

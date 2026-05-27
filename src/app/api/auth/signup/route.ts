@@ -13,7 +13,12 @@ export async function POST(req: NextRequest) {
 
   const parsed = await parseBody(req, SignupSchema);
   if (!parsed.ok) return parsed.response;
-  const { email, password, fullName, orgName } = parsed.data;
+
+  const {
+    email, password, fullName, jobTitle,
+    orgName, orgType, website,
+    addressLine1, city, stateRegion, country, phone,
+  } = parsed.data;
 
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.auth.signUp({
@@ -26,18 +31,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  // Name the org after what they entered (trigger creates it as 'My Organization' by default)
-  if (data.user && orgName && orgName !== 'My Organization') {
+  if (data.user) {
     const admin = createAdminSupabase();
+
+    // The DB trigger creates the org synchronously — fetch its id
     const { data: membership } = await admin
       .from('organization_members')
       .select('org_id')
       .eq('user_id', data.user.id)
       .single();
+
     if (membership?.org_id) {
-      await admin.from('organizations').update({ name: orgName }).eq('id', membership.org_id);
-      // Also update the company display name to match
-      await admin.from('company_info').update({ name: orgName }).eq('org_id', membership.org_id);
+      // Update organisation with all registration details
+      await admin.from('organizations').update({
+        name:          orgName || 'My Organisation',
+        org_type:      orgType      || null,
+        website:       website      || null,
+        address_line1: addressLine1 || null,
+        city:          city         || null,
+        state_region:  stateRegion  || null,
+        country:       country      || null,
+        phone:         phone        || null,
+        contact_name:  fullName,
+        contact_title: jobTitle     || null,
+        contact_email: email,
+      }).eq('id', membership.org_id);
+
+      // Keep company_info display name in sync
+      await admin.from('company_info')
+        .update({ name: orgName || 'My Organisation' })
+        .eq('org_id', membership.org_id);
+    }
+
+    // Store job title on profile
+    if (jobTitle) {
+      await admin.from('profiles')
+        .update({ job_title: jobTitle })
+        .eq('id', data.user.id);
     }
   }
 
@@ -49,10 +79,10 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({
-    id: data.user!.id,
+    id:       data.user!.id,
     username: data.user!.email ?? '',
     fullName,
-    role: 'admin',
-    canEdit: true,
+    role:     'admin',
+    canEdit:  true,
   });
 }

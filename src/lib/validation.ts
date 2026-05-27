@@ -26,10 +26,18 @@ export const LoginSchema = z.object({
 });
 
 export const SignupSchema = z.object({
-  email: z.string().trim().email('valid email required'),
-  password: z.string().min(8, 'password must be at least 8 characters'),
-  fullName: trimmedString('fullName', 1, 200),
-  orgName: z.string().trim().max(200).optional().default('My Organisation'),
+  email:        z.string().trim().email('valid email required'),
+  password:     z.string().min(8, 'password must be at least 8 characters'),
+  fullName:     trimmedString('fullName', 1, 200),
+  jobTitle:     z.string().trim().max(200).optional().default(''),
+  orgName:      z.string().trim().max(200).optional().default('My Organisation'),
+  orgType:      z.string().trim().max(100).optional().default(''),
+  website:      z.string().trim().max(300).optional().default(''),
+  addressLine1: z.string().trim().max(300).optional().default(''),
+  city:         z.string().trim().max(100).optional().default(''),
+  stateRegion:  z.string().trim().max(100).optional().default(''),
+  country:      z.string().trim().max(100).optional().default(''),
+  phone:        z.string().trim().max(50).optional().default(''),
 });
 
 export const ProjectCreateSchema = z.object({
