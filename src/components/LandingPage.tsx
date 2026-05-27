@@ -13,42 +13,117 @@ import { LoginModal } from "@/components/auth/LoginForm";
 // ─── Inline UI mockups ────────────────────────────────────────────────────────
 
 function DashboardMockup() {
-  const projects = [
-    { name: "Metro Rail Phase 2", packages: 14, status: "Active",  budget: "£4.2M", pct: 68 },
-    { name: "Hospital Extension",  packages: 8,  status: "Active",  budget: "£2.8M", pct: 42 },
-    { name: "City Bridge Repairs", packages: 5,  status: "Active",  budget: "£900K", pct: 85 },
+  const milestones = [
+    { name: "Mobilisation",             pct: 7  },
+    { name: "Preliminaries",            pct: 7  },
+    { name: "Procurement",              pct: 7  },
+    { name: "Installation",             pct: 6  },
+    { name: "Testing & Commissioning",  pct: 4  },
+    { name: "Handover",                 pct: 3  },
   ];
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden text-left select-none">
-      {/* Top bar */}
-      <div className="bg-slate-900 px-4 py-3 flex items-center gap-2">
-        <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-        <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-        <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-        <span className="ml-3 text-slate-400 text-[11px]">Project Dashboard</span>
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden text-left select-none text-slate-900">
+      {/* App top bar */}
+      <div className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center gap-3">
+        <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-bold text-slate-900 leading-tight">Procurement Tracker</p>
+          <p className="text-[9px] text-slate-400 leading-tight">Enterprise Source of Truth</p>
+        </div>
+        <div className="hidden sm:flex items-center gap-1.5">
+          {["Analytics", "Edit Mode", "Admin"].map(btn => (
+            <span key={btn} className="text-[9px] bg-slate-100 text-slate-500 px-2 py-1 rounded-md font-medium">{btn}</span>
+          ))}
+        </div>
       </div>
-      {/* Header */}
-      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-800">My Projects</span>
-        <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-2 py-0.5 rounded-full font-medium">3 active</span>
-      </div>
-      {/* Rows */}
-      <div className="divide-y divide-slate-50">
-        {projects.map(p => (
-          <div key={p.name} className="px-5 py-3.5 hover:bg-slate-50 transition">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <p className="text-xs font-semibold text-slate-800">{p.name}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">{p.packages} packages · {p.budget}</p>
+
+      <div className="p-4 space-y-3 bg-slate-50">
+        {/* Portfolio Summary card */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-[9px] font-bold text-blue-600 uppercase tracking-widest mb-1">Portfolio Summary</p>
+          <p className="text-sm font-bold text-slate-900 mb-0.5">Financial Allocation</p>
+          <p className="text-[10px] text-slate-400 mb-3">Real-time mapping of capital allocation across all current projects.</p>
+
+          <div className="flex gap-2 mb-3">
+            {[
+              { label: "Available Capital", value: "₹5,53,79,91,719", highlight: true },
+              { label: "Awarded Rate",      value: "27.2%",            highlight: false },
+              { label: "Billed to Date",    value: "₹12,00,00,000",    highlight: true },
+              { label: "Billing Rate",      value: "5.8%",             highlight: false },
+              { label: "Milestone Progress",value: "5.3%",             highlight: false },
+            ].map(s => (
+              <div key={s.label} className="flex-1 min-w-0">
+                <p className="text-[8px] text-slate-400 leading-tight truncate">{s.label}</p>
+                <p className={`text-[10px] font-bold leading-tight truncate ${s.highlight ? "text-blue-600" : "text-slate-700"}`}>{s.value}</p>
               </div>
-              <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded-full font-medium">{p.status}</span>
-            </div>
-            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${p.pct}%` }} />
-            </div>
-            <p className="text-[9px] text-slate-400 mt-1">{p.pct}% packages awarded</p>
+            ))}
           </div>
-        ))}
+
+          {/* Mini donut + legend */}
+          <div className="flex items-center gap-3">
+            <div className="relative w-10 h-10 flex-shrink-0">
+              <svg viewBox="0 0 36 36" className="w-10 h-10 -rotate-90">
+                <circle cx="18" cy="18" r="14" fill="none" stroke="#e2e8f0" strokeWidth="4"/>
+                <circle cx="18" cy="18" r="14" fill="none" stroke="#3b82f6" strokeWidth="4"
+                  strokeDasharray="6 82" strokeLinecap="round"/>
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-slate-600">6%</span>
+            </div>
+            <div className="space-y-0.5 flex-1 min-w-0">
+              {[
+                { dot: "bg-blue-600",    label: "Awarded",   val: "₹2,07,20,08,281" },
+                { dot: "bg-violet-500",  label: "Billed",    val: "₹12,00,00,000"   },
+                { dot: "bg-slate-300",   label: "Remaining", val: "₹5,53,79,91,719" },
+              ].map(r => (
+                <div key={r.label} className="flex items-center gap-1.5">
+                  <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.dot}`}/>
+                  <span className="text-[8px] text-slate-500 flex-shrink-0">{r.label}</span>
+                  <span className="text-[8px] font-semibold text-slate-700 truncate">{r.val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Execution Tracking card */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="flex items-center gap-1.5 mb-1">
+            <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">Execution Tracking</p>
+          </div>
+          <p className="text-sm font-bold text-slate-900 mb-2">Portfolio Milestone Progress</p>
+
+          <div className="flex gap-4 mb-3">
+            {[
+              { label: "In Execution", value: "76", sub: "packages",       color: "text-emerald-600" },
+              { label: "Milestone Avg",value: "5.3%",sub: "all milestones", color: "text-blue-600"   },
+              { label: "Financial",    value: "5.8%",sub: "billed/awarded", color: "text-violet-600" },
+            ].map(s => (
+              <div key={s.label} className="text-right flex-1">
+                <p className="text-[8px] text-slate-400">{s.label}</p>
+                <p className={`text-base font-extrabold leading-tight ${s.color}`}>{s.value}</p>
+                <p className="text-[8px] text-slate-400">{s.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Milestone pipeline */}
+          <p className="text-[9px] font-semibold text-slate-600 mb-1.5">Milestone Pipeline</p>
+          <div className="space-y-1.5">
+            {milestones.map((m, i) => (
+              <div key={m.name} className="flex items-center gap-2">
+                <span className="text-[8px] text-slate-400 w-3 flex-shrink-0">{i + 1}</span>
+                <span className="text-[9px] text-slate-600 w-28 flex-shrink-0 truncate">{m.name}</span>
+                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${m.pct * 10}%` }} />
+                </div>
+                <span className="text-[9px] font-semibold text-slate-600 w-5 text-right">{m.pct}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
