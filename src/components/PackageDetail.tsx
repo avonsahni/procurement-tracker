@@ -28,6 +28,7 @@ import RemarksSection from "@/components/RemarksSection";
 import DocumentsSection from "@/components/DocumentsSection";
 import BillingSection from "@/components/BillingSection";
 import MilestoneTracker from "@/components/MilestoneTracker";
+import ProgressRemarksPanel from "@/components/ProgressRemarksPanel";
 import {
   ArrowLeft, Package, ChevronRight, Lock, Unlock, CheckCircle2, Clock, AlertTriangle, Activity,
 } from "lucide-react";
@@ -404,6 +405,11 @@ export default function PackageDetail({
                   await reloadPackage(); // reset to last known-good state on error
                 }
               }}
+            />
+            <ProgressRemarksPanel
+              remarks={pkg.remarks || []}
+              readonly={!editMode}
+              onAddRemark={async (t) => { await addRemark(packageId, t, user?.fullName); await reloadPackage(); }}
             />
           </div>
         )}
