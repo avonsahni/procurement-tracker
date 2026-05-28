@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2, ArrowRight, BarChart3, FolderOpen, Users,
-  Shield, FileText, Layers, ChevronRight, Star,
+  Shield, FileText, ChevronRight, Star,
   TrendingUp, Clock, Award, Package, Building2, Zap,
   Activity,
 } from "lucide-react";
@@ -452,13 +452,6 @@ function PurchasingMockup() {
 // ─── Feature cards ────────────────────────────────────────────────────────────
 
 const FEATURES = [
-  {
-    icon: Layers,
-    color: "text-blue-600 bg-blue-50",
-    title: "Project Dashboard",
-    desc: "All your projects in one view. See package counts, budget status, and award progress at a glance — no digging required.",
-    mockup: <DashboardMockup />,
-  },
   {
     icon: Package,
     color: "text-violet-600 bg-violet-50",
