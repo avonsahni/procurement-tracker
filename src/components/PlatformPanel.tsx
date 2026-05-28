@@ -1272,6 +1272,7 @@ function OrgDetailView({
   }, [orgId]);
 
   // ── Settings state ──
+  const [editingPlan, setEditingPlan] = useState(false);
   const [plan, setPlan]               = useState<Plan>(org?.plan ?? 'trial');
   const [status, setStatus]           = useState<Status>(org?.subscription_status ?? 'trial');
   const [pauseReason, setPauseReason] = useState(org?.paused_reason || '');
@@ -1290,7 +1291,18 @@ function OrgDetailView({
     setPauseReason(detail.paused_reason || '');
     setNotes(detail.platform_notes || '');
     setTrialEndsAt(detail.trial_ends_at ? detail.trial_ends_at.slice(0, 10) : '');
+    setEditingPlan(false);
   }, [detail]);
+
+  const handleCancelPlanEdit = () => {
+    if (!detail) return;
+    setPlan(detail.plan);
+    setStatus(detail.subscription_status);
+    setPauseReason(detail.paused_reason || '');
+    setTrialEndsAt(detail.trial_ends_at ? detail.trial_ends_at.slice(0, 10) : '');
+    setEditingPlan(false);
+    setSettingsMsg('');
+  };
 
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true); setUsersError('');
@@ -1372,6 +1384,7 @@ function OrgDetailView({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
       setSettingsMsg('Saved!');
+      setEditingPlan(false);
       onOrgUpdated();
     } catch (e: any) {
       setSettingsMsg(e.message || 'Save failed');
@@ -1659,91 +1672,143 @@ function OrgDetailView({
 
           {/* ── Plan & Access ── */}
           <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-5">
-            <h3 className="text-sm font-semibold text-slate-800">Plan &amp; Access</h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Plan</label>
-                <select
-                  value={plan}
-                  onChange={e => setPlan(e.target.value as Plan)}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-800">Plan &amp; Access</h3>
+              {!editingPlan && (
+                <button
+                  onClick={() => setEditingPlan(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg transition"
                 >
-                  <option value="trial">Trial</option>
-                  <option value="starter">Starter</option>
-                  <option value="pro">Pro</option>
-                  <option value="enterprise">Enterprise</option>
-                </select>
-              </div>
+                  <Edit2 className="w-3.5 h-3.5" /> Edit
+                </button>
+              )}
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Status</label>
-                <select
-                  value={status}
-                  onChange={e => setStatus(e.target.value as Status)}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                >
-                  <option value="trial">Trial</option>
-                  <option value="active">Active</option>
-                  <option value="paused">Paused</option>
-                  <option value="canceled">Canceled</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
-                  Plan Valid Until
-                </label>
-                <input
-                  type="date"
-                  value={trialEndsAt}
-                  onChange={e => setTrialEndsAt(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                />
-                <p className="text-xs text-slate-400 mt-1">Leave blank for no expiry</p>
-              </div>
-
-              {status === 'paused' && (
+            {!editingPlan ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Pause Reason</label>
-                  <input
-                    value={pauseReason}
-                    onChange={e => setPauseReason(e.target.value)}
-                    placeholder="e.g. Payment overdue"
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Plan</p>
+                  <PlanBadge plan={plan} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Status</p>
+                  <StatusBadge status={status} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Plan Valid Until</p>
+                  <p className={`text-sm font-medium ${trialEndsAt ? 'text-slate-800' : 'text-slate-300 italic'}`}>
+                    {trialEndsAt ? fmtDate(new Date(trialEndsAt).toISOString()) : '—'}
+                  </p>
+                </div>
+                {status === 'paused' && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Pause Reason</p>
+                    <p className={`text-sm font-medium ${pauseReason ? 'text-slate-800' : 'text-slate-300 italic'}`}>
+                      {pauseReason || '—'}
+                    </p>
+                  </div>
+                )}
+                <div className="sm:col-span-2">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Internal Notes</p>
+                  <p className={`text-sm ${notes ? 'text-slate-700 whitespace-pre-wrap' : 'text-slate-300 italic'}`}>
+                    {notes || '—'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Plan</label>
+                    <select
+                      value={plan}
+                      onChange={e => setPlan(e.target.value as Plan)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    >
+                      <option value="trial">Trial</option>
+                      <option value="starter">Starter</option>
+                      <option value="pro">Pro</option>
+                      <option value="enterprise">Enterprise</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Status</label>
+                    <select
+                      value={status}
+                      onChange={e => setStatus(e.target.value as Status)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    >
+                      <option value="trial">Trial</option>
+                      <option value="active">Active</option>
+                      <option value="paused">Paused</option>
+                      <option value="canceled">Canceled</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                      Plan Valid Until
+                    </label>
+                    <input
+                      type="date"
+                      value={trialEndsAt}
+                      onChange={e => setTrialEndsAt(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Leave blank for no expiry</p>
+                  </div>
+
+                  {status === 'paused' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Pause Reason</label>
+                      <input
+                        value={pauseReason}
+                        onChange={e => setPauseReason(e.target.value)}
+                        placeholder="e.g. Payment overdue"
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                    Internal Notes <span className="normal-case font-normal text-slate-400">(only visible to platform admins)</span>
+                  </label>
+                  <textarea
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    rows={3}
+                    placeholder="Contract details, support notes, onboarding status…"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 resize-none"
                   />
                 </div>
-              )}
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
-                Internal Notes <span className="normal-case font-normal text-slate-400">(only visible to platform admins)</span>
-              </label>
-              <textarea
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                rows={3}
-                placeholder="Contract details, support notes, onboarding status…"
-                className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 resize-none"
-              />
-            </div>
-
-            <div className="flex items-center gap-3 pt-1">
-              <button
-                onClick={handleSaveSettings}
-                disabled={settingsSaving}
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50"
-              >
-                {settingsSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                {settingsSaving ? 'Saving…' : 'Save Changes'}
-              </button>
-              {settingsMsg && (
-                <span className={`text-sm font-medium ${settingsMsg === 'Saved!' ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {settingsMsg}
-                </span>
-              )}
-            </div>
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    onClick={handleSaveSettings}
+                    disabled={settingsSaving}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50"
+                  >
+                    {settingsSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    {settingsSaving ? 'Saving…' : 'Save Changes'}
+                  </button>
+                  <button
+                    onClick={handleCancelPlanEdit}
+                    disabled={settingsSaving}
+                    className="px-4 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-50 transition disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  {settingsMsg && (
+                    <span className={`text-sm font-medium ${settingsMsg === 'Saved!' ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {settingsMsg}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {/* ── Quick Actions ── */}
