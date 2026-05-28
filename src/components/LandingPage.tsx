@@ -48,9 +48,9 @@ function DashboardMockup() {
 
           <div className="flex gap-2 mb-3">
             {[
-              { label: "Available Capital", value: "₹5.5B",  highlight: true },
-              { label: "Awarded Rate",      value: "27.2%",  highlight: false },
-              { label: "Billed to Date",    value: "₹120M",  highlight: true },
+              { label: "Available Capital", value: "₹5,537,991,719", highlight: true },
+              { label: "Awarded Rate",      value: "27.2%",          highlight: false },
+              { label: "Billed to Date",    value: "₹120,000,000",   highlight: true },
               { label: "Billing Rate",      value: "5.8%",             highlight: false },
               { label: "Milestone Progress",value: "5.3%",             highlight: false },
             ].map(s => (
@@ -73,9 +73,9 @@ function DashboardMockup() {
             </div>
             <div className="space-y-0.5 flex-1 min-w-0">
               {[
-                { dot: "bg-blue-600",    label: "Awarded",   val: "₹2.1B"  },
-                { dot: "bg-violet-500",  label: "Billed",    val: "₹120M"  },
-                { dot: "bg-slate-300",   label: "Remaining", val: "₹5.5B"  },
+                { dot: "bg-blue-600",    label: "Awarded",   val: "₹2,072,008,281"  },
+                { dot: "bg-violet-500",  label: "Billed",    val: "₹120,000,000"    },
+                { dot: "bg-slate-300",   label: "Remaining", val: "₹5,537,991,719"  },
               ].map(r => (
                 <div key={r.label} className="flex items-center gap-1.5">
                   <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${r.dot}`}/>
@@ -382,7 +382,7 @@ function PurchasingMockup() {
           { label: "Total Packages", value: `${total}`,     sub: "",                  color: "text-slate-900"  },
           { label: "Awarded",        value: `${awarded}`,   sub: `${awardedPct}% of total`, color: "text-emerald-600" },
           { label: "In Progress",    value: `${total - awarded}`, sub: "",            color: "text-blue-600"   },
-          { label: "Budget Balance", value: "₹354M",          sub: "of ₹450M",         color: "text-slate-900"  },
+          { label: "Budget Balance", value: "₹354,000,000",     sub: "of ₹450,000,000",  color: "text-slate-900"  },
         ].map(s => (
           <div key={s.label} className="px-3 py-2.5 text-center">
             <p className="text-[8px] text-slate-400 leading-tight">{s.label}</p>
@@ -420,11 +420,11 @@ function PurchasingMockup() {
           <div className="flex justify-between mt-1.5">
             <div className="flex items-center gap-1">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-              <span className="text-[8px] text-slate-500">Awarded ₹96M</span>
+              <span className="text-[8px] text-slate-500">Awarded ₹96,248,566</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-1.5 h-1.5 rounded-full bg-slate-200 flex-shrink-0" />
-              <span className="text-[8px] text-slate-500">Balance ₹354M</span>
+              <span className="text-[8px] text-slate-500">Balance ₹354,000,000</span>
             </div>
           </div>
         </div>
