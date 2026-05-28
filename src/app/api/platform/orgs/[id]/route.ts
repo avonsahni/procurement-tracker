@@ -2,6 +2,46 @@ import { NextRequest, NextResponse } from 'next/server';
 import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 
+// GET /api/platform/orgs/[id]  — full org detail
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await guard('platform');
+  if (auth instanceof NextResponse) return auth;
+
+  const { id: orgId } = await params;
+  const admin = createAdminSupabase();
+
+  const [orgRes, membersRes, projectsRes, authRes] = await Promise.all([
+    admin.from('organizations')
+      .select('id, name, plan, subscription_status, trial_ends_at, paused_at, paused_reason, platform_notes, created_at')
+      .eq('id', orgId)
+      .maybeSingle(),
+    admin.from('organization_members').select('org_id, user_id, role').eq('org_id', orgId),
+    admin.from('projects').select('id').eq('org_id', orgId),
+    admin.auth.admin.listUsers({ perPage: 1000 }),
+  ]);
+
+  if (orgRes.error) return NextResponse.json({ error: orgRes.error.message }, { status: 500 });
+  if (!orgRes.data)  return NextResponse.json({ error: 'Organisation not found' }, { status: 404 });
+
+  const emailById: Record<string, string> = {};
+  for (const u of authRes.data?.users || []) emailById[u.id] = u.email ?? '';
+
+  const ownerEmails = (membersRes.data || [])
+    .filter(m => m.role === 'owner')
+    .map(m => emailById[m.user_id])
+    .filter(Boolean);
+
+  return NextResponse.json({
+    ...orgRes.data,
+    memberCount:  (membersRes.data || []).length,
+    projectCount: (projectsRes.data || []).length,
+    ownerEmails,
+  });
+}
+
 // PUT /api/platform/orgs/[id]  — update plan, status, notes
 export async function PUT(
   req: NextRequest,

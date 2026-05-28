@@ -8,7 +8,7 @@ import {
   AlertTriangle, Pause, Play, Trash2, Edit2, X, Globe,
   Crown, Activity, RefreshCw, CheckCircle2, XCircle, Clock,
   Bug, Terminal, Smartphone, Tag, Percent, Gift,
-  ToggleLeft, ToggleRight, IndianRupee, Plus,
+  ToggleLeft, ToggleRight, IndianRupee, Plus, Mail, ExternalLink,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -339,10 +339,12 @@ function OrgsSection({
   orgs,
   loading,
   onRefresh,
+  onViewDetails,
 }: {
   orgs: OrgRow[];
   loading: boolean;
   onRefresh: () => void;
+  onViewDetails: (id: string) => void;
 }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
@@ -469,7 +471,12 @@ function OrgsSection({
                           <Building2 className="w-4 h-4 text-slate-500" />
                         </div>
                         <div>
-                          <p className="font-medium text-slate-900">{org.name}</p>
+                          <button
+                            onClick={() => onViewDetails(org.id)}
+                            className="font-medium text-slate-900 hover:text-blue-600 transition text-left"
+                          >
+                            {org.name}
+                          </button>
                           <p className="text-xs text-slate-400">Registered {fmtDate(org.created_at)}</p>
                           {org.platform_notes && (
                             <p className="text-xs text-amber-600 mt-0.5 truncate max-w-[180px]">📝 {org.platform_notes}</p>
@@ -523,6 +530,14 @@ function OrgsSection({
                     {/* Actions */}
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {/* View details */}
+                        <button
+                          onClick={() => onViewDetails(org.id)}
+                          title="View details & manage users"
+                          className="flex items-center gap-1 px-2.5 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition text-xs font-medium"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> View
+                        </button>
                         {/* Quick pause/resume */}
                         {(org.subscription_status === 'active' || org.subscription_status === 'paused') && (
                           <button
@@ -545,7 +560,7 @@ function OrgsSection({
                         <button
                           onClick={() => setExpandedId(expandedId === org.id ? null : org.id)}
                           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Edit"
+                          title="Quick edit"
                         >
                           {expandedId === org.id
                             ? <ChevronUp className="w-4 h-4" />
@@ -1173,6 +1188,439 @@ function PlansSection() {
   );
 }
 
+// ─── Org Detail View ──────────────────────────────────────────────────────────
+
+type OrgMember = {
+  id: string;
+  email: string;
+  fullName: string;
+  role: 'owner' | 'admin' | 'viewer';
+  joinedAt: string;
+};
+
+const ROLE_STYLES: Record<string, string> = {
+  owner:  'bg-orange-50 text-orange-700 ring-orange-200',
+  admin:  'bg-violet-50 text-violet-700 ring-violet-200',
+  viewer: 'bg-slate-100 text-slate-600 ring-slate-200',
+};
+
+function OrgDetailView({
+  orgId,
+  orgs,
+  onBack,
+  onOrgUpdated,
+}: {
+  orgId: string;
+  orgs: OrgRow[];
+  onBack: () => void;
+  onOrgUpdated: () => void;
+}) {
+  type DetailTab = 'users' | 'settings';
+  const [detailTab, setDetailTab] = useState<DetailTab>('users');
+
+  // Org data (from already-loaded list, enriched by individual GET if needed)
+  const org = orgs.find(o => o.id === orgId);
+
+  // ── Users state ──
+  const [members, setMembers]     = useState<OrgMember[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [usersError, setUsersError]     = useState('');
+
+  // Role change
+  const [roleLoading, setRoleLoading] = useState<string | null>(null);
+
+  // Remove user
+  const [removeLoading, setRemoveLoading] = useState<string | null>(null);
+
+  // Add user form
+  const [addEmail, setAddEmail]     = useState('');
+  const [addRole, setAddRole]       = useState<'owner' | 'admin' | 'viewer'>('viewer');
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError]     = useState('');
+  const [addSuccess, setAddSuccess] = useState('');
+
+  // ── Settings state ──
+  const [plan, setPlan]             = useState<Plan>(org?.plan ?? 'trial');
+  const [status, setStatus]         = useState<Status>(org?.subscription_status ?? 'trial');
+  const [pauseReason, setPauseReason] = useState(org?.paused_reason || '');
+  const [notes, setNotes]           = useState(org?.platform_notes || '');
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsMsg, setSettingsMsg]       = useState('');
+
+  const loadUsers = useCallback(async () => {
+    setLoadingUsers(true); setUsersError('');
+    try {
+      const res = await apiFetch(`/api/platform/orgs/${orgId}/users`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load users');
+      setMembers(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setUsersError(e.message || 'Failed to load users');
+    } finally { setLoadingUsers(false); }
+  }, [orgId]);
+
+  useEffect(() => { loadUsers(); }, [loadUsers]);
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    setRoleLoading(userId);
+    try {
+      const res = await apiFetch(`/api/platform/orgs/${orgId}/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update role');
+      setMembers(prev => prev.map(m => m.id === userId ? { ...m, role: newRole as OrgMember['role'] } : m));
+    } catch (e: any) {
+      alert(e.message);
+    } finally { setRoleLoading(null); }
+  };
+
+  const handleRemove = async (userId: string, email: string) => {
+    if (!confirm(`Remove ${email} from this organisation?`)) return;
+    setRemoveLoading(userId);
+    try {
+      const res = await apiFetch(`/api/platform/orgs/${orgId}/users/${userId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to remove user');
+      setMembers(prev => prev.filter(m => m.id !== userId));
+    } catch (e: any) {
+      alert(e.message);
+    } finally { setRemoveLoading(null); }
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddError(''); setAddSuccess(''); setAddLoading(true);
+    try {
+      const res = await apiFetch(`/api/platform/orgs/${orgId}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: addEmail.trim(), role: addRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add user');
+      setMembers(prev => [...prev, data]);
+      setAddSuccess(`${data.email} added as ${data.role}.`);
+      setAddEmail('');
+      setAddRole('viewer');
+    } catch (e: any) {
+      setAddError(e.message || 'Failed to add user');
+    } finally { setAddLoading(false); }
+  };
+
+  const handleSaveSettings = async () => {
+    setSettingsSaving(true); setSettingsMsg('');
+    try {
+      const res = await apiFetch(`/api/platform/orgs/${orgId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan,
+          subscription_status: status,
+          paused_reason: status === 'paused' ? pauseReason : undefined,
+          platform_notes: notes,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      setSettingsMsg('Saved!');
+      onOrgUpdated();
+    } catch (e: any) {
+      setSettingsMsg(e.message || 'Save failed');
+    } finally {
+      setSettingsSaving(false);
+      setTimeout(() => setSettingsMsg(''), 3000);
+    }
+  };
+
+  if (!org) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-slate-400">Organisation not found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Breadcrumb header */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition"
+        >
+          <ArrowLeft className="w-4 h-4" /> Organisations
+        </button>
+        <span className="text-slate-300">/</span>
+        <h2 className="text-lg font-semibold text-slate-900">{org.name}</h2>
+        <PlanBadge plan={org.plan} />
+        <StatusBadge status={org.subscription_status} />
+      </div>
+
+      {/* Quick info row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <PlatformStatCard label="Members"  value={org.memberCount}  icon={Users}      color="violet" />
+        <PlatformStatCard label="Projects" value={org.projectCount} icon={FolderOpen} color="emerald" />
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-medium uppercase tracking-wide opacity-70 mb-1 text-slate-600">Owner(s)</p>
+          {org.ownerEmails.length === 0
+            ? <p className="text-sm text-slate-400">None</p>
+            : org.ownerEmails.map(e => <p key={e} className="text-sm font-semibold text-slate-800 truncate">{e}</p>)
+          }
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-medium uppercase tracking-wide opacity-70 mb-1 text-slate-600">Registered</p>
+          <p className="text-sm font-semibold text-slate-800">{fmtDate(org.created_at)}</p>
+          {org.platform_notes && (
+            <p className="text-xs text-amber-600 mt-1 truncate">📝 {org.platform_notes}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Sub-tab nav */}
+      <div className="flex gap-1 border-b border-slate-200">
+        {([
+          { id: 'users' as const, label: 'Users', icon: Users },
+          { id: 'settings' as const, label: 'Settings', icon: Edit2 },
+        ]).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setDetailTab(t.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px ${
+              detailTab === t.id
+                ? 'border-orange-500 text-orange-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <t.icon className="w-4 h-4" />
+            {t.label}
+            {t.id === 'users' && (
+              <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full font-semibold">
+                {members.length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Users tab ── */}
+      {detailTab === 'users' && (
+        <div className="space-y-5">
+          {usersError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{usersError}</p>
+          )}
+
+          {/* Members table */}
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-800">Current Members</p>
+              {loadingUsers && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+            </div>
+            {loadingUsers ? (
+              <div className="py-12 flex items-center justify-center">
+                <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+              </div>
+            ) : members.length === 0 ? (
+              <p className="text-center text-slate-400 text-sm py-10">No members yet</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">User</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Role</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Joined</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {members.map(member => (
+                    <tr key={member.id} className="hover:bg-slate-50 transition">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0 text-xs font-bold text-slate-600">
+                            {(member.fullName || member.email)[0]?.toUpperCase()}
+                          </div>
+                          <div>
+                            {member.fullName && <p className="font-medium text-slate-900 text-sm">{member.fullName}</p>}
+                            <p className={`text-slate-500 ${member.fullName ? 'text-xs' : 'text-sm font-medium text-slate-900'}`}>{member.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <select
+                          value={member.role}
+                          disabled={roleLoading === member.id}
+                          onChange={e => handleRoleChange(member.id, e.target.value)}
+                          className={`text-xs font-semibold px-2 py-1 rounded-lg border cursor-pointer outline-none transition ${ROLE_STYLES[member.role]} ${roleLoading === member.id ? 'opacity-50' : ''}`}
+                        >
+                          <option value="owner">Owner</option>
+                          <option value="admin">Admin</option>
+                          <option value="viewer">Viewer</option>
+                        </select>
+                        {roleLoading === member.id && <Loader2 className="w-3 h-3 animate-spin text-slate-400 inline ml-1" />}
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="text-xs text-slate-500">{fmtDate(member.joinedAt)}</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <button
+                          onClick={() => handleRemove(member.id, member.email)}
+                          disabled={removeLoading === member.id}
+                          title="Remove from org"
+                          className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                        >
+                          {removeLoading === member.id
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : <Trash2 className="w-4 h-4" />
+                          }
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Add user form */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5">
+            <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-4">
+              <Plus className="w-4 h-4 text-blue-600" /> Add User to Organisation
+            </h4>
+            {addError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">{addError}</p>
+            )}
+            {addSuccess && (
+              <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" /> {addSuccess}
+              </p>
+            )}
+            <form onSubmit={handleAddUser} className="flex flex-wrap gap-3 items-end">
+              <div className="flex-1 min-w-48">
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Email address</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    required
+                    type="email"
+                    value={addEmail}
+                    onChange={e => { setAddEmail(e.target.value); setAddError(''); setAddSuccess(''); }}
+                    placeholder="user@company.com"
+                    className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Role</label>
+                <select
+                  value={addRole}
+                  onChange={e => setAddRole(e.target.value as OrgMember['role'])}
+                  className="px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                >
+                  <option value="viewer">Viewer</option>
+                  <option value="admin">Admin</option>
+                  <option value="owner">Owner</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                disabled={addLoading}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50"
+              >
+                {addLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                {addLoading ? 'Adding…' : 'Add User'}
+              </button>
+            </form>
+            <p className="text-xs text-slate-400 mt-3">
+              The user must already have an account. To invite a new user, have them register first.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Settings tab ── */}
+      {detailTab === 'settings' && (
+        <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-5 max-w-2xl">
+          <h3 className="text-sm font-semibold text-slate-800">Organisation Settings</h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Plan</label>
+              <select
+                value={plan}
+                onChange={e => setPlan(e.target.value as Plan)}
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+              >
+                <option value="trial">Trial</option>
+                <option value="starter">Starter</option>
+                <option value="pro">Pro</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Status</label>
+              <select
+                value={status}
+                onChange={e => setStatus(e.target.value as Status)}
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+              >
+                <option value="trial">Trial</option>
+                <option value="active">Active</option>
+                <option value="paused">Paused</option>
+                <option value="canceled">Canceled</option>
+              </select>
+            </div>
+
+            {status === 'paused' && (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Pause Reason</label>
+                <input
+                  value={pauseReason}
+                  onChange={e => setPauseReason(e.target.value)}
+                  placeholder="e.g. Payment overdue"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+              Internal Notes <span className="normal-case font-normal text-slate-400">(only visible to platform admins)</span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={3}
+              placeholder="Contract details, support notes, onboarding status…"
+              className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 resize-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              onClick={handleSaveSettings}
+              disabled={settingsSaving}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50"
+            >
+              {settingsSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {settingsSaving ? 'Saving…' : 'Save Changes'}
+            </button>
+            {settingsMsg && (
+              <span className={`text-sm font-medium ${settingsMsg === 'Saved!' ? 'text-emerald-600' : 'text-red-600'}`}>
+                {settingsMsg}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main PlatformPanel ───────────────────────────────────────────────────────
 
 type PlatformTab = 'overview' | 'orgs' | 'plans' | 'errors';
@@ -1188,6 +1636,7 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<PlatformTab>('overview');
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
   const loadOrgs = useCallback(async () => {
     setLoading(true);
@@ -1201,15 +1650,21 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
 
   useEffect(() => { loadOrgs(); }, [loadOrgs]);
 
+  const handleViewOrg = (id: string) => {
+    setSelectedOrgId(id);
+    setTab('orgs');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top bar */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4 sticky top-0 z-10">
         <button
-          onClick={onBack}
+          onClick={selectedOrgId ? () => setSelectedOrgId(null) : onBack}
           className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          <ArrowLeft className="w-4 h-4" />
+          {selectedOrgId ? 'Back to Organisations' : 'Back to Dashboard'}
         </button>
         <div className="h-5 w-px bg-slate-200" />
         <div className="flex items-center gap-2.5">
@@ -1235,7 +1690,7 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
             {NAV.map(n => (
               <button
                 key={n.id}
-                onClick={() => setTab(n.id)}
+                onClick={() => { setTab(n.id); setSelectedOrgId(null); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   tab === n.id
                     ? 'bg-orange-50 text-orange-700 border border-orange-200'
@@ -1269,10 +1724,22 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto p-8">
-          {tab === 'overview' && <OverviewSection orgs={orgs} />}
-          {tab === 'orgs'     && <OrgsSection orgs={orgs} loading={loading} onRefresh={loadOrgs} />}
-          {tab === 'plans'    && <PlansSection />}
-          {tab === 'errors'   && <ErrorLogSection />}
+          {/* Org detail view — overrides tab content when an org is selected */}
+          {selectedOrgId ? (
+            <OrgDetailView
+              orgId={selectedOrgId}
+              orgs={orgs}
+              onBack={() => setSelectedOrgId(null)}
+              onOrgUpdated={loadOrgs}
+            />
+          ) : (
+            <>
+              {tab === 'overview' && <OverviewSection orgs={orgs} />}
+              {tab === 'orgs'     && <OrgsSection orgs={orgs} loading={loading} onRefresh={loadOrgs} onViewDetails={handleViewOrg} />}
+              {tab === 'plans'    && <PlansSection />}
+              {tab === 'errors'   && <ErrorLogSection />}
+            </>
+          )}
         </main>
       </div>
     </div>
