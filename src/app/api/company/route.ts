@@ -17,13 +17,14 @@ export async function GET() {
     .eq('org_id', user.orgId)
     .maybeSingle();
 
-  if (!row) return NextResponse.json({ name: 'Procurement Dashboard', tagline: 'Enterprise Source of Truth' });
+  if (!row) return NextResponse.json({ name: 'Procurement Dashboard', tagline: 'Enterprise Source of Truth', defaultCurrency: 'INR' });
   return NextResponse.json({
     name: row.name,
     tagline: row.tagline || '',
     logoUrl: row.logo_url || undefined,
     contactEmail: row.contact_email || undefined,
     primaryColor: row.primary_color || undefined,
+    defaultCurrency: row.default_currency || 'INR',
   });
 }
 
@@ -33,7 +34,7 @@ export async function PUT(req: NextRequest) {
 
   const parsed = await parseBody(req, CompanyUpdateSchema);
   if (!parsed.ok) return parsed.response;
-  const { name, tagline, logoUrl, contactEmail, primaryColor } = parsed.data;
+  const { name, tagline, logoUrl, contactEmail, primaryColor, defaultCurrency } = parsed.data;
 
   const admin = createAdminSupabase();
 
@@ -50,6 +51,7 @@ export async function PUT(req: NextRequest) {
       logo_url: logoUrl ?? null,
       contact_email: contactEmail ?? null,
       primary_color: primaryColor ?? null,
+      default_currency: defaultCurrency ?? 'INR',
     }).eq('org_id', auth.orgId);
   } else {
     await admin.from('company_info').insert({
@@ -59,6 +61,7 @@ export async function PUT(req: NextRequest) {
       logo_url: logoUrl ?? null,
       contact_email: contactEmail ?? null,
       primary_color: primaryColor ?? null,
+      default_currency: defaultCurrency ?? 'INR',
     });
   }
 

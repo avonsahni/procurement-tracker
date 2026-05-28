@@ -6,6 +6,7 @@ export interface CompanyInfo {
   logoUrl?: string;
   contactEmail?: string;
   primaryColor?: string;
+  defaultCurrency?: string;
 }
 
 export interface UserAccount {

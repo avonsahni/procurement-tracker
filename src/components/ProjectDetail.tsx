@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { fetchProject, addPackage, deletePackage, fetchCategories } from "@/lib/store";
-import { STAGES, CURRENCY_SYMBOLS, formatCurrency, EXECUTION_MILESTONES, ProjectSummary, PackageSummary } from "@/lib/types";
+import { fetchProject, addPackage, deletePackage, fetchCategories, getCompanyInfo } from "@/lib/store";
+import { STAGES, CURRENCY_SYMBOLS, CURRENCY_LABELS, formatCurrency, EXECUTION_MILESTONES, ProjectSummary, PackageSummary } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import {
@@ -63,10 +63,11 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
   const loadData = async () => {
     setLoading(true);
     try {
-      const [proj, cats] = await Promise.all([fetchProject(projectId), fetchCategories()]);
+      const [proj, cats, company] = await Promise.all([fetchProject(projectId), fetchCategories(), getCompanyInfo()]);
       setProject(proj ?? null);
       setCategories(cats);
-      if (cats.length > 0) setNewPkg(p => ({ ...p, category: p.category || cats[0] }));
+      const defaultCurrency = company.defaultCurrency || 'INR';
+      setNewPkg(p => ({ ...p, category: p.category || cats[0] || '', currency: defaultCurrency }));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -879,7 +880,9 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                   <label className="block text-xs font-medium text-slate-600 mb-1.5">Currency</label>
                   <select value={newPkg.currency} onChange={e => setNewPkg({ ...newPkg, currency: e.target.value })}
                     className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30">
-                    {Object.keys(CURRENCY_SYMBOLS).map(c => <option key={c} value={c}>{c}</option>)}
+                    {(Object.entries(CURRENCY_LABELS) as [string, string][]).map(([code, label]) => (
+                      <option key={code} value={code}>{label}</option>
+                    ))}
                   </select>
                 </div>
               </div>

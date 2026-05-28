@@ -17,7 +17,7 @@ export const STAGES = [
 
 const stage = z.enum(STAGES);
 const origin = z.enum(['Domestic', 'Import']);
-const currency = z.enum(['INR', 'USD', 'GBP', 'EUR']);
+const currency = z.enum(['INR', 'USD', 'GBP', 'EUR', 'JPY', 'AED', 'SGD']);
 const role = z.enum(['admin', 'user']);
 
 export const LoginSchema = z.object({
@@ -124,6 +124,7 @@ export const CompanyUpdateSchema = z.object({
   logoUrl: z.string().max(500).optional().nullable(),
   contactEmail: z.string().email().optional().nullable().or(z.literal('')),
   primaryColor: z.string().max(20).optional().nullable(),
+  defaultCurrency: z.enum(['INR', 'USD', 'GBP', 'EUR', 'JPY', 'AED', 'SGD']).optional().default('INR'),
 });
 
 export const UserCreateSchema = z.object({

@@ -32,13 +32,26 @@ export const STAGES: Stage[] = [
 ];
 
 export type Origin = "Domestic" | "Import";
-export type Currency = "INR" | "USD" | "GBP" | "EUR";
+export type Currency = "INR" | "USD" | "GBP" | "EUR" | "JPY" | "AED" | "SGD";
 
 export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   INR: "₹",
   USD: "$",
   GBP: "£",
   EUR: "€",
+  JPY: "¥",
+  AED: "د.إ",
+  SGD: "S$",
+};
+
+export const CURRENCY_LABELS: Record<Currency, string> = {
+  INR: "Indian Rupee (₹)",
+  USD: "US Dollar ($)",
+  GBP: "British Pound (£)",
+  EUR: "Euro (€)",
+  JPY: "Japanese Yen (¥)",
+  AED: "UAE Dirham (د.إ)",
+  SGD: "Singapore Dollar (S$)",
 };
 
 export interface Vendor {

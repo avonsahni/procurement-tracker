@@ -15,6 +15,7 @@ import {
   getUsers, addUser, updateUser, deleteUser, updateCompanyInfo,
   UserAccount, CompanyInfo,
 } from "@/lib/store";
+import { CURRENCY_LABELS } from "@/lib/types";
 
 const API = (path: string, opts?: RequestInit) => {
   const headers = new Headers(opts?.headers);
@@ -461,7 +462,7 @@ function BrandingSection({ onSaved }: { onSaved: () => void }) {
 
   useEffect(() => {
     fetch("/api/company").then(r => r.json()).then(d => {
-      setForm({ name: d.name || "", tagline: d.tagline || "", contactEmail: d.contactEmail || "", primaryColor: d.primaryColor || "" });
+      setForm({ name: d.name || "", tagline: d.tagline || "", contactEmail: d.contactEmail || "", primaryColor: d.primaryColor || "", defaultCurrency: d.defaultCurrency || "INR" });
       setLoading(false);
     });
   }, []);
@@ -513,6 +514,19 @@ function BrandingSection({ onSaved }: { onSaved: () => void }) {
             className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-900 bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
             placeholder="admin@company.com"
           />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Default Currency</label>
+          <select
+            value={form.defaultCurrency || "INR"}
+            onChange={e => setForm({ ...form, defaultCurrency: e.target.value })}
+            className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-900 bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+          >
+            {(Object.entries(CURRENCY_LABELS) as [string, string][]).map(([code, label]) => (
+              <option key={code} value={code}>{label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-slate-400 mt-1">Used as the default when creating new packages. Can be overridden per package.</p>
         </div>
 
         <button
