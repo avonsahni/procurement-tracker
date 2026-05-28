@@ -623,10 +623,24 @@ function DangerSection({ onReset }: { onReset: () => void }) {
   const [resetting, setResetting] = useState(false);
 
   const handleSeed = async () => {
-    if (!confirm("Load 5 sample projects (21 packages each)? This will add data on top of existing records.")) return;
+    if (!confirm("Load 5 sample projects (21 packages each)? This will be skipped if your organisation already has projects.")) return;
     setSeeding(true);
-    try { await fetch("/api/seed", { method: "POST" }); onReset(); }
-    finally { setSeeding(false); }
+    try {
+      const res = await fetch("/api/seed", {
+        method: "POST",
+        headers: { 'X-Requested-With': 'fetch' },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(body.error || `Seed failed (${res.status})`);
+        return;
+      }
+      if (body.seeded === false) {
+        alert("Sample data was skipped — your organisation already has projects.");
+        return;
+      }
+      onReset();
+    } finally { setSeeding(false); }
   };
 
   const handleReset = async () => {

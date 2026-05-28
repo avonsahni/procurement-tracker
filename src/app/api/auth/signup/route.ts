@@ -73,7 +73,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Seed sample projects for the new org so the dashboard isn't empty on first login
-    await seedSampleData(admin, data.user.id);
+    if (membership?.org_id) {
+      await seedSampleData(admin, data.user.id, membership.org_id);
+    }
 
     // Apply coupon if provided
     if (couponCode && membership?.org_id) {

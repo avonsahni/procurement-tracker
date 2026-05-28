@@ -10,7 +10,7 @@ export async function POST() {
   if (auth instanceof NextResponse) return auth;
 
   const supabase = await createServerSupabase();
-  const result = await seedSampleData(supabase, auth.id);
+  const result = await seedSampleData(supabase, auth.id, auth.orgId);
 
   const admin = createAdminSupabase();
   await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,

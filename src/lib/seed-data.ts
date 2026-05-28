@@ -141,12 +141,12 @@ const VENDOR_POOLS = [
   ['UTC Aerospace', 'Thales Group', 'Indra Systems'],
 ];
 
-export async function seedSampleData(supabase: SupabaseClient, userId: string) {
-  // Idempotent — skip if the user already has projects
+export async function seedSampleData(supabase: SupabaseClient, userId: string, orgId: string) {
+  // Idempotent — skip if the org already has projects
   const { count } = await supabase
     .from('projects')
     .select('id', { count: 'exact', head: true })
-    .eq('owner_id', userId);
+    .eq('org_id', orgId);
   if ((count ?? 0) > 0) return { seeded: false, count };
 
   const now = new Date().toISOString();
@@ -164,6 +164,7 @@ export async function seedSampleData(supabase: SupabaseClient, userId: string) {
       .from('projects')
       .insert({
         owner_id: userId,
+        org_id: orgId,
         name: sp.name,
         client: sp.client,
         budget: sp.budget,
