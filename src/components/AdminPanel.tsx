@@ -92,6 +92,9 @@ function OverviewSection({ users, orgName }: { users: UserAccount[]; orgName: st
         <StatCard label="View Only"     value={viewers}      color="amber"    sub="read access" />
       </div>
 
+      {/* Plan validity */}
+      <PlanValidityCard />
+
       {/* Storage usage */}
       <StorageUsageCard />
 
@@ -184,6 +187,60 @@ function PlanUsageCard({ userCount }: { userCount: number }) {
   );
 }
 
+
+function PlanValidityCard() {
+  const { user } = useAuth();
+  const plan   = user?.orgPlan   ?? 'trial';
+  const status = user?.orgStatus ?? 'trial';
+  const expiryStr = user?.trialEndsAt ?? null;
+
+  const fmtExpiry = (s: string) =>
+    new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const daysLeft = expiryStr
+    ? Math.ceil((new Date(expiryStr).getTime() - Date.now()) / 86_400_000)
+    : null;
+
+  const expired = daysLeft !== null && daysLeft < 0;
+  const urgent  = !expired && daysLeft !== null && daysLeft <= 7;
+
+  const STATUS_COLORS: Record<string, string> = {
+    trial:    'bg-slate-100 text-slate-600 border-slate-200',
+    active:   'bg-emerald-50 text-emerald-700 border-emerald-200',
+    paused:   'bg-amber-50 text-amber-700 border-amber-200',
+    canceled: 'bg-red-50 text-red-700 border-red-200',
+  };
+
+  return (
+    <div className={`rounded-xl border px-5 py-4 ${expired ? 'bg-red-50 border-red-200' : urgent ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Shield className={`w-5 h-5 flex-shrink-0 ${expired ? 'text-red-500' : urgent ? 'text-amber-500' : 'text-slate-400'}`} />
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-semibold text-slate-800">Subscription</p>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${PLAN_COLORS[plan]}`}>
+                {PLAN_LABELS[plan]}
+              </span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${STATUS_COLORS[status] ?? STATUS_COLORS['trial']}`}>
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </span>
+            </div>
+            {expiryStr ? (
+              <p className={`text-xs mt-0.5 ${expired ? 'text-red-600 font-semibold' : urgent ? 'text-amber-600 font-medium' : 'text-slate-500'}`}>
+                {expired
+                  ? `Expired ${fmtExpiry(expiryStr)} — contact admin to renew`
+                  : `Valid until ${fmtExpiry(expiryStr)} · ${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining`}
+              </p>
+            ) : (
+              <p className="text-xs text-slate-400 mt-0.5">No expiry date set</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StorageUsageCard() {
   const [data, setData] = useState<{

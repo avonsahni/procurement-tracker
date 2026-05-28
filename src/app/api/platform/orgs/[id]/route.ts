@@ -15,7 +15,10 @@ export async function GET(
 
   const [orgRes, membersRes, projectsRes, authRes] = await Promise.all([
     admin.from('organizations')
-      .select('id, name, plan, subscription_status, trial_ends_at, paused_at, paused_reason, platform_notes, created_at')
+      .select(`id, name, plan, subscription_status, trial_ends_at,
+               paused_at, paused_reason, platform_notes, created_at,
+               org_type, website, address_line1, city, state_region, country,
+               phone, contact_name, contact_title, contact_email, coupon_code`)
       .eq('id', orgId)
       .maybeSingle(),
     admin.from('organization_members').select('org_id, user_id, role').eq('org_id', orgId),
@@ -52,13 +55,14 @@ export async function PUT(
 
   const { id: orgId } = await params;
   const body = await req.json();
-  const { plan, subscription_status, paused_reason, platform_notes } = body;
+  const { plan, subscription_status, paused_reason, platform_notes, trial_ends_at } = body;
 
   const admin = createAdminSupabase();
   const updates: Record<string, any> = {};
 
   if (plan !== undefined) updates.plan = plan;
   if (platform_notes !== undefined) updates.platform_notes = platform_notes;
+  if (trial_ends_at !== undefined) updates.trial_ends_at = trial_ends_at || null;
 
   if (subscription_status !== undefined) {
     updates.subscription_status = subscription_status;
@@ -66,7 +70,6 @@ export async function PUT(
       updates.paused_at = new Date().toISOString();
       updates.paused_reason = paused_reason || null;
     } else {
-      // Unpausing or activating — clear pause metadata
       updates.paused_at = null;
       updates.paused_reason = null;
     }
