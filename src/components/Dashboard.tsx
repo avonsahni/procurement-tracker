@@ -482,19 +482,19 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
       {/* HEADER */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push("/")}
-              className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-700 transition"
-              title="Home"
-            >
+          <button
+            onClick={() => router.push("/")}
+            className="flex items-center gap-3 hover:opacity-80 transition group"
+            title="Go to home"
+          >
+            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center group-hover:bg-blue-700 transition flex-shrink-0">
               <Building2 className="w-5 h-5 text-white" />
-            </button>
-            <div>
+            </div>
+            <div className="text-left">
               <h1 className="text-sm font-semibold text-slate-900 leading-none">{company.name}</h1>
               <p className="text-[11px] text-slate-500 mt-1">{company.tagline}</p>
             </div>
-          </div>
+          </button>
 
           <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
