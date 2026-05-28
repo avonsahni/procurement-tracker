@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import {
   ArrowLeft, Shield, BarChart3, Building2, Users, FolderOpen,
-  Calendar, ChevronDown, ChevronUp, Loader2, Search, Check,
-  AlertTriangle, Pause, Play, Trash2, Edit2, X, Globe,
-  Crown, Activity, RefreshCw, CheckCircle2, XCircle, Clock,
+  ChevronDown, ChevronUp, Loader2, Search, Check,
+  Pause, Trash2, Edit2, X, Crown,
+  Activity, RefreshCw, CheckCircle2, XCircle, Clock,
   Bug, Terminal, Smartphone, Tag, Percent, Gift,
-  ToggleLeft, ToggleRight, IndianRupee, Plus, Mail, ExternalLink,
+  ToggleLeft, ToggleRight, IndianRupee, Plus, Mail,
   MessageSquare, Phone, Building, Inbox, Circle, Eye, EyeOff,
 } from "lucide-react";
 
@@ -195,159 +195,6 @@ function OverviewSection({ orgs }: { orgs: OrgRow[] }) {
   );
 }
 
-// ─── Edit Drawer (inline row expansion) ──────────────────────────────────────
-
-function OrgEditDrawer({
-  org,
-  onSave,
-  onDelete,
-  onClose,
-}: {
-  org: OrgRow;
-  onSave: (id: string, updates: any) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
-  onClose: () => void;
-}) {
-  const [plan, setPlan] = useState<Plan>(org.plan);
-  const [status, setStatus] = useState<Status>(org.subscription_status);
-  const [pauseReason, setPauseReason] = useState(org.paused_reason || '');
-  const [notes, setNotes] = useState(org.platform_notes || '');
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSave = async () => {
-    setSaving(true); setError('');
-    try {
-      await onSave(org.id, {
-        plan,
-        subscription_status: status,
-        paused_reason: status === 'paused' ? pauseReason : undefined,
-        platform_notes: notes,
-      });
-      onClose();
-    } catch (e: any) {
-      setError(e.message || 'Save failed');
-    } finally { setSaving(false); }
-  };
-
-  const handleDelete = async () => {
-    const confirmed = prompt(`Type the org name "${org.name}" to permanently delete it and ALL its data:`);
-    if (confirmed !== org.name) return;
-    setDeleting(true); setError('');
-    try {
-      await onDelete(org.id);
-    } catch (e: any) {
-      setError(e.message || 'Delete failed');
-      setDeleting(false);
-    }
-  };
-
-  return (
-    <tr>
-      <td colSpan={7} className="bg-slate-50 border-b border-slate-200 px-0">
-        <div className="px-6 py-5 space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <Edit2 className="w-4 h-4 text-slate-500" /> Edit: {org.name}
-            </h4>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
-          </div>
-
-          {error && (
-            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Plan */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Plan</label>
-              <select
-                value={plan}
-                onChange={e => setPlan(e.target.value as Plan)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-              >
-                <option value="trial">Trial</option>
-                <option value="starter">Starter</option>
-                <option value="pro">Pro</option>
-                <option value="enterprise">Enterprise</option>
-              </select>
-            </div>
-
-            {/* Status */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Status</label>
-              <select
-                value={status}
-                onChange={e => setStatus(e.target.value as Status)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-              >
-                <option value="trial">Trial</option>
-                <option value="active">Active</option>
-                <option value="paused">Paused</option>
-                <option value="canceled">Canceled</option>
-              </select>
-            </div>
-
-            {/* Pause reason — only shown when paused */}
-            {status === 'paused' && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Pause Reason</label>
-                <input
-                  value={pauseReason}
-                  onChange={e => setPauseReason(e.target.value)}
-                  placeholder="e.g. Payment overdue"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Platform notes */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
-              Internal Notes <span className="normal-case font-normal text-slate-400">(only you can see this)</span>
-            </label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Contract details, support notes, onboarding status…"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 resize-none"
-            />
-          </div>
-
-          <div className="flex items-center justify-between pt-1">
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="flex items-center gap-1.5 px-3 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-xs font-medium transition disabled:opacity-50"
-            >
-              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-              Delete Org & All Data
-            </button>
-            <div className="flex gap-2">
-              <button onClick={onClose} className="px-3 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs hover:bg-white transition">
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition disabled:opacity-50"
-              >
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                {saving ? 'Saving…' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
 // ─── Organisations Section ────────────────────────────────────────────────────
 
 function OrgsSection({
@@ -363,8 +210,6 @@ function OrgsSection({
 }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<Status | 'all'>('all');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
 
   const filtered = orgs.filter(org => {
     const matchStatus = statusFilter === 'all' || org.subscription_status === statusFilter;
@@ -374,37 +219,6 @@ function OrgsSection({
       org.ownerEmails.some(e => e.toLowerCase().includes(q));
     return matchStatus && matchSearch;
   });
-
-  const handleSave = async (id: string, updates: any) => {
-    const res = await apiFetch(`/api/platform/orgs/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to save');
-    setExpandedId(null);
-    onRefresh();
-  };
-
-  const handleDelete = async (id: string) => {
-    const res = await apiFetch(`/api/platform/orgs/${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to delete');
-    setExpandedId(null);
-    onRefresh();
-  };
-
-  const handleQuickToggle = async (org: OrgRow) => {
-    const newStatus: Status = org.subscription_status === 'paused' ? 'active' : 'paused';
-    setSaving(true);
-    try {
-      await handleSave(org.id, {
-        subscription_status: newStatus,
-        paused_reason: newStatus === 'paused' ? 'Paused by platform admin' : undefined,
-      });
-    } finally { setSaving(false); }
-  };
 
   return (
     <div className="space-y-5">
@@ -463,7 +277,7 @@ function OrgsSection({
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Members</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Projects</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Actions</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Valid Until</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -473,11 +287,16 @@ function OrgsSection({
                     No organisations match your filter
                   </td>
                 </tr>
-              ) : filtered.map(org => (
-                <>
+              ) : filtered.map(org => {
+                const expiry = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
+                const daysLeft = expiry ? Math.ceil((expiry.getTime() - Date.now()) / 86_400_000) : null;
+                const expired = daysLeft !== null && daysLeft < 0;
+                const urgent  = !expired && daysLeft !== null && daysLeft <= 14;
+                return (
                   <tr
                     key={org.id}
-                    className={`hover:bg-slate-50 transition ${expandedId === org.id ? 'bg-blue-50/40' : ''}`}
+                    onClick={() => onViewDetails(org.id)}
+                    className="hover:bg-blue-50/40 cursor-pointer transition"
                   >
                     {/* Org name */}
                     <td className="px-5 py-3.5">
@@ -486,12 +305,7 @@ function OrgsSection({
                           <Building2 className="w-4 h-4 text-slate-500" />
                         </div>
                         <div>
-                          <button
-                            onClick={() => onViewDetails(org.id)}
-                            className="font-medium text-slate-900 hover:text-blue-600 transition text-left"
-                          >
-                            {org.name}
-                          </button>
+                          <p className="font-medium text-slate-900">{org.name}</p>
                           <p className="text-xs text-slate-400">Registered {fmtDate(org.created_at)}</p>
                           {org.platform_notes && (
                             <p className="text-xs text-amber-600 mt-0.5 truncate max-w-[180px]">📝 {org.platform_notes}</p>
@@ -526,9 +340,6 @@ function OrgsSection({
                         {org.subscription_status === 'paused' && org.paused_reason && (
                           <p className="text-xs text-red-500 mt-0.5 truncate max-w-[100px]">{org.paused_reason}</p>
                         )}
-                        {org.subscription_status === 'trial' && org.trial_ends_at && (
-                          <p className="text-xs text-amber-500 mt-0.5">Ends {fmtDate(org.trial_ends_at)}</p>
-                        )}
                       </div>
                     </td>
 
@@ -542,62 +353,24 @@ function OrgsSection({
                       <span className="text-sm font-semibold text-slate-700">{org.projectCount}</span>
                     </td>
 
-                    {/* Actions */}
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {/* View details */}
-                        <button
-                          onClick={() => onViewDetails(org.id)}
-                          title="View details & manage users"
-                          className="flex items-center gap-1 px-2.5 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition text-xs font-medium"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" /> View
-                        </button>
-                        {/* Quick pause/resume */}
-                        {(org.subscription_status === 'active' || org.subscription_status === 'paused') && (
-                          <button
-                            onClick={() => handleQuickToggle(org)}
-                            disabled={saving}
-                            title={org.subscription_status === 'paused' ? 'Resume access' : 'Pause access'}
-                            className={`p-1.5 rounded-lg transition text-xs ${
-                              org.subscription_status === 'paused'
-                                ? 'text-emerald-600 hover:bg-emerald-50'
-                                : 'text-amber-600 hover:bg-amber-50'
-                            }`}
-                          >
-                            {org.subscription_status === 'paused'
-                              ? <Play className="w-4 h-4" />
-                              : <Pause className="w-4 h-4" />
-                            }
-                          </button>
-                        )}
-                        {/* Expand/collapse edit drawer */}
-                        <button
-                          onClick={() => setExpandedId(expandedId === org.id ? null : org.id)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Quick edit"
-                        >
-                          {expandedId === org.id
-                            ? <ChevronUp className="w-4 h-4" />
-                            : <ChevronDown className="w-4 h-4" />
-                          }
-                        </button>
-                      </div>
+                    {/* Valid Until */}
+                    <td className="px-4 py-3.5 text-center">
+                      {expiry ? (
+                        <div>
+                          <p className={`text-xs font-semibold ${expired ? 'text-red-600' : urgent ? 'text-amber-600' : 'text-slate-700'}`}>
+                            {fmtDate(org.trial_ends_at)}
+                          </p>
+                          <p className={`text-[10px] mt-0.5 ${expired ? 'text-red-400' : urgent ? 'text-amber-400' : 'text-slate-400'}`}>
+                            {expired ? `${Math.abs(daysLeft!)}d ago` : `${daysLeft}d left`}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-300">—</span>
+                      )}
                     </td>
                   </tr>
-
-                  {/* Inline edit drawer */}
-                  {expandedId === org.id && (
-                    <OrgEditDrawer
-                      key={`drawer-${org.id}`}
-                      org={org}
-                      onSave={handleSave}
-                      onDelete={handleDelete}
-                      onClose={() => setExpandedId(null)}
-                    />
-                  )}
-                </>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}
