@@ -9,6 +9,7 @@ import {
   Crown, Activity, RefreshCw, CheckCircle2, XCircle, Clock,
   Bug, Terminal, Smartphone, Tag, Percent, Gift,
   ToggleLeft, ToggleRight, IndianRupee, Plus, Mail, ExternalLink,
+  MessageSquare, Phone, Building, Inbox, Circle, Eye, EyeOff,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1621,15 +1622,253 @@ function OrgDetailView({
   );
 }
 
+// ─── Messages Section ─────────────────────────────────────────────────────────
+
+interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  company: string | null;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+function MessagesSection() {
+  const [messages, setMessages]     = useState<ContactMessage[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [filter, setFilter]         = useState<'all' | 'unread' | 'read'>('all');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res  = await apiFetch('/api/platform/messages');
+      const data = await res.json();
+      setMessages(Array.isArray(data) ? data : []);
+    } catch { /* silent */ } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const markRead = async (id: string, is_read: boolean) => {
+    try {
+      await apiFetch(`/api/platform/messages/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_read }),
+      });
+      setMessages(prev => prev.map(m => m.id === id ? { ...m, is_read } : m));
+    } catch { /* silent */ }
+  };
+
+  const deleteMsg = async (id: string) => {
+    if (!confirm('Delete this message permanently?')) return;
+    try {
+      await apiFetch(`/api/platform/messages/${id}`, { method: 'DELETE' });
+      setMessages(prev => prev.filter(m => m.id !== id));
+      if (selectedId === id) setSelectedId(null);
+    } catch { /* silent */ }
+  };
+
+  const handleSelect = (msg: ContactMessage) => {
+    setSelectedId(msg.id === selectedId ? null : msg.id);
+    if (!msg.is_read) markRead(msg.id, true);
+  };
+
+  const filtered = messages.filter(m =>
+    filter === 'all'    ? true :
+    filter === 'unread' ? !m.is_read :
+    m.is_read
+  );
+
+  const unreadCount = messages.filter(m => !m.is_read).length;
+  const selected    = messages.find(m => m.id === selectedId);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+            Contact Messages
+            {unreadCount > 0 && (
+              <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">
+                {unreadCount} new
+              </span>
+            )}
+          </h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Enquiries submitted via the landing page contact form
+          </p>
+        </div>
+        <button
+          onClick={load}
+          disabled={loading}
+          className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-medium transition disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+        </button>
+      </div>
+
+      {/* Filter chips */}
+      <div className="flex gap-2">
+        {(['all', 'unread', 'read'] as const).map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+              filter === f
+                ? 'bg-blue-600 text-white'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {f === 'all' ? `All (${messages.length})` :
+             f === 'unread' ? `Unread (${unreadCount})` :
+             `Read (${messages.length - unreadCount})`}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center bg-white border border-slate-200 rounded-xl">
+          <Inbox className="w-10 h-10 text-slate-200 mb-3" />
+          <p className="text-slate-500 font-medium">No messages yet</p>
+          <p className="text-slate-400 text-sm mt-1">
+            {filter === 'all'
+              ? 'When visitors submit the contact form, their messages will appear here.'
+              : `No ${filter} messages.`}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          {/* Message list */}
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="divide-y divide-slate-100">
+              {filtered.map(msg => (
+                <button
+                  key={msg.id}
+                  onClick={() => handleSelect(msg)}
+                  className={`w-full text-left px-5 py-4 hover:bg-slate-50 transition ${
+                    selectedId === msg.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Unread dot */}
+                    <div className="flex-shrink-0 mt-1">
+                      {!msg.is_read
+                        ? <Circle className="w-2 h-2 fill-blue-500 text-blue-500" />
+                        : <div className="w-2 h-2" />
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <p className={`text-sm truncate ${!msg.is_read ? 'font-semibold text-slate-900' : 'font-medium text-slate-700'}`}>
+                          {msg.name}
+                        </p>
+                        <span className="text-[10px] text-slate-400 flex-shrink-0">{fmtRelative(msg.created_at)}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 truncate">{msg.email}</p>
+                      {msg.company && <p className="text-xs text-slate-400 truncate">{msg.company}</p>}
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{msg.message}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Message detail */}
+          {selected ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-5">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">{selected.name}</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">{fmtDate(selected.created_at)}</p>
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => markRead(selected.id, !selected.is_read)}
+                    title={selected.is_read ? 'Mark unread' : 'Mark read'}
+                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                  >
+                    {selected.is_read ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                  <button
+                    onClick={() => deleteMsg(selected.id)}
+                    title="Delete"
+                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Contact details */}
+              <div className="bg-slate-50 rounded-xl p-4 space-y-2.5">
+                <div className="flex items-center gap-2.5 text-sm">
+                  <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                  <a href={`mailto:${selected.email}`} className="text-blue-600 hover:underline truncate">
+                    {selected.email}
+                  </a>
+                </div>
+                {selected.phone && (
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    <a href={`tel:${selected.phone}`} className="text-slate-700 hover:text-blue-600 transition">
+                      {selected.phone}
+                    </a>
+                  </div>
+                )}
+                {selected.company && (
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <Building className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    <span className="text-slate-700">{selected.company}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Message body */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Message</p>
+                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{selected.message}</p>
+              </div>
+
+              {/* Quick reply link */}
+              <a
+                href={`mailto:${selected.email}?subject=Re: Your enquiry about ProcureTrack`}
+                className="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
+              >
+                <Mail className="w-4 h-4" /> Reply via Email
+              </a>
+            </div>
+          ) : (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-10 flex flex-col items-center justify-center text-center h-full min-h-[200px]">
+              <MessageSquare className="w-8 h-8 text-slate-300 mb-3" />
+              <p className="text-sm text-slate-400">Select a message to read it</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main PlatformPanel ───────────────────────────────────────────────────────
 
-type PlatformTab = 'overview' | 'orgs' | 'plans' | 'errors';
+type PlatformTab = 'overview' | 'orgs' | 'plans' | 'errors' | 'messages';
 
 const NAV: { id: PlatformTab; icon: any; label: string }[] = [
-  { id: 'overview', icon: BarChart3,  label: 'Overview' },
-  { id: 'orgs',     icon: Building2,  label: 'Organisations' },
-  { id: 'plans',    icon: Tag,        label: 'Plans & Coupons' },
-  { id: 'errors',   icon: Bug,        label: 'Error Log' },
+  { id: 'overview',  icon: BarChart3,     label: 'Overview' },
+  { id: 'orgs',      icon: Building2,     label: 'Organisations' },
+  { id: 'plans',     icon: Tag,           label: 'Plans & Coupons' },
+  { id: 'errors',    icon: Bug,           label: 'Error Log' },
+  { id: 'messages',  icon: MessageSquare, label: 'Messages' },
 ];
 
 export default function PlatformPanel({ onBack }: { onBack: () => void }) {
@@ -1637,6 +1876,17 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+
+  // Load unread message count for the sidebar badge
+  useEffect(() => {
+    apiFetch('/api/platform/messages')
+      .then(r => r.json())
+      .then((data: any[]) => {
+        if (Array.isArray(data)) setUnreadMessageCount(data.filter(m => !m.is_read).length);
+      })
+      .catch(() => {});
+  }, []);
 
   const loadOrgs = useCallback(async () => {
     setLoading(true);
@@ -1698,7 +1948,12 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
                 }`}
               >
                 <n.icon className="w-4 h-4 flex-shrink-0" />
-                {n.label}
+                <span className="flex-1 text-left">{n.label}</span>
+                {n.id === 'messages' && unreadMessageCount > 0 && (
+                  <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold leading-none">
+                    {unreadMessageCount}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -1734,10 +1989,11 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
             />
           ) : (
             <>
-              {tab === 'overview' && <OverviewSection orgs={orgs} />}
-              {tab === 'orgs'     && <OrgsSection orgs={orgs} loading={loading} onRefresh={loadOrgs} onViewDetails={handleViewOrg} />}
-              {tab === 'plans'    && <PlansSection />}
-              {tab === 'errors'   && <ErrorLogSection />}
+              {tab === 'overview'  && <OverviewSection orgs={orgs} />}
+              {tab === 'orgs'      && <OrgsSection orgs={orgs} loading={loading} onRefresh={loadOrgs} onViewDetails={handleViewOrg} />}
+              {tab === 'plans'     && <PlansSection />}
+              {tab === 'errors'    && <ErrorLogSection />}
+              {tab === 'messages'  && <MessagesSection />}
             </>
           )}
         </main>

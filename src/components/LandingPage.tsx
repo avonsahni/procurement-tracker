@@ -454,6 +454,32 @@ export default function LandingPage() {
   const openSignup = () => router.push("/register");
   const closeAuth  = () => setAuthMode(null);
 
+  // ── Contact form state ──
+  const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', company: '', message: '' });
+  const [contactSending, setContactSending] = useState(false);
+  const [contactDone, setContactDone]       = useState(false);
+  const [contactError, setContactError]     = useState('');
+
+  const handleContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setContactError(''); setContactSending(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contactForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send');
+      setContactDone(true);
+      setContactForm({ name: '', email: '', phone: '', company: '', message: '' });
+    } catch (err: any) {
+      setContactError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setContactSending(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white text-slate-900 antialiased">
 
@@ -749,6 +775,129 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Contact ─────────────────────────────────────────────────────────── */}
+      <section id="contact" className="py-20 px-6 bg-white">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-3">
+              Get in touch
+            </h2>
+            <p className="text-slate-500 text-base leading-relaxed">
+              Have a question, a custom requirement, or want a demo?<br />
+              Leave your details and we'll get back to you within one business day.
+            </p>
+          </div>
+
+          {contactDone ? (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-10 text-center">
+              <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-emerald-900 mb-2">Message sent!</h3>
+              <p className="text-emerald-700 text-sm mb-6">
+                Thanks for reaching out. We'll reply to <strong>{contactForm.email || 'your email'}</strong> shortly.
+              </p>
+              <button
+                onClick={() => setContactDone(false)}
+                className="text-sm text-emerald-700 underline hover:text-emerald-900 transition"
+              >
+                Send another message
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleContact} className="bg-slate-50 border border-slate-200 rounded-2xl p-8 space-y-5">
+              {contactError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
+                  {contactError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    value={contactForm.name}
+                    onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="Jane Smith"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    required
+                    type="email"
+                    value={contactForm.email}
+                    onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="jane@company.com"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                    Phone <span className="text-slate-400 font-normal normal-case">(optional)</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={contactForm.phone}
+                    onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))}
+                    placeholder="+91 98765 43210"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                    Company <span className="text-slate-400 font-normal normal-case">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={contactForm.company}
+                    onChange={e => setContactForm(f => ({ ...f, company: e.target.value }))}
+                    placeholder="Acme Construction"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                  Message <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={5}
+                  value={contactForm.message}
+                  onChange={e => setContactForm(f => ({ ...f, message: e.target.value }))}
+                  placeholder="Tell us about your project, team size, or any questions you have…"
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={contactSending}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {contactSending ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    Sending…
+                  </>
+                ) : (
+                  <>Send Message <ArrowRight className="w-4 h-4" /></>
+                )}
+              </button>
+            </form>
+          )}
+        </div>
+      </section>
+
       {/* ── Final CTA ───────────────────────────────────────────────────────── */}
       <section className="py-20 px-6 bg-blue-600">
         <div className="max-w-2xl mx-auto text-center">
@@ -783,6 +932,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-4 text-xs text-slate-400">
             <a href="#features" className="hover:text-slate-600 transition">Features</a>
             <a href="#pricing"  className="hover:text-slate-600 transition">Pricing</a>
+            <a href="#contact"  className="hover:text-slate-600 transition">Contact</a>
             <button onClick={openLogin} className="hover:text-slate-600 transition">Sign in</button>
           </div>
         </div>
