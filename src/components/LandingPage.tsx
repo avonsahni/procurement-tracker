@@ -509,31 +509,59 @@ const HOW_IT_WORKS = [
 
 const PRICING = [
   {
-    name: "Trial",
-    price: "Free",
-    period: "14 days",
+    name:      "Trial",
+    tag:       "Get started free",
+    price:     "Free",
+    period:    "14 days",
+    seats:     null,
+    seatNote:  null,
     highlight: false,
-    features: ["Unlimited team members", "Unlimited packages", "All core features", "No credit card needed"],
-    cta: "Start free trial",
-    contactAdmin: false,
+    cta:       "Start free trial",
+    action:    "signup" as const,
+    features:  [
+      "Up to 3 team members",
+      "Unlimited packages",
+      "All core features",
+      "No credit card needed",
+    ],
   },
   {
-    name: "Starter",
-    price: "₹ — Contact admin",
-    period: "per user / month",
+    name:      "Small Teams",
+    tag:       "Most popular",
+    price:     null,
+    period:    "billed annually",
+    seats:     5,
+    seatNote:  "5 seats included",
     highlight: true,
-    features: ["Unlimited team members", "Unlimited packages", "Budget analytics", "Document storage", "Audit trail", "Email support"],
-    cta: "Contact admin",
-    contactAdmin: true,
+    cta:       "Get a quote",
+    action:    "contact" as const,
+    features:  [
+      "5 seats — fixed annual pack",
+      "Unlimited packages & projects",
+      "Budget analytics",
+      "Document storage",
+      "Audit trail",
+      "Email support",
+    ],
   },
   {
-    name: "Pro",
-    price: "₹ — Contact admin",
-    period: "per user / month",
+    name:      "Teams",
+    tag:       "Scale as you grow",
+    price:     null,
+    period:    "per seat / month",
+    seats:     10,
+    seatNote:  "Minimum 10 seats",
     highlight: false,
-    features: ["Unlimited team members", "Everything in Starter", "GDPR data export", "Priority support", "Custom branding", "Dedicated onboarding"],
-    cta: "Contact admin",
-    contactAdmin: true,
+    cta:       "Get a quote",
+    action:    "contact" as const,
+    features:  [
+      "Minimum 10 seats included",
+      "Every additional seat billed per user",
+      "Everything in Small Teams",
+      "GDPR data export",
+      "Priority support",
+      "Dedicated onboarding",
+    ],
   },
 ];
 
@@ -854,46 +882,72 @@ export default function LandingPage() {
             </h2>
             <p className="text-slate-500 text-base">Start free. Upgrade when your team grows.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
             {PRICING.map(plan => (
               <div
                 key={plan.name}
-                className={`rounded-2xl p-7 flex flex-col ${
+                className={`rounded-2xl p-7 flex flex-col relative ${
                   plan.highlight
-                    ? "bg-blue-600 text-white shadow-xl shadow-blue-200 ring-2 ring-blue-600 scale-105"
+                    ? "bg-blue-600 text-white shadow-xl shadow-blue-200 ring-2 ring-blue-400 md:scale-105"
                     : "bg-white border border-slate-200"
                 }`}
               >
-                <div className="mb-6">
-                  <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${plan.highlight ? "text-blue-200" : "text-slate-400"}`}>
-                    {plan.name}
-                  </p>
-                  {plan.contactAdmin ? (
-                    <div>
-                      <p className={`text-2xl font-extrabold ${plan.highlight ? "text-white" : "text-slate-900"}`}>
-                        Contact admin
-                      </p>
-                      <p className={`text-xs mt-1 ${plan.highlight ? "text-blue-200" : "text-slate-400"}`}>
-                        Pricing in ₹ — get a quote
-                      </p>
+                {/* Tag badge */}
+                <div className={`text-[10px] font-bold uppercase tracking-widest mb-3 ${plan.highlight ? "text-blue-200" : "text-slate-400"}`}>
+                  {plan.tag}
+                </div>
+
+                {/* Plan name */}
+                <h3 className={`text-lg font-extrabold mb-4 ${plan.highlight ? "text-white" : "text-slate-900"}`}>
+                  {plan.name}
+                </h3>
+
+                {/* Price block */}
+                <div className="mb-5">
+                  {plan.price ? (
+                    <div className="flex items-end gap-1">
+                      <span className={`text-4xl font-extrabold ${plan.highlight ? "text-white" : "text-slate-900"}`}>
+                        {plan.price}
+                      </span>
+                      <span className={`text-sm mb-1 ${plan.highlight ? "text-blue-200" : "text-slate-400"}`}>
+                        /{plan.period}
+                      </span>
                     </div>
                   ) : (
-                    <div className="flex items-end gap-1">
-                      <span className={`text-4xl font-extrabold ${plan.highlight ? "text-white" : "text-slate-900"}`}>{plan.price}</span>
-                      <span className={`text-sm mb-1 ${plan.highlight ? "text-blue-200" : "text-slate-400"}`}>/{plan.period}</span>
+                    <div>
+                      <p className={`text-2xl font-extrabold ${plan.highlight ? "text-white" : "text-slate-900"}`}>
+                        Contact for pricing
+                      </p>
+                      <p className={`text-xs mt-1 ${plan.highlight ? "text-blue-200" : "text-slate-500"}`}>
+                        {plan.period} · pricing in ₹
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Seat pill */}
+                  {plan.seatNote && (
+                    <div className={`inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full text-xs font-semibold ${
+                      plan.highlight ? "bg-white/15 text-white" : "bg-slate-100 text-slate-700"
+                    }`}>
+                      <Users className="w-3 h-3" />
+                      {plan.seatNote}
                     </div>
                   )}
                 </div>
+
+                {/* Features */}
                 <ul className="space-y-2.5 flex-1 mb-7">
                   {plan.features.map(f => (
-                    <li key={f} className="flex items-center gap-2.5 text-sm">
-                      <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${plan.highlight ? "text-blue-200" : "text-emerald-500"}`} />
+                    <li key={f} className="flex items-start gap-2.5 text-sm">
+                      <CheckCircle2 className={`w-4 h-4 flex-shrink-0 mt-0.5 ${plan.highlight ? "text-blue-200" : "text-emerald-500"}`} />
                       <span className={plan.highlight ? "text-white" : "text-slate-600"}>{f}</span>
                     </li>
                   ))}
                 </ul>
+
+                {/* CTA */}
                 <button
-                  onClick={plan.contactAdmin ? openLogin : openSignup}
+                  onClick={plan.action === "signup" ? openSignup : () => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })}
                   className={`w-full py-2.5 rounded-xl text-sm font-semibold transition ${
                     plan.highlight
                       ? "bg-white text-blue-600 hover:bg-blue-50"
@@ -905,8 +959,8 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          <p className="text-center text-xs text-slate-400 mt-6">
-            Pricing in Indian Rupees (₹) · Contact your admin for a quote · Cancel anytime
+          <p className="text-center text-xs text-slate-400 mt-8">
+            Pricing in Indian Rupees (₹) · All plans include full feature access · Cancel anytime
           </p>
         </div>
       </section>
