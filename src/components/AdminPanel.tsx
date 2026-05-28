@@ -195,6 +195,7 @@ function PlanValidityCard() {
   const status = user?.orgStatus ?? 'trial';
   const expiryStr = user?.trialEndsAt ?? null;
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const razorpayEnabled = !!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 
   const fmtExpiry = (s: string) =>
     new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -242,7 +243,7 @@ function PlanValidityCard() {
               )}
             </div>
           </div>
-          {canUpgrade && (
+          {canUpgrade && razorpayEnabled && (
             <button
               onClick={() => setShowUpgrade(true)}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition flex-shrink-0"
