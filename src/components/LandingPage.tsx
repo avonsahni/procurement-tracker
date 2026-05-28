@@ -349,6 +349,106 @@ function ExecutionMockup() {
   );
 }
 
+function PurchasingMockup() {
+  const stages = [
+    { name: "Spec Received",          count: 4, color: "bg-slate-400"   },
+    { name: "RFQ Float",              count: 3, color: "bg-blue-500"    },
+    { name: "Technical Negotiation",  count: 4, color: "bg-violet-500"  },
+    { name: "Commercial Negotiation", count: 4, color: "bg-amber-500"   },
+    { name: "Award",                  count: 6, color: "bg-emerald-500" },
+  ];
+  const total   = stages.reduce((s, st) => s + st.count, 0);
+  const awarded = 6;
+  const awardedPct = Math.round((awarded / total) * 100);
+
+  const pkgs = [
+    { name: "Server Racks & Smart PDU Cabinets", cat: "Services",   stage: "Awarded",                stageCls: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+    { name: "Hot/Cold Aisle Containment Pods",   cat: "Services",   stage: "Awarded",                stageCls: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+    { name: "UPS & Power Distribution",          cat: "Electrical", stage: "Commercial Negotiation", stageCls: "text-amber-700   bg-amber-50   border-amber-200"   },
+    { name: "Structured Cabling Systems",        cat: "Electrical", stage: "Technical Negotiation",  stageCls: "text-violet-700  bg-violet-50  border-violet-200"  },
+  ];
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden text-left select-none text-slate-900">
+      {/* Header */}
+      <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
+        <p className="text-[9px] font-bold text-blue-600 uppercase tracking-widest mb-0.5">Purchasing Dashboard · Tata Communications</p>
+        <p className="text-xs font-bold text-slate-800">Hyperion Data Center</p>
+      </div>
+
+      {/* Stats strip */}
+      <div className="grid grid-cols-4 divide-x divide-slate-100 border-b border-slate-100">
+        {[
+          { label: "Total Packages", value: `${total}`,     sub: "",                  color: "text-slate-900"  },
+          { label: "Awarded",        value: `${awarded}`,   sub: `${awardedPct}% of total`, color: "text-emerald-600" },
+          { label: "In Progress",    value: `${total - awarded}`, sub: "",            color: "text-blue-600"   },
+          { label: "Budget Balance", value: "₹35.4 Cr",     sub: "of ₹45 Cr",        color: "text-slate-900"  },
+        ].map(s => (
+          <div key={s.label} className="px-3 py-2.5 text-center">
+            <p className="text-[8px] text-slate-400 leading-tight">{s.label}</p>
+            <p className={`text-sm font-extrabold leading-tight mt-0.5 ${s.color}`}>{s.value}</p>
+            {s.sub && <p className="text-[8px] text-slate-400 leading-tight">{s.sub}</p>}
+          </div>
+        ))}
+      </div>
+
+      <div className="p-4 space-y-3.5">
+        {/* Stage distribution bar */}
+        <div>
+          <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Stage Distribution</p>
+          <div className="flex rounded-full overflow-hidden h-3 gap-px">
+            {stages.map(s => (
+              <div key={s.name} className={s.color} style={{ width: `${(s.count / total) * 100}%` }} />
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+            {stages.map(s => (
+              <div key={s.name} className="flex items-center gap-1">
+                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.color}`} />
+                <span className="text-[8px] text-slate-500 truncate">{s.name.replace("Negotiation", "Neg.").replace("Commercial ", "Comm. ")} {s.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Budget breakdown */}
+        <div>
+          <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Budget Breakdown</p>
+          <div className="flex rounded-full overflow-hidden h-2.5 bg-slate-100">
+            <div className="bg-emerald-500 rounded-full transition-all" style={{ width: `${awardedPct}%` }} />
+          </div>
+          <div className="flex justify-between mt-1.5">
+            <div className="flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+              <span className="text-[8px] text-slate-500">Awarded ₹9.6 Cr</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-200 flex-shrink-0" />
+              <span className="text-[8px] text-slate-500">Balance ₹35.4 Cr</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Package list */}
+        <div className="border border-slate-100 rounded-lg overflow-hidden divide-y divide-slate-50">
+          {pkgs.map((p, i) => (
+            <div key={i} className="flex items-center gap-2 px-3 py-2">
+              <span className="text-[8px] text-slate-300 w-3 flex-shrink-0">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-medium text-slate-800 truncate">{p.name}</p>
+                <p className="text-[8px] text-slate-400">{p.cat}</p>
+              </div>
+              <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-medium border ${p.stageCls} flex-shrink-0`}>
+                {p.stage.split(" ").slice(-1)[0]}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Feature cards ────────────────────────────────────────────────────────────
 
 const FEATURES = [
@@ -635,6 +735,49 @@ export default function LandingPage() {
           {/* Mockup */}
           <div className="flex-1 w-full max-w-md">
             <ExecutionMockup />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Purchasing Dashboard spotlight ──────────────────────────────────── */}
+      <section className="py-20 px-6 bg-slate-900 text-white">
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row-reverse gap-12 items-center">
+          {/* Copy */}
+          <div className="flex-1 space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-slate-300 text-xs font-medium">
+              <TrendingUp className="w-3.5 h-3.5" /> Purchasing Dashboard
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-snug">
+              Full procurement visibility,<br />from spec to award
+            </h2>
+            <p className="text-slate-400 leading-relaxed text-base">
+              ProcureTrack's Purchasing Dashboard gives you a live view of every package —
+              what's awarded, what's in negotiation, and exactly where your budget stands.
+              No status meetings required.
+            </p>
+            <ul className="space-y-3">
+              {[
+                "Pipeline bar shows stage distribution across all packages at a glance",
+                "Budget breakdown: awarded vs remaining, always up to date",
+                "Sort and filter 100+ packages by category, stage, or value",
+                "Award value, vendor count, and lead time tracked per package",
+              ].map(item => (
+                <li key={item} className="flex items-start gap-3 text-sm text-slate-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={openSignup}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-slate-900 text-sm font-bold rounded-xl hover:bg-slate-100 transition"
+            >
+              Try the purchasing dashboard <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+          {/* Mockup */}
+          <div className="flex-1 w-full max-w-md">
+            <PurchasingMockup />
           </div>
         </div>
       </section>
