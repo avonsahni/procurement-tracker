@@ -4,8 +4,9 @@ import { createSubscription, getPlanId } from '@/lib/razorpay';
 import { z } from 'zod';
 
 const Schema = z.object({
-  plan:   z.enum(['starter', 'pro']),
-  period: z.enum(['monthly', 'annual']),
+  plan:     z.enum(['starter', 'pro']),
+  period:   z.enum(['monthly', 'annual']),
+  quantity: z.number().int().min(1).default(1),
 });
 
 export async function POST(req: NextRequest) {
@@ -18,15 +19,16 @@ export async function POST(req: NextRequest) {
   const parsed = Schema.safeParse(raw);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
 
-  const { plan, period } = parsed.data;
+  const { plan, period, quantity } = parsed.data;
 
   try {
     const planId       = getPlanId(plan, period);
     const subscription = await createSubscription({
       planId,
-      orgId:  auth.orgId,
+      orgId:    auth.orgId,
       plan,
       period,
+      quantity,
     });
 
     return NextResponse.json({

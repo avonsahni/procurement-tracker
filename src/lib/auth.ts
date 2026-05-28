@@ -5,13 +5,6 @@ import { createAdminSupabase } from '@/lib/supabase/admin';
 export type OrgStatus = 'trial' | 'active' | 'paused' | 'canceled';
 export type OrgPlan  = 'trial' | 'starter' | 'pro' | 'enterprise';
 
-/** Maximum users allowed per plan. Enterprise = unlimited (Number.MAX_SAFE_INTEGER). */
-export const PLAN_USER_LIMITS: Record<OrgPlan, number> = {
-  trial:      3,
-  starter:    10,
-  pro:        50,
-  enterprise: Number.MAX_SAFE_INTEGER,
-};
 
 export type AuthUser = {
   id: string;

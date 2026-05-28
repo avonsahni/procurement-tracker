@@ -36,19 +36,18 @@ export function getPlanId(plan: 'starter' | 'pro', period: 'monthly' | 'annual')
 }
 
 export async function createSubscription(params: {
-  planId:  string;
-  orgId:   string;
-  plan:    string;
-  period:  string;
-  userEmail?: string;
-  userName?:  string;
+  planId:   string;
+  orgId:    string;
+  plan:     string;
+  period:   string;
+  quantity?: number;
 }) {
   return rzpFetch('/subscriptions', {
     method: 'POST',
     body: JSON.stringify({
-      plan_id:        params.planId,
-      total_count:    params.period === 'annual' ? 10 : 120, // ~10 years worth
-      quantity:       1,
+      plan_id:         params.planId,
+      total_count:     params.period === 'annual' ? 10 : 120, // ~10 years worth
+      quantity:        params.quantity ?? 1,
       customer_notify: 1,
       notes: {
         org_id: params.orgId,

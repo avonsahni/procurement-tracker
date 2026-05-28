@@ -61,16 +61,19 @@ export default function BillingUpgradeModal({
 }: BillingUpgradeModalProps) {
   const [period, setPeriod]       = useState<"monthly" | "annual">("monthly");
   const [pricing, setPricing]     = useState<PricingRow[]>([]);
+  const [userCount, setUserCount] = useState(1);
   const [loading, setLoading]     = useState(true);
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [error, setError]         = useState("");
 
   useEffect(() => {
-    apiFetch("/api/billing/pricing")
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setPricing(d); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      apiFetch("/api/billing/pricing").then(r => r.json()),
+      apiFetch("/api/users").then(r => r.json()),
+    ]).then(([prices, users]) => {
+      if (Array.isArray(prices)) setPricing(prices);
+      if (Array.isArray(users))  setUserCount(Math.max(1, users.length));
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const getPrice = (row: PricingRow) =>
@@ -88,7 +91,7 @@ export default function BillingUpgradeModal({
       const res  = await apiFetch("/api/billing/subscribe", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ plan, period }),
+        body:    JSON.stringify({ plan, period, quantity: userCount }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not initiate subscription");
@@ -234,15 +237,18 @@ export default function BillingUpgradeModal({
                 <div>
                   {price !== null ? (
                     <>
-                      <div className="flex items-baseline gap-1">
+                      <div className="flex items-baseline gap-1 flex-wrap">
                         <span className="text-2xl font-extrabold text-slate-900">
                           ₹{Math.round(price).toLocaleString("en-IN")}
                         </span>
-                        <span className="text-sm text-slate-500">/{period === "annual" ? "year" : "month"}</span>
+                        <span className="text-sm text-slate-500">/ user / {period === "annual" ? "year" : "month"}</span>
                       </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {userCount} user{userCount !== 1 ? 's' : ''} = ₹{Math.round(price * userCount).toLocaleString("en-IN")}/{period === "annual" ? "yr" : "mo"}
+                      </p>
                       {period === "annual" && row && (
                         <p className="text-xs text-emerald-600 mt-0.5">
-                          Saves ₹{Math.round(row.price_inr * 2).toLocaleString("en-IN")} vs monthly
+                          Saves ₹{Math.round(row.price_inr * 2 * userCount).toLocaleString("en-IN")} vs monthly
                         </p>
                       )}
                     </>
