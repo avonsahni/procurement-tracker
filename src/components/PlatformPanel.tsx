@@ -1043,6 +1043,11 @@ function PlansSection() {
                     </label>
                   ))}
                 </div>
+                <p className="text-[10px] text-slate-400 mt-1.5">
+                  {couponForm.type === 'free'
+                    ? 'Grants a full paid plan (Starter/Pro/Enterprise) free for the specified days.'
+                    : 'Extends the trial period by the specified days. Discount % applies at billing.'}
+                </p>
               </div>
               {couponForm.type === 'free' ? (
                 <div>
@@ -1139,8 +1144,8 @@ function PlansSection() {
               <tbody className="divide-y divide-slate-100">
                 {coupons.map(c => {
                   const benefit = c.type === 'free'
-                    ? `${c.free_plan ? c.free_plan.charAt(0).toUpperCase() + c.free_plan.slice(1) : '?'} free / ${c.valid_days}d`
-                    : `${c.discount_pct}% off / ${c.valid_days}d`;
+                    ? `${c.free_plan ? c.free_plan.charAt(0).toUpperCase() + c.free_plan.slice(1) : '?'} plan free · ${c.valid_days}d`
+                    : `${c.valid_days}d extended trial${c.discount_pct ? ` · ${c.discount_pct}% off` : ''}`;
                   const expired   = !!c.expires_at && new Date(c.expires_at) < new Date();
                   const exhausted = c.max_uses !== null && c.used_count >= c.max_uses;
                   return (

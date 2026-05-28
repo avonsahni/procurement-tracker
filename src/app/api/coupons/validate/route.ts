@@ -26,7 +26,8 @@ export async function GET(req: NextRequest) {
     const planLabel = coupon.free_plan ? coupon.free_plan.charAt(0).toUpperCase() + coupon.free_plan.slice(1) : 'Paid';
     benefit = `${planLabel} plan free for ${coupon.valid_days} days`;
   } else {
-    benefit = `${coupon.discount_pct}% discount for ${coupon.valid_days} days`;
+    // discount type: extends the trial; discount_pct applies when subscribing
+    benefit = `${coupon.valid_days}-day extended trial${coupon.discount_pct ? ` + ${coupon.discount_pct}% off when you subscribe` : ''}`;
   }
 
   return NextResponse.json({

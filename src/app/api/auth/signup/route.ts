@@ -91,13 +91,21 @@ export async function POST(req: NextRequest) {
         (!coupon.expires_at || new Date(coupon.expires_at) >= new Date())
       ) {
         const orgUpdates: Record<string, unknown> = { coupon_code: coupon.code };
+
         if (coupon.type === 'free' && coupon.free_plan) {
+          // Grant a full paid plan for valid_days days at no charge
           orgUpdates.plan = coupon.free_plan;
           orgUpdates.subscription_status = 'active';
           const expiresAt = new Date();
           expiresAt.setDate(expiresAt.getDate() + coupon.valid_days);
           orgUpdates.trial_ends_at = expiresAt.toISOString();
+        } else if (coupon.type === 'discount') {
+          // Extend the trial period by valid_days (discount on subscription applies at billing)
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + coupon.valid_days);
+          orgUpdates.trial_ends_at = expiresAt.toISOString();
         }
+
         await admin.from('organizations').update(orgUpdates).eq('id', membership.org_id);
         await admin.from('coupons').update({ used_count: (coupon.used_count ?? 0) + 1 }).eq('id', coupon.id);
       }
