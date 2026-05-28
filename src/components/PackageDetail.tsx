@@ -375,12 +375,13 @@ export default function PackageDetail({
                 setMilestoneError(null);
                 try {
                   await updateMilestoneProgress(packageId, name, progress, user?.fullName);
-                  await reloadPackage();
+                  // Don't reload here — MilestoneTracker owns its local state.
+                  // Reloading would overwrite in-flight bar changes causing rollback.
                 } catch (e: any) {
                   const msg = e?.message || String(e);
                   console.error('Milestone save failed:', msg);
                   setMilestoneError(msg);
-                  await reloadPackage();
+                  await reloadPackage(); // reset to last known-good state on error
                 }
               }}
             />
