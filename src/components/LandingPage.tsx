@@ -927,7 +927,7 @@ export default function LandingPage() {
             <span className="font-bold text-slate-700 text-sm">ProcureTrack</span>
           </div>
           <p className="text-xs text-slate-400 text-center">
-            © {new Date().getFullYear()} ProcureTrack · GDPR compliant · Data hosted in EU · All rights reserved
+            © {new Date().getFullYear()} ProcureTrack · GDPR compliant · All rights reserved
           </p>
           <div className="flex items-center gap-4 text-xs text-slate-400">
             <a href="#features" className="hover:text-slate-600 transition">Features</a>
