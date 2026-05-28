@@ -867,7 +867,7 @@ function AuditLogSection() {
 
 // ─────────────────────── export section ───────────────────────
 
-const fmt = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (s?: string) => s ? new Date(s).toLocaleDateString('en-GB') : '';
 
 function ExportSection({ orgName }: { orgName: string }) {

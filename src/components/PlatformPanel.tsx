@@ -939,7 +939,7 @@ function PlansSection() {
                 {editTier !== p.tier ? (
                   <>
                     <p className={`text-2xl font-extrabold ${TIER_TEXT[p.tier]}`}>
-                      {Number(p.price_inr) === 0 ? 'Free' : `₹${Number(p.price_inr).toLocaleString('en-IN')}`}
+                      {Number(p.price_inr) === 0 ? 'Free' : `₹${Number(p.price_inr).toLocaleString('en-US')}`}
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">per {p.period}</p>
                     {p.description && <p className="text-xs text-slate-400 mt-1">{p.description}</p>}

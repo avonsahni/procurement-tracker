@@ -120,8 +120,18 @@ export interface Project {
 
 export function formatCurrency(amount: number, currency: Currency = "INR"): string {
   const symbol = CURRENCY_SYMBOLS[currency];
-  const locale = currency === "INR" ? "en-IN" : "en-US";
-  return symbol + amount.toLocaleString(locale);
+  const sign = amount < 0 ? "-" : "";
+  const abs  = Math.abs(amount);
+
+  const compact = (n: number, suffix: string) => {
+    const r = parseFloat(n.toFixed(1));
+    return sign + symbol + (r % 1 === 0 ? r.toFixed(0) : r.toFixed(1)) + suffix;
+  };
+
+  if (abs >= 1_000_000_000) return compact(abs / 1_000_000_000, "B");
+  if (abs >= 1_000_000)     return compact(abs / 1_000_000,     "M");
+  if (abs >= 1_000)         return compact(abs / 1_000,         "K");
+  return sign + symbol + Math.round(abs).toLocaleString("en-US");
 }
 
 /** Shape returned by assembleProjectSummary — packages include billing/vendor aggregates */
