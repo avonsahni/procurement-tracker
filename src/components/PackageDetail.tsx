@@ -50,6 +50,11 @@ export default function PackageDetail({
   const [loading, setLoading] = useState(true);
   const [milestoneError, setMilestoneError] = useState<string | null>(null);
 
+  // Optimistic stage — set immediately on click so the stepper updates
+  // without waiting for the API round-trip.
+  const [optimisticStage, setOptimisticStage] = useState<string | null>(null);
+  const [stageSaving, setStageSaving]         = useState(false);
+
   // Award modal state
   const [punchingAward, setPunchingAward] = useState(false);
   const [awardVal, setAwardVal]           = useState("");
@@ -91,8 +96,10 @@ export default function PackageDetail({
 
   // ── Derived values ────────────────────────────────────────────────────────
 
-  const isAwarded     = pkg?.currentStage === "Award";
-  const stageIdx      = pkg ? STAGES.indexOf(pkg.currentStage) : -1;
+  // Use optimisticStage while a save is in-flight for instant UI response
+  const displayStage  = optimisticStage ?? pkg?.currentStage;
+  const isAwarded     = displayStage === "Award";
+  const stageIdx      = displayStage ? STAGES.indexOf(displayStage) : -1;
   const progressPct   = ((stageIdx + 1) / STAGES.length) * 100;
 
   // Available budget for award modal
@@ -114,14 +121,26 @@ export default function PackageDetail({
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleStageChange = async (stage: string) => {
-    if (!editMode) return;
+    if (!editMode || stageSaving) return;
     if (stage === "Award") {
       setAwardVal(pkg?.awardValue?.toString() || "");
       setAwardVendor("");
       setPunchingAward(true);
     } else {
-      await updatePackage(packageId, { currentStage: stage }, user?.fullName);
-      await reloadPackage();
+      // Optimistic: update UI immediately, save in background
+      setOptimisticStage(stage);
+      setStageSaving(true);
+      try {
+        await updatePackage(packageId, { currentStage: stage }, user?.fullName);
+        // Reload silently in background to sync audit trail etc; don't await
+        reloadPackage().then(() => setOptimisticStage(null));
+      } catch (e: any) {
+        console.error('Stage change failed:', e?.message);
+        setOptimisticStage(null);
+        await reloadPackage();
+      } finally {
+        setStageSaving(false);
+      }
     }
   };
 
@@ -263,8 +282,9 @@ export default function PackageDetail({
           <div className="mt-5">
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
               <span>Stage Progress</span>
-              <span className={`font-semibold ${isAwarded ? "text-emerald-700" : "text-blue-700"}`}>
-                {pkg.currentStage}
+              <span className={`font-semibold flex items-center gap-1.5 ${isAwarded ? "text-emerald-700" : "text-blue-700"}`}>
+                {stageSaving && <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
+                {displayStage}
               </span>
             </div>
             <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -295,8 +315,8 @@ export default function PackageDetail({
                 </div>
               )}
               <StageStepper
-                currentStage={pkg.currentStage}
-                readonly={!editMode || isAwarded}
+                currentStage={displayStage ?? pkg.currentStage}
+                readonly={!editMode || isAwarded || stageSaving}
                 onStageChange={handleStageChange}
               />
             </div>
