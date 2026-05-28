@@ -8,7 +8,7 @@ import {
   ChevronRight, Loader2, Globe, Key, UserPlus, Lock,
   Download, FileSpreadsheet, Package, Layers, Receipt, Activity,
   Clock, FolderOpen, UserCheck, UserMinus, Database, Zap,
-  TrendingUp,
+  TrendingUp, CreditCard,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
@@ -16,6 +16,7 @@ import {
   UserAccount, CompanyInfo,
 } from "@/lib/store";
 import { CURRENCY_LABELS } from "@/lib/types";
+import BillingUpgradeModal from "@/components/BillingUpgradeModal";
 
 const API = (path: string, opts?: RequestInit) => {
   const headers = new Headers(opts?.headers);
@@ -193,6 +194,7 @@ function PlanValidityCard() {
   const plan   = user?.orgPlan   ?? 'trial';
   const status = user?.orgStatus ?? 'trial';
   const expiryStr = user?.trialEndsAt ?? null;
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const fmtExpiry = (s: string) =>
     new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -204,6 +206,8 @@ function PlanValidityCard() {
   const expired = daysLeft !== null && daysLeft < 0;
   const urgent  = !expired && daysLeft !== null && daysLeft <= 7;
 
+  const canUpgrade = plan === 'trial' || plan === 'starter' || status === 'canceled';
+
   const STATUS_COLORS: Record<string, string> = {
     trial:    'bg-slate-100 text-slate-600 border-slate-200',
     active:   'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -212,33 +216,54 @@ function PlanValidityCard() {
   };
 
   return (
-    <div className={`rounded-xl border px-5 py-4 ${expired ? 'bg-red-50 border-red-200' : urgent ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Shield className={`w-5 h-5 flex-shrink-0 ${expired ? 'text-red-500' : urgent ? 'text-amber-500' : 'text-slate-400'}`} />
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-sm font-semibold text-slate-800">Subscription</p>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${PLAN_COLORS[plan]}`}>
-                {PLAN_LABELS[plan]}
-              </span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${STATUS_COLORS[status] ?? STATUS_COLORS['trial']}`}>
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </span>
+    <>
+      <div className={`rounded-xl border px-5 py-4 ${expired ? 'bg-red-50 border-red-200' : urgent ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Shield className={`w-5 h-5 flex-shrink-0 ${expired ? 'text-red-500' : urgent ? 'text-amber-500' : 'text-slate-400'}`} />
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm font-semibold text-slate-800">Subscription</p>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${PLAN_COLORS[plan]}`}>
+                  {PLAN_LABELS[plan]}
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${STATUS_COLORS[status] ?? STATUS_COLORS['trial']}`}>
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </span>
+              </div>
+              {expiryStr ? (
+                <p className={`text-xs mt-0.5 ${expired ? 'text-red-600 font-semibold' : urgent ? 'text-amber-600 font-medium' : 'text-slate-500'}`}>
+                  {expired
+                    ? `Expired ${fmtExpiry(expiryStr)} — renew below`
+                    : `Valid until ${fmtExpiry(expiryStr)} · ${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining`}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400 mt-0.5">No expiry date set</p>
+              )}
             </div>
-            {expiryStr ? (
-              <p className={`text-xs mt-0.5 ${expired ? 'text-red-600 font-semibold' : urgent ? 'text-amber-600 font-medium' : 'text-slate-500'}`}>
-                {expired
-                  ? `Expired ${fmtExpiry(expiryStr)} — contact admin to renew`
-                  : `Valid until ${fmtExpiry(expiryStr)} · ${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining`}
-              </p>
-            ) : (
-              <p className="text-xs text-slate-400 mt-0.5">No expiry date set</p>
-            )}
           </div>
+          {canUpgrade && (
+            <button
+              onClick={() => setShowUpgrade(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition flex-shrink-0"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              {plan === 'trial' || status === 'canceled' ? 'Subscribe' : 'Upgrade Plan'}
+            </button>
+          )}
         </div>
       </div>
-    </div>
+      {showUpgrade && (
+        <BillingUpgradeModal
+          currentPlan={plan}
+          onClose={() => setShowUpgrade(false)}
+          onSuccess={() => {
+            setShowUpgrade(false);
+            window.location.reload();
+          }}
+        />
+      )}
+    </>
   );
 }
 
