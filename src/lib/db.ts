@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { EXECUTION_MILESTONES } from '@/lib/types';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 
 // Helpers that turn raw Postgres rows into the camelCase shape the client expects.
 
@@ -139,7 +140,8 @@ function groupBy(rows: any[], key: string): Record<string, any[]> {
  * Used when returning a single package from mutation endpoints.
  */
 export async function assemblePackage(supabase: SupabaseClient, row: any) {
-  const id = row.id;
+  const id    = row.id;
+  const admin = createAdminSupabase();
   const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes, tasksRes] = await Promise.all([
     supabase.from('vendors').select('id, name, quoted_amount, revised_amount').eq('package_id', id),
     supabase.from('remarks').select('id, username, text, timestamp, user_id').eq('package_id', id).order('timestamp'),
@@ -147,7 +149,8 @@ export async function assemblePackage(supabase: SupabaseClient, row: any) {
     supabase.from('audit_trail').select('id, username, field, old_value, new_value, timestamp').eq('package_id', id).order('timestamp'),
     supabase.from('invoices').select('id, amount, invoice_number, invoice_date, notes, username, created_at').eq('package_id', id).order('invoice_date'),
     supabase.from('package_milestones').select('id, milestone_name, display_order, progress, completed_at, completed_by').eq('package_id', id).order('display_order'),
-    supabase.from('milestone_tasks').select('id, milestone_name, name, description, progress, start_date, end_date, sort_order, created_by, created_at').eq('package_id', id).order('sort_order').order('created_at'),
+    // admin client bypasses RLS on milestone_tasks (policy uses proj.owner_id which doesn't match org members)
+    admin.from('milestone_tasks').select('id, milestone_name, name, description, progress, start_date, end_date, sort_order, created_by, created_at').eq('package_id', id).order('sort_order').order('created_at'),
   ]);
 
   return mapPackageRow(
@@ -340,6 +343,7 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
   if (pkgs.length > 0) {
     const ids = pkgs.map((p: any) => p.id);
 
+    const admin = createAdminSupabase();
     const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes, tasksRes] = await Promise.all([
       supabase.from('vendors').select('id, package_id, name, quoted_amount, revised_amount').in('package_id', ids),
       supabase.from('remarks').select('id, package_id, username, text, timestamp, user_id').in('package_id', ids).order('timestamp'),
@@ -347,7 +351,7 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
       supabase.from('audit_trail').select('id, package_id, username, field, old_value, new_value, timestamp').in('package_id', ids).order('timestamp'),
       supabase.from('invoices').select('id, package_id, amount, invoice_number, invoice_date, notes, username, created_at').in('package_id', ids).order('invoice_date'),
       supabase.from('package_milestones').select('id, package_id, milestone_name, display_order, progress, completed_at, completed_by').in('package_id', ids).order('display_order'),
-      supabase.from('milestone_tasks').select('id, package_id, milestone_name, name, description, progress, start_date, end_date, sort_order, created_by, created_at').in('package_id', ids).order('sort_order').order('created_at'),
+      admin.from('milestone_tasks').select('id, package_id, milestone_name, name, description, progress, start_date, end_date, sort_order, created_by, created_at').in('package_id', ids).order('sort_order').order('created_at'),
     ]);
 
     vendorsByPkg    = groupBy(vendorsRes.data    || [], 'package_id');

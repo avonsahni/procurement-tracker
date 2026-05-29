@@ -28,17 +28,17 @@ function DraggableBar({
     return Math.round(Math.max(0, Math.min(100, ((x - rect.left) / rect.width) * 100)));
   };
 
-  const onDown  = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (readonly) return;
     dragging.current = true;
     e.currentTarget.setPointerCapture(e.pointerId);
     onChange(clamp(e.clientX));
   };
-  const onMove  = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging.current || readonly) return;
     onChange(clamp(e.clientX));
   };
-  const onUp    = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging.current) return;
     dragging.current = false;
     const v = clamp(e.clientX);
@@ -56,10 +56,11 @@ function DraggableBar({
     <div className="flex items-center gap-2 w-full">
       <div
         ref={trackRef}
-        className={`relative ${h} flex-1 ${readonly ? "cursor-default" : "cursor-ew-resize"} select-none`}
+        className={`relative ${h} flex-1 cursor-default select-none`}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
+        style={{ cursor: readonly ? "default" : "ew-resize" }}
       >
         <div className={`absolute inset-0 top-1/2 -translate-y-1/2 ${track} rounded-full bg-slate-100 overflow-hidden`}>
           <div className={`h-full rounded-full transition-colors ${fill}`} style={{ width: `${value}%` }} />
@@ -90,7 +91,8 @@ interface TaskUpdate {
 interface Props {
   milestones: PackageMilestone[];
   readonly?: boolean;
-  onUpdate: (milestoneName: string, progress: number) => Promise<void>;
+  /** No longer called from the UI — milestone progress is computed from subtasks. */
+  onUpdate?: (milestoneName: string, progress: number) => Promise<void>;
   onAddTask?: (milestoneName: string, name: string, startDate?: string, endDate?: string) => Promise<void>;
   onUpdateTask?: (taskId: string, updates: TaskUpdate) => Promise<void>;
   onDeleteTask?: (taskId: string) => Promise<void>;
@@ -99,38 +101,10 @@ interface Props {
 // ── MilestoneTracker ──────────────────────────────────────────────────────────
 
 export default function MilestoneTracker({
-  milestones, readonly, onUpdate, onAddTask, onUpdateTask, onDeleteTask,
+  milestones, readonly, onAddTask, onUpdateTask, onDeleteTask,
 }: Props) {
 
-  // ── Milestone bar state (same as original — seeded once, not reset on re-props) ──
-  const milestoneInitialized = useRef(false);
-  const [localMilestoneProgress, setLocalMilestoneProgress] = useState<Record<string, number>>(() => {
-    const init: Record<string, number> = {};
-    for (const n of EXECUTION_MILESTONES) init[n] = 0;
-    for (const m of milestones) init[m.milestoneName] = m.progress;
-    return init;
-  });
-
-  const savingMilestoneBars = useRef<Set<string>>(new Set());
-  const milestoneTimers     = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const [savingMilestoneSet, setSavingMilestoneSet] = useState<Set<string>>(new Set());
-
-  // Sync milestone bars from props (only non-saving bars, same rollback-prevention as before)
-  useEffect(() => {
-    if (!milestoneInitialized.current) { milestoneInitialized.current = true; return; }
-    const snap: Record<string, number> = {};
-    for (const n of EXECUTION_MILESTONES) snap[n] = 0;
-    for (const m of milestones) snap[m.milestoneName] = m.progress;
-    setLocalMilestoneProgress(prev => {
-      const next = { ...prev };
-      for (const n of EXECUTION_MILESTONES) {
-        if (!savingMilestoneBars.current.has(n)) next[n] = snap[n];
-      }
-      return next;
-    });
-  }, [milestones]);
-
-  // ── Task progress state ───────────────────────────────────────────────────
+  // ── Task progress state (drag bars on subtasks) ───────────────────────────
   const [taskProgress, setTaskProgress] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {};
     for (const m of milestones) for (const t of (m.tasks || [])) init[t.id] = t.progress;
@@ -141,7 +115,7 @@ export default function MilestoneTracker({
   const taskTimers     = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [savingTaskSet, setSavingTaskSet] = useState<Set<string>>(new Set());
 
-  // Seed new tasks as they arrive (never overwrite in-progress drags)
+  // Seed newly arriving tasks without overwriting in-progress drags
   const seededTaskIds = useRef<Set<string>>(new Set());
   useEffect(() => {
     const additions: Record<string, number> = {};
@@ -153,9 +127,7 @@ export default function MilestoneTracker({
         }
       }
     }
-    if (Object.keys(additions).length > 0) {
-      setTaskProgress(prev => ({ ...prev, ...additions }));
-    }
+    if (Object.keys(additions).length > 0) setTaskProgress(prev => ({ ...prev, ...additions }));
   }, [milestones]);
 
   // ── Task name/date editing state ──────────────────────────────────────────
@@ -199,35 +171,19 @@ export default function MilestoneTracker({
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
+  // Milestone progress is always the average of its subtask progress.
+  // If no tasks are defined the milestone shows 0%.
   const getMilestoneProgress = (name: string) => {
-    const m = milestones.find(x => x.milestoneName === name);
-    const tasks = m?.tasks ?? [];
-    if (tasks.length > 0) {
-      const avg = tasks.reduce((s, t) => s + (taskProgress[t.id] ?? t.progress), 0) / tasks.length;
-      return Math.round(avg);
-    }
-    return localMilestoneProgress[name] ?? 0;
+    const tasks = milestones.find(x => x.milestoneName === name)?.tasks ?? [];
+    if (tasks.length === 0) return 0;
+    const avg = tasks.reduce((s, t) => s + (taskProgress[t.id] ?? t.progress), 0) / tasks.length;
+    return Math.round(avg);
   };
 
-  const hasTasks = (name: string) => (milestones.find(x => x.milestoneName === name)?.tasks?.length ?? 0) > 0;
-
-  const overallPct  = EXECUTION_MILESTONES.reduce((s, n) => s + getMilestoneProgress(n), 0) / EXECUTION_MILESTONES.length;
-  const doneCount   = EXECUTION_MILESTONES.filter(n => getMilestoneProgress(n) === 100).length;
+  const overallPct = EXECUTION_MILESTONES.reduce((s, n) => s + getMilestoneProgress(n), 0) / EXECUTION_MILESTONES.length;
+  const doneCount  = EXECUTION_MILESTONES.filter(n => getMilestoneProgress(n) === 100).length;
 
   // ── Commit handlers ────────────────────────────────────────────────────────
-
-  const handleMilestoneCommit = useCallback((name: string, v: number) => {
-    if (milestoneTimers.current[name]) clearTimeout(milestoneTimers.current[name]);
-    milestoneTimers.current[name] = setTimeout(async () => {
-      savingMilestoneBars.current.add(name);
-      setSavingMilestoneSet(new Set(savingMilestoneBars.current));
-      try { await onUpdate(name, v); }
-      finally {
-        savingMilestoneBars.current.delete(name);
-        setSavingMilestoneSet(new Set(savingMilestoneBars.current));
-      }
-    }, 120);
-  }, [onUpdate]);
 
   const handleTaskProgressCommit = useCallback((taskId: string, v: number) => {
     if (taskTimers.current[taskId]) clearTimeout(taskTimers.current[taskId]);
@@ -305,13 +261,12 @@ export default function MilestoneTracker({
       {/* Milestone rows */}
       <div className="divide-y divide-slate-100 pb-2">
         {EXECUTION_MILESTONES.map((name, i) => {
-          const prog        = getMilestoneProgress(name);
-          const done        = prog === 100;
-          const withTasks   = hasTasks(name);
-          const isExpanded  = !!expanded[name];
-          const tasks       = milestones.find(x => x.milestoneName === name)?.tasks ?? [];
-          const taskCount   = tasks.length;
-          const canEdit     = !readonly && !!onAddTask;
+          const prog       = getMilestoneProgress(name);
+          const done       = prog === 100;
+          const isExpanded = !!expanded[name];
+          const tasks      = milestones.find(x => x.milestoneName === name)?.tasks ?? [];
+          const taskCount  = tasks.length;
+          const canEdit    = !readonly && !!onAddTask;
 
           return (
             <div key={name}>
@@ -330,17 +285,13 @@ export default function MilestoneTracker({
                   {name}
                 </span>
 
-                {/* Drag bar — read-only when tasks exist (computed avg) */}
+                {/* Progress bar — always read-only, computed from subtasks */}
                 <div className="flex-1 min-w-0">
                   <DraggableBar
                     value={prog}
-                    onChange={v => {
-                      if (withTasks) return;
-                      setLocalMilestoneProgress(prev => ({ ...prev, [name]: v }));
-                    }}
-                    onCommit={v => { if (!withTasks) handleMilestoneCommit(name, v); }}
-                    readonly={readonly || withTasks}
-                    saving={savingMilestoneSet.has(name)}
+                    onChange={() => {}}
+                    onCommit={() => {}}
+                    readonly
                   />
                 </div>
 
@@ -351,7 +302,7 @@ export default function MilestoneTracker({
                   {prog}%
                 </span>
 
-                {/* Expand / add toggle */}
+                {/* Expand toggle */}
                 <button
                   onClick={() => setExpanded(prev => ({ ...prev, [name]: !prev[name] }))}
                   className="flex-shrink-0 flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition ml-1"
@@ -371,7 +322,6 @@ export default function MilestoneTracker({
               {isExpanded && (
                 <div className="bg-slate-50/70 border-t border-slate-100 px-5 py-3 space-y-2">
 
-                  {/* Existing tasks */}
                   {tasks.length === 0 && !canEdit && (
                     <p className="text-xs text-slate-400 italic">No tasks defined.</p>
                   )}
@@ -385,10 +335,9 @@ export default function MilestoneTracker({
                     return (
                       <div key={task.id} className={`flex items-center gap-2 bg-white rounded-lg border border-slate-100 px-3 py-2 ${deleting ? "opacity-50" : ""}`}>
 
-                        {/* Dot */}
                         <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-slate-300 mt-0.5" />
 
-                        {/* Name input */}
+                        {/* Task name */}
                         <input
                           type="text"
                           value={tEdit.name}
@@ -421,7 +370,7 @@ export default function MilestoneTracker({
                           />
                         </div>
 
-                        {/* Progress bar */}
+                        {/* Task progress bar — draggable */}
                         <div className="w-28 flex-shrink-0">
                           <DraggableBar
                             size="sm"
@@ -488,17 +437,14 @@ export default function MilestoneTracker({
                           disabled={!form.name.trim() || form.busy}
                           className="flex-shrink-0 flex items-center gap-1 text-[11px] font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          {form.busy
-                            ? <Loader2 className="w-3 h-3 animate-spin" />
-                            : <Plus className="w-3 h-3" />
-                          }
+                          {form.busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                           Add
                         </button>
                       </div>
                     );
                   })()}
 
-                  {/* Date range summary for this milestone */}
+                  {/* Milestone date span */}
                   {tasks.length > 0 && (() => {
                     const starts = tasks.filter(t => (taskEdits[t.id]?.startDate || t.startDate)).map(t => taskEdits[t.id]?.startDate || t.startDate!).sort();
                     const ends   = tasks.filter(t => (taskEdits[t.id]?.endDate   || t.endDate)).map(t => taskEdits[t.id]?.endDate   || t.endDate!).sort();
@@ -519,7 +465,7 @@ export default function MilestoneTracker({
 
       {!readonly && (
         <p className="px-5 pb-3 text-[10px] text-slate-400">
-          Drag each bar to set progress · Click ▶ to expand and manage subtasks
+          Milestone progress auto-computes from subtasks · Click ▶ to expand and manage subtasks
         </p>
       )}
     </div>
