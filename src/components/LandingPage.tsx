@@ -164,9 +164,9 @@ function StageMockup() {
 
 function VendorMockup() {
   const vendors = [
-    { name: "Larsen & Toubro",   bid: "₹2,48,00,000", score: 92, awarded: true  },
-    { name: "Shapoorji Pallonji", bid: "₹2,61,50,000", score: 87, awarded: false },
-    { name: "Tata Projects",     bid: "₹2,39,00,000", score: 79, awarded: false },
+    { name: "Vendor A", bid: "₹2,48,00,000", score: 92, awarded: true  },
+    { name: "Vendor B", bid: "₹2,61,50,000", score: 87, awarded: false },
+    { name: "Vendor C", bid: "₹2,39,00,000", score: 79, awarded: false },
   ];
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden select-none">
@@ -735,11 +735,11 @@ export default function LandingPage() {
             <Zap className="w-3 h-3" /> Built for project directors &amp; procurement heads
           </div>
           <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight mb-4">
-            Procurement control<br />
-            <span className="text-blue-600">for infrastructure teams</span>
+            The project lifecycle,<br />
+            <span className="text-blue-600">on one dashboard</span>
           </h1>
           <p className="text-xl sm:text-2xl font-semibold text-slate-700 mb-4">
-            One Dashboard &mdash; The End of Weekly Reports &mdash; <em><strong>Every Milestone Tracked</strong></em>
+            The End of Weekly Reports &mdash; <em><strong>Every Milestone Tracked</strong></em>
           </p>
           <p className="text-lg text-slate-500 leading-relaxed max-w-2xl mx-auto mb-8">
             From RFQ to handover — every package, every rupee, on one live dashboard.
