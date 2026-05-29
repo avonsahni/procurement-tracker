@@ -221,12 +221,16 @@ export default function MilestoneTracker({
   const handleTaskFieldBlur = useCallback(async (taskId: string) => {
     const e = taskEdits[taskId];
     if (!e || !onUpdateTask) return;
+    if (e.startDate && e.endDate && e.endDate < e.startDate) {
+      showToast("End date must be after start date");
+      return;
+    }
     await onUpdateTask(taskId, {
       name:      e.name || undefined,
       startDate: e.startDate || null,
       endDate:   e.endDate || null,
     });
-  }, [taskEdits, onUpdateTask]);
+  }, [taskEdits, onUpdateTask, showToast]);
 
   const openAddForm = (name: string) => {
     setExpanded(prev => ({ ...prev, [name]: true }));
@@ -238,6 +242,11 @@ export default function MilestoneTracker({
     if (!form.name.trim() || !onAddTask) return;
     if (!form.startDate || !form.endDate) {
       showToast("Choose start and end date");
+      setAddFormDateError(prev => ({ ...prev, [milestoneName]: true }));
+      return;
+    }
+    if (form.endDate < form.startDate) {
+      showToast("End date must be after start date");
       setAddFormDateError(prev => ({ ...prev, [milestoneName]: true }));
       return;
     }
