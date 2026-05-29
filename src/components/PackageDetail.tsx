@@ -437,8 +437,10 @@ export default function PackageDetail({
             />
             <ProgressRemarksPanel
               remarks={pkg.remarks || []}
+              packageId={packageId}
+              orgId={user?.orgId}
               readonly={!editMode}
-              onAddRemark={async (t) => { await addRemark(packageId, t, user?.fullName); await reloadPackage(); }}
+              onAddRemark={async (t, imageUrl) => { await addRemark(packageId, t, user?.fullName, imageUrl); await reloadPackage(); }}
             />
           </div>
         )}
