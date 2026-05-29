@@ -735,7 +735,7 @@ export default function LandingPage() {
             <Zap className="w-3 h-3" /> Built for project managers · No spreadsheets
           </div>
           <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight mb-4">
-            Procurement tracking<br />
+            Project tracking<br />
             <span className="text-blue-600">made simple</span>
           </h1>
           <p className="text-xl sm:text-2xl font-semibold text-slate-700 mb-4">
