@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase/server';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 import { guard } from '@/lib/auth';
 import { rollUpMilestoneTasks } from '@/lib/db';
 import { withRoute } from '@/lib/withRoute';
@@ -34,7 +34,7 @@ export const PATCH = withRoute(async (req: NextRequest, ctx) => {
   if (parsed.data.endDate     !== undefined) updates.end_date    = parsed.data.endDate;
   if (parsed.data.sortOrder   !== undefined) updates.sort_order  = parsed.data.sortOrder;
 
-  const supabase = await createServerSupabase();
+  const supabase = createAdminSupabase();
 
   const { error } = await supabase
     .from('milestone_tasks')
@@ -54,7 +54,7 @@ export const DELETE = withRoute(async (_req: NextRequest, ctx) => {
   if (auth instanceof NextResponse) return auth;
 
   const { id: pkgId, tid } = await ctx!.params as { id: string; tid: string };
-  const supabase = await createServerSupabase();
+  const supabase = createAdminSupabase();
 
   const { error } = await supabase
     .from('milestone_tasks')

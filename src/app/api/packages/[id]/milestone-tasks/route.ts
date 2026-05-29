@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase/server';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 import { guard } from '@/lib/auth';
 import { rollUpMilestoneTasks } from '@/lib/db';
 import { withRoute } from '@/lib/withRoute';
@@ -19,7 +19,7 @@ export const GET = withRoute(async (_req: NextRequest, ctx) => {
   if (auth instanceof NextResponse) return auth;
 
   const { id: pkgId } = await ctx!.params as { id: string };
-  const supabase = await createServerSupabase();
+  const supabase = createAdminSupabase();
 
   const { data, error } = await supabase
     .from('milestone_tasks')
@@ -44,7 +44,7 @@ export const POST = withRoute(async (req: NextRequest, ctx) => {
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
 
-  const supabase = await createServerSupabase();
+  const supabase = createAdminSupabase();
 
   const { data: task, error } = await supabase
     .from('milestone_tasks')
