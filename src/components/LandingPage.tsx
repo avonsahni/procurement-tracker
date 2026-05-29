@@ -788,6 +788,9 @@ export default function LandingPage() {
           </div>
           <div className="w-screen relative left-1/2 right-1/2 -mx-[50vw] bg-slate-900 px-6 py-14 mb-14">
             <div className="max-w-3xl mx-auto space-y-6">
+              <h2 className="text-center text-2xl sm:text-3xl font-extrabold italic text-white mb-8">
+                "The Story of ProcureTrack"
+              </h2>
               <p className="text-base sm:text-lg font-bold italic text-white leading-relaxed">
                 "Real estate and infrastructure projects are inherently complex. Multiple teams, agencies, and stakeholders across the supply chain. But the hardest part isn't complexity — it's <span className="text-blue-400">visibility</span>.
               </p>
