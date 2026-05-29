@@ -164,9 +164,9 @@ function StageMockup() {
 
 function VendorMockup() {
   const vendors = [
-    { name: "BuildCo Ltd",      bid: "£248,000", score: 92, awarded: true  },
-    { name: "Apex Contractors", bid: "£261,500", score: 87, awarded: false },
-    { name: "Swift Build",      bid: "£239,000", score: 79, awarded: false },
+    { name: "Larsen & Toubro",   bid: "₹2,48,00,000", score: 92, awarded: true  },
+    { name: "Shapoorji Pallonji", bid: "₹2,61,50,000", score: 87, awarded: false },
+    { name: "Tata Projects",     bid: "₹2,39,00,000", score: 79, awarded: false },
   ];
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden select-none">
@@ -195,10 +195,10 @@ function VendorMockup() {
 
 function AnalyticsMockup() {
   const bars = [
-    { label: "Metro Rail", pct: 82, color: "bg-blue-500"    },
-    { label: "Hospital",   pct: 55, color: "bg-violet-500"  },
-    { label: "Bridge",     pct: 91, color: "bg-emerald-500" },
-    { label: "School Hub", pct: 34, color: "bg-amber-500"   },
+    { label: "Metro Rail",     pct: 82, color: "bg-blue-500"    },
+    { label: "Hospital",       pct: 55, color: "bg-violet-500"  },
+    { label: "Bridge",         pct: 91, color: "bg-emerald-500" },
+    { label: "Smart Township", pct: 34, color: "bg-amber-500"   },
   ];
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-5 select-none">
@@ -221,7 +221,7 @@ function AnalyticsMockup() {
       </div>
       <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
         <div className="text-center">
-          <p className="text-base font-bold text-slate-800">£8.9M</p>
+          <p className="text-base font-bold text-slate-800">₹89 Cr</p>
           <p className="text-[9px] text-slate-400">Total awarded</p>
         </div>
         <div className="text-center">
@@ -461,7 +461,7 @@ function PurchasingMockup() {
     <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden text-left select-none text-slate-900">
       {/* Header */}
       <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
-        <p className="text-[9px] font-bold text-blue-600 uppercase tracking-widest mb-0.5">Purchasing Dashboard · Tata Communications</p>
+        <p className="text-[9px] font-bold text-blue-600 uppercase tracking-widest mb-0.5">Purchasing Dashboard · Infrastructure Client</p>
         <p className="text-xs font-bold text-slate-800">Hyperion Data Center</p>
       </div>
 
@@ -654,7 +654,7 @@ const PRICING = [
       "Minimum 10 seats included",
       "Every additional seat billed per user",
       "Everything in Small Teams",
-      "GDPR data export",
+      "Full data export, always available",
       "Priority support",
       "Dedicated onboarding",
     ],
@@ -732,18 +732,18 @@ export default function LandingPage() {
       <section className="pt-20 pb-16 px-6 text-center bg-gradient-to-b from-slate-50 to-white">
         <div className="max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium mb-6">
-            <Zap className="w-3 h-3" /> Built for project managers · No spreadsheets
+            <Zap className="w-3 h-3" /> Built for project directors &amp; procurement heads
           </div>
           <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight mb-4">
-            Project tracking<br />
-            <span className="text-blue-600">made simple</span>
+            Procurement control<br />
+            <span className="text-blue-600">for infrastructure teams</span>
           </h1>
           <p className="text-xl sm:text-2xl font-semibold text-slate-700 mb-4">
             One Dashboard &mdash; The End of Weekly Reports &mdash; <em><strong>Every Milestone Tracked</strong></em>
           </p>
           <p className="text-lg text-slate-500 leading-relaxed max-w-2xl mx-auto mb-8">
-            From spec to award — every package tracked, every vendor compared, every decision logged.
-            The dashboard your project team will actually use.
+            From RFQ to handover — every package, every rupee, on one live dashboard.
+            The single source of truth your project team will actually use.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
             <button
@@ -771,10 +771,10 @@ export default function LandingPage() {
       <section className="py-10 border-y border-slate-100 bg-white">
         <div className="max-w-4xl mx-auto px-6 grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
           {[
-            { value: "100+",  label: "Packages per project" },
-            { value: "6",     label: "Procurement stages"   },
-            { value: "GDPR",  label: "Compliant by design"  },
-            { value: "14-day", label: "Free trial, no card" },
+            { value: "Zero",   label: "Status meetings needed" },
+            { value: "6",      label: "Procurement stages"     },
+            { value: "DPDP",   label: "Ready by design"        },
+            { value: "14-day", label: "Free trial, no card"    },
           ].map(s => (
             <div key={s.label}>
               <p className="text-2xl font-extrabold text-blue-600">{s.value}</p>
@@ -943,12 +943,15 @@ export default function LandingPage() {
               ProcureTrack gives decision-makers a single, clear view of every package —
               <em>what's the status, who are the vendors, and what was awarded?</em>
             </p>
+            <p className="text-xs text-slate-400 italic border-l-2 border-slate-200 pl-3">
+              Built by a civil engineer with 28 years of infrastructure delivery experience — designed around how projects actually run, not how software vendors think they do.
+            </p>
             <ul className="space-y-3">
               {[
                 "No training required — intuitive enough for any manager",
                 "Works on desktop, tablet, and mobile",
-                "Your org's data is private — fully isolated from other companies",
-                "GDPR-compliant with one-click data export",
+                "Your data is private and fully isolated — never shared across organisations",
+                "DPDP-ready with one-click data export",
               ].map(item => (
                 <li key={item} className="flex items-start gap-3 text-sm text-slate-600">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
@@ -1214,7 +1217,7 @@ export default function LandingPage() {
             <span className="font-bold text-slate-700 text-sm">ProcureTrack</span>
           </div>
           <p className="text-xs text-slate-400 text-center">
-            © {new Date().getFullYear()} ProcureTrack · GDPR compliant · All rights reserved
+            © {new Date().getFullYear()} ProcureTrack · DPDP-ready · All rights reserved
           </p>
           <div className="flex items-center gap-4 text-xs text-slate-400">
             <a href="#features" className="hover:text-slate-600 transition">Features</a>
