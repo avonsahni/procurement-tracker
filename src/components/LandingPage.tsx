@@ -731,9 +731,6 @@ export default function LandingPage() {
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
       <section className="pt-20 pb-16 px-6 text-center bg-gradient-to-b from-slate-50 to-white">
         <div className="max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium mb-6">
-            <Zap className="w-3 h-3" /> Built for project directors &amp; procurement heads
-          </div>
           <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight mb-4">
             The project lifecycle,<br />
             <span className="text-blue-600">on one dashboard</span>
