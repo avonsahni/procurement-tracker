@@ -170,6 +170,8 @@ export interface PackageSummary {
   awardValue?: number;
   awardedVendorId?: string;
   milestones: PackageMilestone[];
+  startDate?: string;
+  endDate?: string;
   createdAt: string;
   updatedAt: string;
   // summary-only aggregates
@@ -186,6 +188,8 @@ export interface ProjectSummary {
   budget: number;
   status: 'Active' | 'On Hold' | 'Completed';
   packages: PackageSummary[];
+  startDate?: string;
+  endDate?: string;
   createdAt: string;
   updatedAt: string;
 }

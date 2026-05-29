@@ -234,7 +234,7 @@ export async function rollUpMilestoneTasks(supabase: SupabaseClient, pkgId: stri
 export async function assembleProjectSummary(supabase: SupabaseClient, row: any) {
   const { data: pkgRows } = await supabase
     .from('packages')
-    .select('id, name, category, origin, currency, current_stage, award_value, awarded_vendor_id, rfq_float_date, award_date, created_at, updated_at')
+    .select('id, name, category, origin, currency, current_stage, award_value, awarded_vendor_id, rfq_float_date, award_date, start_date, end_date, created_at, updated_at')
     .eq('project_id', row.id)
     .order('created_at');
 
@@ -284,6 +284,8 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     awardDate: p.award_date || undefined,
     awardValue: p.award_value ?? undefined,
     awardedVendorId: p.awarded_vendor_id || undefined,
+    startDate: p.start_date || undefined,
+    endDate:   p.end_date   || undefined,
     createdAt: p.created_at,
     updatedAt: p.updated_at,
     billedAmount: billedByPkg[p.id] || 0,
@@ -305,12 +307,17 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     })),
   }));
 
+  const projStarts = packages.filter(p => p.startDate).map(p => p.startDate!).sort();
+  const projEnds   = packages.filter(p => p.endDate).map(p => p.endDate!).sort();
+
   return {
     id: row.id,
     name: row.name,
     client: row.client || '',
     budget: Number(row.budget) || 0,
     status: row.status,
+    startDate: projStarts.length ? projStarts[0] : undefined,
+    endDate:   projEnds.length ? projEnds[projEnds.length - 1] : undefined,
     packages,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

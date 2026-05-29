@@ -33,7 +33,7 @@ import BillingSection from "@/components/BillingSection";
 import MilestoneTracker from "@/components/MilestoneTracker";
 import ProgressRemarksPanel from "@/components/ProgressRemarksPanel";
 import {
-  ArrowLeft, Package, ChevronRight, Lock, Unlock, CheckCircle2, Clock, AlertTriangle, Activity,
+  ArrowLeft, Package, ChevronRight, Lock, Unlock, CheckCircle2, Clock, AlertTriangle, Activity, CalendarDays,
 } from "lucide-react";
 
 export default function PackageDetail({
@@ -282,6 +282,20 @@ export default function PackageDetail({
             )}
           </div>
 
+          {/* Execution timeline — shown when task dates have been set */}
+          {(pkg.startDate || pkg.endDate) && (
+            <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-500">
+              <CalendarDays className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+              <span>Execution timeline</span>
+              <span className="font-semibold text-slate-700">
+                {pkg.startDate ? new Date(pkg.startDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "TBD"}
+              </span>
+              <span className="text-slate-300">→</span>
+              <span className="font-semibold text-slate-700">
+                {pkg.endDate ? new Date(pkg.endDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "TBD"}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* ── PROCUREMENT SECTIONS (purchasing flow only) ─────────────────── */}
