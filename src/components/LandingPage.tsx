@@ -792,9 +792,11 @@ export default function LandingPage() {
               <p className="text-base text-slate-600 leading-relaxed">
                 Most tracking systems work in isolation. They demand data from you — email threads, spreadsheets, WhatsApp status updates, PowerPoint compilations — and still can't tell you what's actually happening on site in real time. They were designed for accountants, not project directors. They're either too rigid and data-hungry, or too loose and unmaintained. Either way, they don't answer the question you actually need answered: <em>Where is my project, right now?</em>
               </p>
-              <p className="text-base text-slate-600 leading-relaxed">
-                After 28 years delivering infrastructure projects, we built ProcureTrack to address what no other software does. A system designed for <strong>how projects actually work</strong> — not how ERP vendors think they should. Minimal. Realistic. Usable. One dashboard that tracks every package from RFQ through handover, with real-time visibility for the entire team.
-              </p>
+              <div className="bg-slate-900 rounded-2xl px-8 py-6 my-2">
+                <p className="text-base sm:text-lg font-bold italic text-white leading-relaxed">
+                  "After 28 years delivering infrastructure projects, we built ProcureTrack to address what no other software does. A system designed for <span className="text-blue-400">how projects actually work</span> — not how ERP vendors think they should. Minimal. Realistic. Usable. One dashboard that tracks every package from RFQ through handover, with real-time visibility for the entire team."
+                </p>
+              </div>
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-3">
               Everything a project manager needs
