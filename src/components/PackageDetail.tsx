@@ -282,22 +282,6 @@ export default function PackageDetail({
             )}
           </div>
 
-          {/* Stage progress bar */}
-          <div className="mt-5">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
-              <span>Stage Progress</span>
-              <span className={`font-semibold flex items-center gap-1.5 ${isAwarded ? "text-emerald-700" : "text-blue-700"}`}>
-                {stageSaving && <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
-                {displayStage}
-              </span>
-            </div>
-            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${isAwarded ? "bg-emerald-500" : "bg-blue-500"}`}
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-          </div>
         </div>
 
         {/* ── PROCUREMENT SECTIONS (purchasing flow only) ─────────────────── */}

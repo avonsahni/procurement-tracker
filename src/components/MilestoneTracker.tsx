@@ -183,6 +183,14 @@ export default function MilestoneTracker({
   const overallPct = EXECUTION_MILESTONES.reduce((s, n) => s + getMilestoneProgress(n), 0) / EXECUTION_MILESTONES.length;
   const doneCount  = EXECUTION_MILESTONES.filter(n => getMilestoneProgress(n) === 100).length;
 
+  // Overall timeline: earliest start → latest end across all tasks
+  const allTasks = milestones.flatMap(m => m.tasks ?? []);
+  const allStarts = allTasks.map(t => taskEdits[t.id]?.startDate || t.startDate).filter(Boolean) as string[];
+  const allEnds   = allTasks.map(t => taskEdits[t.id]?.endDate   || t.endDate).filter(Boolean) as string[];
+  const timelineStart = allStarts.length ? allStarts.sort()[0] : null;
+  const timelineEnd   = allEnds.length   ? allEnds.sort().reverse()[0] : null;
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
   // ── Commit handlers ────────────────────────────────────────────────────────
 
   const handleTaskProgressCommit = useCallback((taskId: string, v: number) => {
@@ -240,12 +248,20 @@ export default function MilestoneTracker({
 
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-        <div className="flex items-center gap-2">
-          <ClipboardList className="w-4 h-4 text-blue-600" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <ClipboardList className="w-4 h-4 text-blue-600 flex-shrink-0" />
           <h3 className="font-semibold text-slate-900 text-sm">Execution Milestones</h3>
-          <span className="text-xs text-slate-400 ml-1">({doneCount}/{EXECUTION_MILESTONES.length} complete)</span>
+          <span className="text-xs text-slate-400">({doneCount}/{EXECUTION_MILESTONES.length} complete)</span>
+          {(timelineStart || timelineEnd) && (
+            <span className="flex items-center gap-1 text-[11px] text-slate-500 bg-slate-100 rounded-lg px-2 py-0.5 ml-1">
+              <CalendarDays className="w-3 h-3 text-slate-400 flex-shrink-0" />
+              {timelineStart ? fmtDate(timelineStart) : "?"}
+              <span className="text-slate-300">→</span>
+              {timelineEnd ? fmtDate(timelineEnd) : "?"}
+            </span>
+          )}
         </div>
-        <span className={`text-xs font-mono font-semibold ${overallPct >= 100 ? "text-emerald-600" : "text-slate-700"}`}>
+        <span className={`text-xs font-mono font-semibold flex-shrink-0 ml-3 ${overallPct >= 100 ? "text-emerald-600" : "text-slate-700"}`}>
           {overallPct.toFixed(0)}%
         </span>
       </div>
