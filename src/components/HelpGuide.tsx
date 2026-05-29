@@ -5,7 +5,7 @@ import {
   X, BookOpen, LayoutDashboard, FolderOpen, Layers, Package,
   Users, Receipt, BarChart3, Settings, Lock, ChevronRight,
   CheckCircle2, AlertCircle, Info, Lightbulb, ArrowRight,
-  Shield, Building2, Tag, Zap, ClipboardList, Crown,
+  Shield, Building2, Tag, Zap, ClipboardList, Crown, CalendarDays,
 } from "lucide-react";
 
 // ─── Section types ────────────────────────────────────────────────────────────
@@ -110,8 +110,9 @@ function SectionOverview() {
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
           <p className="text-xs font-semibold text-emerald-800 mb-1">Execution Flow</p>
           <p className="text-[12px] text-emerald-700 leading-relaxed">
-            Once awarded, track on-site progress using six draggable milestone bars —
-            Mobilisation, Preliminaries, Procurement, Installation, Testing, and Handover.
+            Once awarded, track on-site progress across six milestones — Mobilisation to Handover.
+            Break each milestone into dated subtasks; milestone progress auto-computes from subtask averages
+            and rolls up to a package and project timeline.
           </p>
         </div>
       </div>
@@ -330,8 +331,9 @@ function SectionPackages() {
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5">
           <p className="text-xs font-semibold text-emerald-800 mb-1">Execution view</p>
           <p className="text-[12px] text-emerald-700 leading-relaxed">
-            Six draggable milestone progress bars for tracking physical delivery on site.
-            Switch using the "Execution" tab on the package detail page.
+            Six milestones (Mobilisation → Handover), each broken into dated subtasks.
+            Milestone progress auto-computes from subtask averages. Dates roll up to the
+            package header and the project execution dashboard.
           </p>
         </div>
       </div>
@@ -339,7 +341,6 @@ function SectionPackages() {
       <H3>Package detail sections (Purchasing view)</H3>
       <ul className="space-y-2 mt-2">
         <Li><strong>Package info card</strong> — category, origin, currency, live lead time</Li>
-        <Li><strong>Stage Progress bar</strong> — visual position in the five-stage pipeline</Li>
         <Li><strong>Procurement Timeline</strong> — interactive stage stepper; click a node to advance or revert</Li>
         <Li><strong>Vendor Matrix</strong> — all vendors with quoted and revised amounts</Li>
         <Li><strong>Remarks</strong> — free-text notes with timestamps</Li>
@@ -369,11 +370,12 @@ function SectionExecution() {
   return (
     <div>
       <H2>Execution &amp; Milestones</H2>
-      <p className="text-xs text-slate-400 mb-4">Track on-site delivery progress per package</p>
+      <p className="text-xs text-slate-400 mb-4">Subtask-driven delivery tracking with date roll-up</p>
       <P>
-        The <strong>Execution view</strong> on each awarded package gives you six milestone
-        progress bars — one per on-site phase. Drag any bar to set the completion percentage.
-        Changes are saved automatically after you release the drag.
+        The <strong>Execution view</strong> on each package shows six milestone phases. Each
+        milestone is driven by its own <strong>subtasks</strong> — the milestone progress bar
+        auto-computes as the average of its subtask completion percentages. You cannot drag
+        milestone bars directly; they update automatically as you progress the tasks.
       </P>
 
       <H3>The six milestones</H3>
@@ -396,8 +398,8 @@ function SectionExecution() {
         {[
           "Open any package detail page.",
           "Click the 'Execution' tab near the top of the page.",
-          "Edit Mode is enabled automatically in this view.",
-          "Drag the milestone bars to set progress. Each bar saves independently — you can update multiple bars at the same time.",
+          "Edit Mode enables automatically in this view.",
+          "Expand a milestone by clicking its row arrow (▶), then click '+ tasks' to add subtasks.",
         ].map((s, i) => (
           <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
             <StepBadge n={i + 1} />
@@ -406,11 +408,76 @@ function SectionExecution() {
         ))}
       </ol>
 
+      <H3>Adding a subtask</H3>
+      <ol className="space-y-2 mt-1">
+        {[
+          "Click '+ tasks' on the right edge of any milestone row — the row expands and an add form appears.",
+          "Type the task name.",
+          "Click the start-date calendar icon and pick a date; do the same for the end date.",
+          "Both dates are required — the task will not be created without them, and the end date must be after the start date.",
+          "Press Enter or click '+ Add'. The task appears immediately and the milestone progress updates.",
+        ].map((s, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
+            <StepBadge n={i + 1} />
+            <span>{s}</span>
+          </li>
+        ))}
+      </ol>
+
+      <H3>Updating task progress</H3>
+      <P>
+        Each task row has its own drag bar. Drag it left or right to set the completion
+        percentage. The task's milestone bar recalculates immediately. Note: <strong>a task's
+        progress bar is locked until both start and end dates are set.</strong> Attempting to
+        drag a date-less bar shows a reminder toast.
+      </P>
+
+      <H3>Editing task details</H3>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Name</strong> — click the task name inline and type; saves on focus-out.</Li>
+        <Li><strong>Dates</strong> — click either calendar icon on the task row to change the date; saves on focus-out.</Li>
+        <Li><strong>Delete</strong> — click the bin icon on the right of the task row. The milestone recalculates.</Li>
+      </ul>
+
+      <H3>Date timelines &amp; roll-up</H3>
+      <div className="mt-2 space-y-2">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+          <div className="flex items-center gap-2 mb-1">
+            <CalendarDays className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+            <p className="text-xs font-semibold text-slate-700">Milestone header</p>
+          </div>
+          <p className="text-[12px] text-slate-600 leading-relaxed">
+            Shows the earliest task start date → latest task end date across all tasks in that milestone.
+          </p>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+          <div className="flex items-center gap-2 mb-1">
+            <CalendarDays className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+            <p className="text-xs font-semibold text-slate-700">Package header</p>
+          </div>
+          <p className="text-[12px] text-slate-600 leading-relaxed">
+            The package info card shows an <strong>Execution timeline</strong> pill — the
+            overall span of all tasks across all milestones for that package.
+          </p>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+          <div className="flex items-center gap-2 mb-1">
+            <CalendarDays className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
+            <p className="text-xs font-semibold text-slate-700">Project execution dashboard</p>
+          </div>
+          <p className="text-[12px] text-slate-600 leading-relaxed">
+            The project-level execution dashboard header shows the overall project date range
+            (earliest package start → latest package end). Each package card shows its own
+            date range beneath the package name.
+          </p>
+        </div>
+      </div>
+
       <H3>Overall completion</H3>
       <P>
-        The <strong>Overall completion</strong> bar at the top of the milestone tracker shows the
-        simple average of all six milestone percentages. When all six reach 100 %, the bar turns
-        green and the count shows "6/6 complete".
+        The <strong>Overall completion</strong> bar at the top of the milestone tracker shows
+        the simple average of all six milestone percentages (each of which is the average of
+        its subtasks). When all milestones reach 100 %, the count shows "6/6 complete".
       </P>
 
       <H3>Execution Tracking on the dashboard</H3>
@@ -420,13 +487,13 @@ function SectionExecution() {
       </P>
 
       <Tip>
-        You can drag two or more bars at the same time — each bar saves its own value
-        independently without interfering with the others.
+        Milestones with no subtasks show 0 % until at least one task is added. Adding and
+        completing even a single task immediately moves the milestone off zero.
       </Tip>
 
       <Note>
-        Milestone bars are only active when Edit Mode is on (it turns on automatically in
-        Execution view). If your organisation plan has lapsed, bars are read-only.
+        Milestone bars are always read-only — they reflect subtask averages only. If your
+        organisation plan has lapsed, task creation and editing are disabled.
       </Note>
     </div>
   );
