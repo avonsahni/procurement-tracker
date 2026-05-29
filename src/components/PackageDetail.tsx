@@ -17,6 +17,9 @@ import {
   addInvoice,
   deleteInvoice,
   updateMilestoneProgress,
+  addMilestoneTask,
+  updateMilestoneTask,
+  deleteMilestoneTask,
 } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -396,13 +399,41 @@ export default function PackageDetail({
                 setMilestoneError(null);
                 try {
                   await updateMilestoneProgress(packageId, name, progress, user?.fullName);
-                  // Don't reload here — MilestoneTracker owns its local state.
-                  // Reloading would overwrite in-flight bar changes causing rollback.
                 } catch (e: any) {
                   const msg = e?.message || String(e);
                   console.error('Milestone save failed:', msg);
                   setMilestoneError(msg);
-                  await reloadPackage(); // reset to last known-good state on error
+                  await reloadPackage();
+                }
+              }}
+              onAddTask={async (milestoneName, name, startDate, endDate) => {
+                setMilestoneError(null);
+                try {
+                  await addMilestoneTask(packageId, milestoneName, name, startDate, endDate);
+                  await reloadPackage();
+                } catch (e: any) {
+                  setMilestoneError(e?.message || 'Failed to add task');
+                }
+              }}
+              onUpdateTask={async (taskId, updates) => {
+                try {
+                  await updateMilestoneTask(packageId, taskId, updates);
+                  // No reload for progress drags — MilestoneTracker owns local state.
+                  // For name/date changes we reload to sync.
+                  if (updates.name !== undefined || updates.startDate !== undefined || updates.endDate !== undefined) {
+                    await reloadPackage();
+                  }
+                } catch (e: any) {
+                  setMilestoneError(e?.message || 'Failed to update task');
+                }
+              }}
+              onDeleteTask={async (taskId) => {
+                setMilestoneError(null);
+                try {
+                  await deleteMilestoneTask(packageId, taskId);
+                  await reloadPackage();
+                } catch (e: any) {
+                  setMilestoneError(e?.message || 'Failed to delete task');
                 }
               }}
             />

@@ -1,85 +1,76 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import { ClipboardList, CheckCircle2, Loader2 } from "lucide-react";
-import { EXECUTION_MILESTONES, PackageMilestone } from "@/lib/types";
+import {
+  ClipboardList, CheckCircle2, Loader2, ChevronDown, ChevronRight,
+  Plus, Trash2, CalendarDays,
+} from "lucide-react";
+import { EXECUTION_MILESTONES, PackageMilestone, MilestoneTask } from "@/lib/types";
 
-interface Props {
-  milestones: PackageMilestone[];
-  readonly?: boolean;
-  onUpdate: (milestoneName: string, progress: number) => Promise<void>;
-}
+// ── DraggableBar ─────────────────────────────────────────────────────────────
 
 function DraggableBar({
-  value,
-  onChange,
-  onCommit,
-  readonly,
-  saving,
+  value, onChange, onCommit, readonly, saving, size = "md",
 }: {
   value: number;
   onChange: (v: number) => void;
   onCommit: (v: number) => void;
   readonly?: boolean;
   saving?: boolean;
+  size?: "sm" | "md";
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
-  const valueFromPointer = (clientX: number): number => {
+  const clamp = (x: number): number => {
     if (!trackRef.current) return value;
     const rect = trackRef.current.getBoundingClientRect();
-    return Math.round(Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)));
+    return Math.round(Math.max(0, Math.min(100, ((x - rect.left) / rect.width) * 100)));
   };
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onDown  = (e: React.PointerEvent<HTMLDivElement>) => {
     if (readonly) return;
     dragging.current = true;
     e.currentTarget.setPointerCapture(e.pointerId);
-    onChange(valueFromPointer(e.clientX));
+    onChange(clamp(e.clientX));
   };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onMove  = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging.current || readonly) return;
-    onChange(valueFromPointer(e.clientX));
+    onChange(clamp(e.clientX));
   };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const onUp    = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging.current) return;
     dragging.current = false;
-    const v = valueFromPointer(e.clientX);
+    const v = clamp(e.clientX);
     onChange(v);
     onCommit(v);
   };
 
-  const fillColor = value === 100 ? "bg-emerald-500" : value > 0 ? "bg-blue-500" : "bg-slate-200";
-  const thumbBorder = value === 100 ? "border-emerald-500" : "border-blue-500";
+  const fill   = value === 100 ? "bg-emerald-500" : value > 0 ? "bg-blue-500" : "bg-slate-200";
+  const border = value === 100 ? "border-emerald-500" : "border-blue-500";
+  const h      = size === "sm" ? "h-4" : "h-5";
+  const track  = size === "sm" ? "h-2" : "h-3";
+  const thumb  = size === "sm" ? "w-4 h-4" : "w-5 h-5";
 
   return (
     <div className="flex items-center gap-2 w-full">
       <div
         ref={trackRef}
-        className={`relative h-5 flex-1 ${readonly ? "cursor-default" : "cursor-ew-resize"} select-none`}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
+        className={`relative ${h} flex-1 ${readonly ? "cursor-default" : "cursor-ew-resize"} select-none`}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
       >
-        {/* Track */}
-        <div className="absolute inset-0 top-1/2 -translate-y-1/2 h-3 rounded-full bg-slate-100 overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-colors ${fillColor}`}
-            style={{ width: `${value}%` }}
-          />
+        <div className={`absolute inset-0 top-1/2 -translate-y-1/2 ${track} rounded-full bg-slate-100 overflow-hidden`}>
+          <div className={`h-full rounded-full transition-colors ${fill}`} style={{ width: `${value}%` }} />
         </div>
-        {/* Thumb */}
         {!readonly && (
           <div
-            className={`absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-white border-2 ${thumbBorder} rounded-full shadow pointer-events-none z-10`}
-            style={{ left: `calc(${value}% - 10px)` }}
+            className={`absolute top-1/2 -translate-y-1/2 ${thumb} bg-white border-2 ${border} rounded-full shadow pointer-events-none z-10`}
+            style={{ left: `calc(${value}% - ${size === "sm" ? 8 : 10}px)` }}
           />
         )}
       </div>
-      {/* Saving indicator — fixed width so layout doesn't jump */}
       <div className="w-4 flex-shrink-0 flex items-center justify-center">
         {saving && <Loader2 className="w-3 h-3 text-slate-400 animate-spin" />}
       </div>
@@ -87,74 +78,204 @@ function DraggableBar({
   );
 }
 
-export default function MilestoneTracker({ milestones, readonly, onUpdate }: Props) {
-  // localProgress is the single source of truth for bar positions.
-  // It is seeded from props on first render and NOT reset on subsequent
-  // prop changes — that was the root cause of the rollback bug.
-  const initialized = useRef(false);
-  const [localProgress, setLocalProgress] = useState<Record<string, number>>(() => {
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+interface TaskUpdate {
+  name?: string;
+  progress?: number;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+interface Props {
+  milestones: PackageMilestone[];
+  readonly?: boolean;
+  onUpdate: (milestoneName: string, progress: number) => Promise<void>;
+  onAddTask?: (milestoneName: string, name: string, startDate?: string, endDate?: string) => Promise<void>;
+  onUpdateTask?: (taskId: string, updates: TaskUpdate) => Promise<void>;
+  onDeleteTask?: (taskId: string) => Promise<void>;
+}
+
+// ── MilestoneTracker ──────────────────────────────────────────────────────────
+
+export default function MilestoneTracker({
+  milestones, readonly, onUpdate, onAddTask, onUpdateTask, onDeleteTask,
+}: Props) {
+
+  // ── Milestone bar state (same as original — seeded once, not reset on re-props) ──
+  const milestoneInitialized = useRef(false);
+  const [localMilestoneProgress, setLocalMilestoneProgress] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {};
-    for (const name of EXECUTION_MILESTONES) init[name] = 0;
+    for (const n of EXECUTION_MILESTONES) init[n] = 0;
     for (const m of milestones) init[m.milestoneName] = m.progress;
     return init;
   });
 
-  // When the component receives genuinely new props (e.g. user navigates to
-  // a different package), reset local state. We detect this by comparing the
-  // full set of (name, progress) pairs, but only when not currently saving.
-  const savingBars = useRef<Set<string>>(new Set());
-  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const [savingSet, setSavingSet] = useState<Set<string>>(new Set());
+  const savingMilestoneBars = useRef<Set<string>>(new Set());
+  const milestoneTimers     = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const [savingMilestoneSet, setSavingMilestoneSet] = useState<Set<string>>(new Set());
 
+  // Sync milestone bars from props (only non-saving bars, same rollback-prevention as before)
   useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      return;
-    }
-    // Build the server-side snapshot
-    const serverSnapshot: Record<string, number> = {};
-    for (const name of EXECUTION_MILESTONES) serverSnapshot[name] = 0;
-    for (const m of milestones) serverSnapshot[m.milestoneName] = m.progress;
-
-    // Only update bars that are NOT currently saving to avoid overwriting
-    // in-flight changes with stale server data.
-    setLocalProgress(prev => {
+    if (!milestoneInitialized.current) { milestoneInitialized.current = true; return; }
+    const snap: Record<string, number> = {};
+    for (const n of EXECUTION_MILESTONES) snap[n] = 0;
+    for (const m of milestones) snap[m.milestoneName] = m.progress;
+    setLocalMilestoneProgress(prev => {
       const next = { ...prev };
-      for (const name of EXECUTION_MILESTONES) {
-        if (!savingBars.current.has(name)) {
-          next[name] = serverSnapshot[name];
-        }
+      for (const n of EXECUTION_MILESTONES) {
+        if (!savingMilestoneBars.current.has(n)) next[n] = snap[n];
       }
       return next;
     });
   }, [milestones]);
 
-  const getProgress = (name: string) => localProgress[name] ?? 0;
+  // ── Task progress state ───────────────────────────────────────────────────
+  const [taskProgress, setTaskProgress] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    for (const m of milestones) for (const t of (m.tasks || [])) init[t.id] = t.progress;
+    return init;
+  });
 
-  const overallPct =
-    EXECUTION_MILESTONES.reduce((s, n) => s + getProgress(n), 0) / EXECUTION_MILESTONES.length;
-  const doneCount = EXECUTION_MILESTONES.filter(n => getProgress(n) === 100).length;
+  const savingTaskBars = useRef<Set<string>>(new Set());
+  const taskTimers     = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const [savingTaskSet, setSavingTaskSet] = useState<Set<string>>(new Set());
 
-  // Debounced commit — each bar has its own timer so simultaneous saves
-  // are fully independent and don't interfere with each other.
-  const handleCommit = useCallback((name: string, v: number) => {
-    // Cancel any previously scheduled save for this bar
-    if (saveTimers.current[name]) clearTimeout(saveTimers.current[name]);
+  // Seed new tasks as they arrive (never overwrite in-progress drags)
+  const seededTaskIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const additions: Record<string, number> = {};
+    for (const m of milestones) {
+      for (const t of (m.tasks || [])) {
+        if (!seededTaskIds.current.has(t.id)) {
+          seededTaskIds.current.add(t.id);
+          additions[t.id] = t.progress;
+        }
+      }
+    }
+    if (Object.keys(additions).length > 0) {
+      setTaskProgress(prev => ({ ...prev, ...additions }));
+    }
+  }, [milestones]);
 
-    saveTimers.current[name] = setTimeout(async () => {
-      savingBars.current.add(name);
-      setSavingSet(new Set(savingBars.current));
-      try {
-        await onUpdate(name, v);
-      } finally {
-        savingBars.current.delete(name);
-        setSavingSet(new Set(savingBars.current));
+  // ── Task name/date editing state ──────────────────────────────────────────
+  type TaskEdit = { name: string; startDate: string; endDate: string };
+  const [taskEdits, setTaskEdits] = useState<Record<string, TaskEdit>>(() => {
+    const init: Record<string, TaskEdit> = {};
+    for (const m of milestones) {
+      for (const t of (m.tasks || [])) {
+        init[t.id] = { name: t.name, startDate: t.startDate ?? '', endDate: t.endDate ?? '' };
+      }
+    }
+    return init;
+  });
+  const seededEditIds = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const additions: Record<string, TaskEdit> = {};
+    for (const m of milestones) {
+      for (const t of (m.tasks || [])) {
+        if (!seededEditIds.current.has(t.id)) {
+          seededEditIds.current.add(t.id);
+          additions[t.id] = { name: t.name, startDate: t.startDate ?? '', endDate: t.endDate ?? '' };
+        }
+      }
+    }
+    if (Object.keys(additions).length > 0) setTaskEdits(prev => ({ ...prev, ...additions }));
+  }, [milestones]);
+
+  // ── Expand state ───────────────────────────────────────────────────────────
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // ── Add-task form state ────────────────────────────────────────────────────
+  type AddForm = { name: string; startDate: string; endDate: string; busy: boolean };
+  const [addForms, setAddForms] = useState<Record<string, AddForm>>({});
+  const getAddForm = (n: string): AddForm =>
+    addForms[n] ?? { name: '', startDate: '', endDate: '', busy: false };
+  const setAddForm = (n: string, patch: Partial<AddForm>) =>
+    setAddForms(prev => ({ ...prev, [n]: { ...getAddForm(n), ...patch } }));
+
+  // ── Deleting state ─────────────────────────────────────────────────────────
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  const getMilestoneProgress = (name: string) => {
+    const m = milestones.find(x => x.milestoneName === name);
+    const tasks = m?.tasks ?? [];
+    if (tasks.length > 0) {
+      const avg = tasks.reduce((s, t) => s + (taskProgress[t.id] ?? t.progress), 0) / tasks.length;
+      return Math.round(avg);
+    }
+    return localMilestoneProgress[name] ?? 0;
+  };
+
+  const hasTasks = (name: string) => (milestones.find(x => x.milestoneName === name)?.tasks?.length ?? 0) > 0;
+
+  const overallPct  = EXECUTION_MILESTONES.reduce((s, n) => s + getMilestoneProgress(n), 0) / EXECUTION_MILESTONES.length;
+  const doneCount   = EXECUTION_MILESTONES.filter(n => getMilestoneProgress(n) === 100).length;
+
+  // ── Commit handlers ────────────────────────────────────────────────────────
+
+  const handleMilestoneCommit = useCallback((name: string, v: number) => {
+    if (milestoneTimers.current[name]) clearTimeout(milestoneTimers.current[name]);
+    milestoneTimers.current[name] = setTimeout(async () => {
+      savingMilestoneBars.current.add(name);
+      setSavingMilestoneSet(new Set(savingMilestoneBars.current));
+      try { await onUpdate(name, v); }
+      finally {
+        savingMilestoneBars.current.delete(name);
+        setSavingMilestoneSet(new Set(savingMilestoneBars.current));
       }
     }, 120);
   }, [onUpdate]);
 
+  const handleTaskProgressCommit = useCallback((taskId: string, v: number) => {
+    if (taskTimers.current[taskId]) clearTimeout(taskTimers.current[taskId]);
+    taskTimers.current[taskId] = setTimeout(async () => {
+      savingTaskBars.current.add(taskId);
+      setSavingTaskSet(new Set(savingTaskBars.current));
+      try { await onUpdateTask?.(taskId, { progress: v }); }
+      finally {
+        savingTaskBars.current.delete(taskId);
+        setSavingTaskSet(new Set(savingTaskBars.current));
+      }
+    }, 120);
+  }, [onUpdateTask]);
+
+  const handleTaskFieldBlur = useCallback(async (taskId: string) => {
+    const e = taskEdits[taskId];
+    if (!e || !onUpdateTask) return;
+    await onUpdateTask(taskId, {
+      name:      e.name || undefined,
+      startDate: e.startDate || null,
+      endDate:   e.endDate || null,
+    });
+  }, [taskEdits, onUpdateTask]);
+
+  const handleAddTask = async (milestoneName: string) => {
+    const form = getAddForm(milestoneName);
+    if (!form.name.trim() || !onAddTask) return;
+    setAddForm(milestoneName, { busy: true });
+    try {
+      await onAddTask(milestoneName, form.name.trim(), form.startDate || undefined, form.endDate || undefined);
+      setAddForm(milestoneName, { name: '', startDate: '', endDate: '', busy: false });
+    } catch {
+      setAddForm(milestoneName, { busy: false });
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!onDeleteTask) return;
+    setDeletingIds(prev => new Set(prev).add(taskId));
+    try { await onDeleteTask(taskId); }
+    finally { setDeletingIds(prev => { const s = new Set(prev); s.delete(taskId); return s; }); }
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
         <div className="flex items-center gap-2">
@@ -184,41 +305,213 @@ export default function MilestoneTracker({ milestones, readonly, onUpdate }: Pro
       {/* Milestone rows */}
       <div className="divide-y divide-slate-100 pb-2">
         {EXECUTION_MILESTONES.map((name, i) => {
-          const prog = getProgress(name);
-          const done = prog === 100;
+          const prog        = getMilestoneProgress(name);
+          const done        = prog === 100;
+          const withTasks   = hasTasks(name);
+          const isExpanded  = !!expanded[name];
+          const tasks       = milestones.find(x => x.milestoneName === name)?.tasks ?? [];
+          const taskCount   = tasks.length;
+          const canEdit     = !readonly && !!onAddTask;
 
           return (
-            <div key={name} className="px-5 py-3 flex items-center gap-3">
-              {/* Step indicator */}
-              <div className="flex-shrink-0 w-5 flex items-center justify-center">
-                {done
-                  ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  : <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
-                }
+            <div key={name}>
+              {/* ── Milestone header row ── */}
+              <div className="px-5 py-3 flex items-center gap-3">
+                {/* Step indicator */}
+                <div className="flex-shrink-0 w-5 flex items-center justify-center">
+                  {done
+                    ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    : <span className="text-[10px] font-bold text-slate-400">{i + 1}</span>
+                  }
+                </div>
+
+                {/* Name */}
+                <span className={`text-xs font-medium flex-shrink-0 w-36 truncate ${done ? "text-slate-400 line-through" : "text-slate-700"}`}>
+                  {name}
+                </span>
+
+                {/* Drag bar — read-only when tasks exist (computed avg) */}
+                <div className="flex-1 min-w-0">
+                  <DraggableBar
+                    value={prog}
+                    onChange={v => {
+                      if (withTasks) return;
+                      setLocalMilestoneProgress(prev => ({ ...prev, [name]: v }));
+                    }}
+                    onCommit={v => { if (!withTasks) handleMilestoneCommit(name, v); }}
+                    readonly={readonly || withTasks}
+                    saving={savingMilestoneSet.has(name)}
+                  />
+                </div>
+
+                {/* Percentage */}
+                <span className={`text-xs font-mono font-semibold w-9 text-right flex-shrink-0 ${
+                  done ? "text-emerald-600" : prog > 0 ? "text-blue-600" : "text-slate-400"
+                }`}>
+                  {prog}%
+                </span>
+
+                {/* Expand / add toggle */}
+                <button
+                  onClick={() => setExpanded(prev => ({ ...prev, [name]: !prev[name] }))}
+                  className="flex-shrink-0 flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition ml-1"
+                  title={isExpanded ? "Collapse" : "Expand tasks"}
+                >
+                  {taskCount > 0 && (
+                    <span className="bg-slate-100 rounded px-1 py-0.5 font-semibold">{taskCount}</span>
+                  )}
+                  {isExpanded
+                    ? <ChevronDown className="w-3.5 h-3.5" />
+                    : <ChevronRight className="w-3.5 h-3.5" />
+                  }
+                </button>
               </div>
 
-              {/* Name */}
-              <span className={`text-xs font-medium flex-shrink-0 w-40 truncate ${done ? "text-slate-400 line-through" : "text-slate-700"}`}>
-                {name}
-              </span>
+              {/* ── Task section (expanded) ── */}
+              {isExpanded && (
+                <div className="bg-slate-50/70 border-t border-slate-100 px-5 py-3 space-y-2">
 
-              {/* Draggable bar */}
-              <div className="flex-1 min-w-0">
-                <DraggableBar
-                  value={prog}
-                  onChange={(v) => setLocalProgress(prev => ({ ...prev, [name]: v }))}
-                  onCommit={(v) => handleCommit(name, v)}
-                  readonly={readonly}
-                  saving={savingSet.has(name)}
-                />
-              </div>
+                  {/* Existing tasks */}
+                  {tasks.length === 0 && !canEdit && (
+                    <p className="text-xs text-slate-400 italic">No tasks defined.</p>
+                  )}
 
-              {/* Percentage label */}
-              <span className={`text-xs font-mono font-semibold w-9 text-right flex-shrink-0 ${
-                done ? "text-emerald-600" : prog > 0 ? "text-blue-600" : "text-slate-400"
-              }`}>
-                {prog}%
-              </span>
+                  {tasks.map((task: MilestoneTask) => {
+                    const tProg    = taskProgress[task.id] ?? task.progress;
+                    const tEdit    = taskEdits[task.id] ?? { name: task.name, startDate: task.startDate ?? '', endDate: task.endDate ?? '' };
+                    const tDone    = tProg === 100;
+                    const deleting = deletingIds.has(task.id);
+
+                    return (
+                      <div key={task.id} className={`flex items-center gap-2 bg-white rounded-lg border border-slate-100 px-3 py-2 ${deleting ? "opacity-50" : ""}`}>
+
+                        {/* Dot */}
+                        <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-slate-300 mt-0.5" />
+
+                        {/* Name input */}
+                        <input
+                          type="text"
+                          value={tEdit.name}
+                          disabled={readonly || deleting}
+                          onChange={e => setTaskEdits(prev => ({ ...prev, [task.id]: { ...tEdit, name: e.target.value } }))}
+                          onBlur={() => handleTaskFieldBlur(task.id)}
+                          className="flex-1 min-w-0 text-xs text-slate-700 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-400 outline-none py-0.5 disabled:cursor-default"
+                          placeholder="Task name"
+                        />
+
+                        {/* Dates */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <CalendarDays className="w-3 h-3 text-slate-300" />
+                          <input
+                            type="date"
+                            value={tEdit.startDate}
+                            disabled={readonly || deleting}
+                            onChange={e => setTaskEdits(prev => ({ ...prev, [task.id]: { ...tEdit, startDate: e.target.value } }))}
+                            onBlur={() => handleTaskFieldBlur(task.id)}
+                            className="text-[10px] text-slate-500 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-400 outline-none disabled:cursor-default w-24"
+                          />
+                          <span className="text-[10px] text-slate-300">→</span>
+                          <input
+                            type="date"
+                            value={tEdit.endDate}
+                            disabled={readonly || deleting}
+                            onChange={e => setTaskEdits(prev => ({ ...prev, [task.id]: { ...tEdit, endDate: e.target.value } }))}
+                            onBlur={() => handleTaskFieldBlur(task.id)}
+                            className="text-[10px] text-slate-500 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-400 outline-none disabled:cursor-default w-24"
+                          />
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="w-28 flex-shrink-0">
+                          <DraggableBar
+                            size="sm"
+                            value={tProg}
+                            onChange={v => setTaskProgress(prev => ({ ...prev, [task.id]: v }))}
+                            onCommit={v => handleTaskProgressCommit(task.id, v)}
+                            readonly={readonly || deleting}
+                            saving={savingTaskSet.has(task.id)}
+                          />
+                        </div>
+
+                        {/* % label */}
+                        <span className={`text-[10px] font-mono font-semibold w-7 text-right flex-shrink-0 ${
+                          tDone ? "text-emerald-600" : tProg > 0 ? "text-blue-600" : "text-slate-400"
+                        }`}>
+                          {tProg}%
+                        </span>
+
+                        {/* Delete */}
+                        {!readonly && (
+                          <button
+                            onClick={() => handleDeleteTask(task.id)}
+                            disabled={deleting}
+                            className="flex-shrink-0 text-slate-300 hover:text-red-400 transition disabled:cursor-not-allowed ml-1"
+                            title="Remove task"
+                          >
+                            {deleting
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <Trash2 className="w-3.5 h-3.5" />
+                            }
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Add task form */}
+                  {canEdit && (() => {
+                    const form = getAddForm(name);
+                    return (
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="text"
+                          value={form.name}
+                          onChange={e => setAddForm(name, { name: e.target.value })}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAddTask(name); }}
+                          placeholder="New task name…"
+                          className="flex-1 min-w-0 text-xs border border-dashed border-slate-300 rounded px-2 py-1.5 outline-none focus:border-blue-400 bg-white text-slate-700 placeholder:text-slate-400"
+                        />
+                        <input
+                          type="date"
+                          value={form.startDate}
+                          onChange={e => setAddForm(name, { startDate: e.target.value })}
+                          className="text-[10px] border border-dashed border-slate-300 rounded px-1.5 py-1.5 outline-none focus:border-blue-400 bg-white text-slate-500 w-28"
+                        />
+                        <input
+                          type="date"
+                          value={form.endDate}
+                          onChange={e => setAddForm(name, { endDate: e.target.value })}
+                          className="text-[10px] border border-dashed border-slate-300 rounded px-1.5 py-1.5 outline-none focus:border-blue-400 bg-white text-slate-500 w-28"
+                        />
+                        <button
+                          onClick={() => handleAddTask(name)}
+                          disabled={!form.name.trim() || form.busy}
+                          className="flex-shrink-0 flex items-center gap-1 text-[11px] font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {form.busy
+                            ? <Loader2 className="w-3 h-3 animate-spin" />
+                            : <Plus className="w-3 h-3" />
+                          }
+                          Add
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Date range summary for this milestone */}
+                  {tasks.length > 0 && (() => {
+                    const starts = tasks.filter(t => (taskEdits[t.id]?.startDate || t.startDate)).map(t => taskEdits[t.id]?.startDate || t.startDate!).sort();
+                    const ends   = tasks.filter(t => (taskEdits[t.id]?.endDate   || t.endDate)).map(t => taskEdits[t.id]?.endDate   || t.endDate!).sort();
+                    if (!starts.length && !ends.length) return null;
+                    const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
+                    return (
+                      <p className="text-[10px] text-slate-400 pt-1">
+                        Milestone span: {starts[0] ? fmt(starts[0]) : "?"} → {ends[ends.length - 1] ? fmt(ends[ends.length - 1]) : "?"}
+                      </p>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           );
         })}
@@ -226,7 +519,7 @@ export default function MilestoneTracker({ milestones, readonly, onUpdate }: Pro
 
       {!readonly && (
         <p className="px-5 pb-3 text-[10px] text-slate-400">
-          Drag each bar to set milestone progress
+          Drag each bar to set progress · Click ▶ to expand and manage subtasks
         </p>
       )}
     </div>

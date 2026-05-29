@@ -7,6 +7,19 @@ export const EXECUTION_MILESTONES = [
   "Handover",
 ] as const;
 
+export interface MilestoneTask {
+  id: string;
+  milestoneName: string;
+  name: string;
+  description?: string;
+  progress: number;
+  startDate?: string;
+  endDate?: string;
+  sortOrder: number;
+  createdBy?: string;
+  createdAt: string;
+}
+
 export interface PackageMilestone {
   id: string;
   milestoneName: string;
@@ -14,6 +27,7 @@ export interface PackageMilestone {
   progress: number;
   completedAt?: string;
   completedBy?: string;
+  tasks?: MilestoneTask[];
 }
 
 export type Stage =
@@ -116,6 +130,8 @@ export interface Package {
   documents: Document[];
   invoices: Invoice[];
   milestones: PackageMilestone[];
+  startDate?: string;
+  endDate?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -127,6 +143,8 @@ export interface Project {
   budget: number;
   status: "Active" | "On Hold" | "Completed";
   packages: Package[];
+  startDate?: string;
+  endDate?: string;
   createdAt: string;
   updatedAt: string;
 }

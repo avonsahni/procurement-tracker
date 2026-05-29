@@ -160,6 +160,37 @@ export async function updateMilestoneProgress(pkgId: string, milestoneName: stri
   });
 }
 
+// Milestone Tasks
+export async function addMilestoneTask(
+  pkgId: string,
+  milestoneName: string,
+  name: string,
+  startDate?: string,
+  endDate?: string,
+): Promise<void> {
+  await api(`/api/packages/${pkgId}/milestone-tasks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ milestoneName, name, startDate: startDate || null, endDate: endDate || null }),
+  });
+}
+
+export async function updateMilestoneTask(
+  pkgId: string,
+  taskId: string,
+  updates: { name?: string; progress?: number; startDate?: string | null; endDate?: string | null },
+): Promise<void> {
+  await api(`/api/packages/${pkgId}/milestone-tasks/${taskId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteMilestoneTask(pkgId: string, taskId: string): Promise<void> {
+  await api(`/api/packages/${pkgId}/milestone-tasks/${taskId}`, { method: 'DELETE' });
+}
+
 // Admin
 export async function resetTrackerData(): Promise<void> {
   await api('/api/reset', { method: 'POST' });
