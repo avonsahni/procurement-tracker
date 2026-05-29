@@ -155,10 +155,10 @@ export default function MilestoneTracker({
     if (Object.keys(additions).length > 0) setTaskEdits(prev => ({ ...prev, ...additions }));
   }, [milestones]);
 
-  // ── Expand state ───────────────────────────────────────────────────────────
+  // ── Expand + add-form state ────────────────────────────────────────────────
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [showAddForm, setShowAddForm] = useState<Record<string, boolean>>({});
 
-  // ── Add-task form state ────────────────────────────────────────────────────
   type AddForm = { name: string; startDate: string; endDate: string; busy: boolean };
   const [addForms, setAddForms] = useState<Record<string, AddForm>>({});
   const getAddForm = (n: string): AddForm =>
@@ -208,6 +208,11 @@ export default function MilestoneTracker({
     });
   }, [taskEdits, onUpdateTask]);
 
+  const openAddForm = (name: string) => {
+    setExpanded(prev => ({ ...prev, [name]: true }));
+    setShowAddForm(prev => ({ ...prev, [name]: true }));
+  };
+
   const handleAddTask = async (milestoneName: string) => {
     const form = getAddForm(milestoneName);
     if (!form.name.trim() || !onAddTask) return;
@@ -215,6 +220,7 @@ export default function MilestoneTracker({
     try {
       await onAddTask(milestoneName, form.name.trim(), form.startDate || undefined, form.endDate || undefined);
       setAddForm(milestoneName, { name: '', startDate: '', endDate: '', busy: false });
+      setShowAddForm(prev => ({ ...prev, [milestoneName]: false }));
     } catch {
       setAddForm(milestoneName, { busy: false });
     }
@@ -305,7 +311,7 @@ export default function MilestoneTracker({
                 {/* Expand toggle */}
                 <button
                   onClick={() => setExpanded(prev => ({ ...prev, [name]: !prev[name] }))}
-                  className="flex-shrink-0 flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition ml-1"
+                  className="flex-shrink-0 flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition"
                   title={isExpanded ? "Collapse" : "Expand tasks"}
                 >
                   {taskCount > 0 && (
@@ -316,6 +322,18 @@ export default function MilestoneTracker({
                     : <ChevronRight className="w-3.5 h-3.5" />
                   }
                 </button>
+
+                {/* Add tasks button — editor only */}
+                {canEdit && (
+                  <button
+                    onClick={() => openAddForm(name)}
+                    className="flex-shrink-0 flex items-center gap-0.5 text-[10px] font-semibold text-blue-600 hover:text-blue-700 transition ml-1"
+                    title="Add task"
+                  >
+                    <Plus className="w-3 h-3" />
+                    tasks
+                  </button>
+                )}
               </div>
 
               {/* ── Task section (expanded) ── */}
@@ -407,30 +425,34 @@ export default function MilestoneTracker({
                     );
                   })}
 
-                  {/* Add task form */}
-                  {canEdit && (() => {
+                  {/* Add task form — shown only after clicking "+ tasks" */}
+                  {canEdit && showAddForm[name] && (() => {
                     const form = getAddForm(name);
                     return (
-                      <div className="flex items-center gap-2 pt-1">
+                      <div className="flex items-center gap-2 pt-1 border-t border-slate-100 mt-1">
                         <input
+                          autoFocus
                           type="text"
                           value={form.name}
                           onChange={e => setAddForm(name, { name: e.target.value })}
-                          onKeyDown={e => { if (e.key === 'Enter') handleAddTask(name); }}
-                          placeholder="New task name…"
-                          className="flex-1 min-w-0 text-xs border border-dashed border-slate-300 rounded px-2 py-1.5 outline-none focus:border-blue-400 bg-white text-slate-700 placeholder:text-slate-400"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleAddTask(name);
+                            if (e.key === 'Escape') setShowAddForm(prev => ({ ...prev, [name]: false }));
+                          }}
+                          placeholder="Task name…"
+                          className="flex-1 min-w-0 text-xs border border-blue-300 rounded px-2 py-1.5 outline-none focus:border-blue-500 bg-white text-slate-700 placeholder:text-slate-400"
                         />
                         <input
                           type="date"
                           value={form.startDate}
                           onChange={e => setAddForm(name, { startDate: e.target.value })}
-                          className="text-[10px] border border-dashed border-slate-300 rounded px-1.5 py-1.5 outline-none focus:border-blue-400 bg-white text-slate-500 w-28"
+                          className="text-[10px] border border-slate-200 rounded px-1.5 py-1.5 outline-none focus:border-blue-400 bg-white text-slate-500 w-28"
                         />
                         <input
                           type="date"
                           value={form.endDate}
                           onChange={e => setAddForm(name, { endDate: e.target.value })}
-                          className="text-[10px] border border-dashed border-slate-300 rounded px-1.5 py-1.5 outline-none focus:border-blue-400 bg-white text-slate-500 w-28"
+                          className="text-[10px] border border-slate-200 rounded px-1.5 py-1.5 outline-none focus:border-blue-400 bg-white text-slate-500 w-28"
                         />
                         <button
                           onClick={() => handleAddTask(name)}
@@ -440,6 +462,11 @@ export default function MilestoneTracker({
                           {form.busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                           Add
                         </button>
+                        <button
+                          onClick={() => setShowAddForm(prev => ({ ...prev, [name]: false }))}
+                          className="flex-shrink-0 text-slate-400 hover:text-slate-600 transition text-xs"
+                          title="Cancel"
+                        >✕</button>
                       </div>
                     );
                   })()}
@@ -465,7 +492,7 @@ export default function MilestoneTracker({
 
       {!readonly && (
         <p className="px-5 pb-3 text-[10px] text-slate-400">
-          Milestone progress auto-computes from subtasks · Click ▶ to expand and manage subtasks
+          Milestone progress auto-computes from subtasks · Click + tasks to add · Click ▶ to expand
         </p>
       )}
     </div>
