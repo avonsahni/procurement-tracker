@@ -739,7 +739,7 @@ export default function LandingPage() {
             <span className="text-blue-600">made simple</span>
           </h1>
           <p className="text-xl sm:text-2xl font-semibold text-slate-700 mb-4">
-            One Dashboard &mdash; The End of Weekly Reports
+            One Dashboard &mdash; The End of Weekly Reports &mdash; <em><strong>Every Milestone Tracked</strong></em>
           </p>
           <p className="text-lg text-slate-500 leading-relaxed max-w-2xl mx-auto mb-8">
             From spec to award — every package tracked, every vendor compared, every decision logged.
