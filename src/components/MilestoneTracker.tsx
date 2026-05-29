@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import {
   ClipboardList, CheckCircle2, Loader2, ChevronDown, ChevronRight,
-  Plus, Trash2, CalendarDays,
+  Plus, Trash2, CalendarDays, AlertCircle,
 } from "lucide-react";
 import { EXECUTION_MILESTONES, PackageMilestone, MilestoneTask } from "@/lib/types";
 
@@ -169,6 +169,18 @@ export default function MilestoneTracker({
   // ── Deleting state ─────────────────────────────────────────────────────────
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
+  // ── Toast state ────────────────────────────────────────────────────────────
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
+  }, []);
+
+  // Per-milestone: whether the add-form tried to submit without dates
+  const [addFormDateError, setAddFormDateError] = useState<Record<string, boolean>>({});
+
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   // Milestone progress is always the average of its subtask progress.
@@ -224,9 +236,15 @@ export default function MilestoneTracker({
   const handleAddTask = async (milestoneName: string) => {
     const form = getAddForm(milestoneName);
     if (!form.name.trim() || !onAddTask) return;
+    if (!form.startDate || !form.endDate) {
+      showToast("Choose start and end date");
+      setAddFormDateError(prev => ({ ...prev, [milestoneName]: true }));
+      return;
+    }
+    setAddFormDateError(prev => ({ ...prev, [milestoneName]: false }));
     setAddForm(milestoneName, { busy: true });
     try {
-      await onAddTask(milestoneName, form.name.trim(), form.startDate || undefined, form.endDate || undefined);
+      await onAddTask(milestoneName, form.name.trim(), form.startDate, form.endDate);
       setAddForm(milestoneName, { name: '', startDate: '', endDate: '', busy: false });
       setShowAddForm(prev => ({ ...prev, [milestoneName]: false }));
     } catch {
@@ -244,7 +262,15 @@ export default function MilestoneTracker({
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <div className="relative bg-white border border-slate-200 rounded-xl overflow-hidden">
+
+      {/* Date-required toast */}
+      {toast && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-amber-50 border border-amber-300 text-amber-800 text-xs font-semibold px-4 py-2 rounded-full shadow-md pointer-events-none whitespace-nowrap">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          {toast}
+        </div>
+      )}
 
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
@@ -365,6 +391,7 @@ export default function MilestoneTracker({
                     const tEdit    = taskEdits[task.id] ?? { name: task.name, startDate: task.startDate ?? '', endDate: task.endDate ?? '' };
                     const tDone    = tProg === 100;
                     const deleting = deletingIds.has(task.id);
+                    const hasDates = !!(tEdit.startDate && tEdit.endDate);
 
                     return (
                       <div key={task.id} className={`flex items-center gap-2 bg-white rounded-lg border border-slate-100 px-3 py-2 ${deleting ? "opacity-50" : ""}`}>
@@ -411,14 +438,17 @@ export default function MilestoneTracker({
                           </label>
                         </div>
 
-                        {/* Task progress bar — draggable */}
-                        <div className="w-28 flex-shrink-0">
+                        {/* Task progress bar — locked until both dates are set */}
+                        <div
+                          className="w-28 flex-shrink-0"
+                          onPointerDown={(!readonly && !deleting && !hasDates) ? () => showToast("Choose start and end date") : undefined}
+                        >
                           <DraggableBar
                             size="sm"
                             value={tProg}
                             onChange={v => setTaskProgress(prev => ({ ...prev, [task.id]: v }))}
                             onCommit={v => handleTaskProgressCommit(task.id, v)}
-                            readonly={readonly || deleting}
+                            readonly={readonly || deleting || !hasDates}
                             saving={savingTaskSet.has(task.id)}
                           />
                         </div>
@@ -465,23 +495,29 @@ export default function MilestoneTracker({
                           placeholder="Task name…"
                           className="flex-1 min-w-0 text-xs border border-blue-300 rounded px-2 py-1.5 outline-none focus:border-blue-500 bg-white text-slate-700 placeholder:text-slate-400"
                         />
-                        <label className="relative flex items-center gap-1 border border-slate-200 rounded px-2 py-1.5 cursor-pointer hover:border-blue-300 transition bg-white group/as flex-shrink-0">
-                          <CalendarDays className="w-3.5 h-3.5 text-slate-400 group-hover/as:text-blue-500 flex-shrink-0 transition" />
-                          <span className="text-[10px] text-slate-500 whitespace-nowrap">{form.startDate ? fmtDate(form.startDate) : "Start"}</span>
+                        <label className={`relative flex items-center gap-1 border rounded px-2 py-1.5 cursor-pointer transition bg-white group/as flex-shrink-0 ${addFormDateError[name] && !form.startDate ? "border-amber-400 bg-amber-50" : "border-slate-200 hover:border-blue-300"}`}>
+                          <CalendarDays className={`w-3.5 h-3.5 flex-shrink-0 transition ${addFormDateError[name] && !form.startDate ? "text-amber-500" : "text-slate-400 group-hover/as:text-blue-500"}`} />
+                          <span className={`text-[10px] whitespace-nowrap ${addFormDateError[name] && !form.startDate ? "text-amber-600 font-semibold" : "text-slate-500"}`}>{form.startDate ? fmtDate(form.startDate) : "Start"}</span>
                           <input
                             type="date"
                             value={form.startDate}
-                            onChange={e => setAddForm(name, { startDate: e.target.value })}
+                            onChange={e => {
+                              setAddForm(name, { startDate: e.target.value });
+                              if (e.target.value) setAddFormDateError(prev => ({ ...prev, [name]: false }));
+                            }}
                             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                           />
                         </label>
-                        <label className="relative flex items-center gap-1 border border-slate-200 rounded px-2 py-1.5 cursor-pointer hover:border-blue-300 transition bg-white group/ae flex-shrink-0">
-                          <CalendarDays className="w-3.5 h-3.5 text-slate-400 group-hover/ae:text-blue-500 flex-shrink-0 transition" />
-                          <span className="text-[10px] text-slate-500 whitespace-nowrap">{form.endDate ? fmtDate(form.endDate) : "End"}</span>
+                        <label className={`relative flex items-center gap-1 border rounded px-2 py-1.5 cursor-pointer transition bg-white group/ae flex-shrink-0 ${addFormDateError[name] && !form.endDate ? "border-amber-400 bg-amber-50" : "border-slate-200 hover:border-blue-300"}`}>
+                          <CalendarDays className={`w-3.5 h-3.5 flex-shrink-0 transition ${addFormDateError[name] && !form.endDate ? "text-amber-500" : "text-slate-400 group-hover/ae:text-blue-500"}`} />
+                          <span className={`text-[10px] whitespace-nowrap ${addFormDateError[name] && !form.endDate ? "text-amber-600 font-semibold" : "text-slate-500"}`}>{form.endDate ? fmtDate(form.endDate) : "End"}</span>
                           <input
                             type="date"
                             value={form.endDate}
-                            onChange={e => setAddForm(name, { endDate: e.target.value })}
+                            onChange={e => {
+                              setAddForm(name, { endDate: e.target.value });
+                              if (e.target.value) setAddFormDateError(prev => ({ ...prev, [name]: false }));
+                            }}
                             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                           />
                         </label>
