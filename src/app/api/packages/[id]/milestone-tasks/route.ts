@@ -46,14 +46,11 @@ export const POST = withRoute(async (req: NextRequest, ctx) => {
 
   const supabase = await createServerSupabase();
 
-  const { data: pkg } = await supabase.from('packages').select('org_id').eq('id', pkgId).single();
-  if (!pkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
-
   const { data: task, error } = await supabase
     .from('milestone_tasks')
     .insert({
       package_id:     pkgId,
-      org_id:         pkg.org_id,
+      org_id:         auth.orgId,
       milestone_name: parsed.data.milestoneName,
       name:           parsed.data.name,
       description:    parsed.data.description ?? null,
