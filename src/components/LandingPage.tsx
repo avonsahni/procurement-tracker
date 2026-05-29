@@ -785,6 +785,17 @@ export default function LandingPage() {
       <section id="features" className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
+            <div className="max-w-3xl mx-auto text-left space-y-5 mb-12">
+              <p className="text-base text-slate-700 leading-relaxed">
+                Real estate and infrastructure projects are inherently complex. Multiple teams, agencies, and stakeholders across the supply chain. But the hardest part isn't complexity — it's <strong>visibility</strong>.
+              </p>
+              <p className="text-base text-slate-600 leading-relaxed">
+                Most tracking systems work in isolation. They demand data from you — email threads, spreadsheets, WhatsApp status updates, PowerPoint compilations — and still can't tell you what's actually happening on site in real time. They were designed for accountants, not project directors. They're either too rigid and data-hungry, or too loose and unmaintained. Either way, they don't answer the question you actually need answered: <em>Where is my project, right now?</em>
+              </p>
+              <p className="text-base text-slate-600 leading-relaxed">
+                After 28 years delivering infrastructure projects, we built ProcureTrack to address what no other software does. A system designed for <strong>how projects actually work</strong> — not how ERP vendors think they should. Minimal. Realistic. Usable. One dashboard that tracks every package from RFQ through handover, with real-time visibility for the entire team.
+              </p>
+            </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-3">
               Everything a project manager needs
             </h2>
