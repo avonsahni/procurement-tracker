@@ -10,8 +10,11 @@ import {
   ArrowLeft, Plus, Briefcase, Package, Trash2, X,
   Clock, CheckCircle2, Lock, Unlock, Search,
   ShoppingCart, Activity, ChevronRight, ArrowRight,
-  HardDrive, Receipt, Target,
+  HardDrive, Receipt, Target, CalendarDays,
 } from "lucide-react";
+
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
 type View = "landing" | "purchasing" | "execution";
 
@@ -638,10 +641,18 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
           <>
             {/* ── Summary stats + pipeline chart ───────────────────────────── */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 space-y-6">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Activity className="w-4 h-4 text-emerald-600" />
                 <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Execution Dashboard</p>
                 <span className="text-xs text-slate-400">· {project.client} · awarded packages only</span>
+                {(project.startDate || project.endDate) && (
+                  <span className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-100 rounded-lg px-2.5 py-1 ml-1">
+                    <CalendarDays className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                    {project.startDate ? fmtDate(project.startDate) : "TBD"}
+                    <span className="text-slate-300 mx-0.5">→</span>
+                    {project.endDate ? fmtDate(project.endDate) : "TBD"}
+                  </span>
+                )}
               </div>
 
               {awardedPkgs.length === 0 ? (
@@ -787,6 +798,14 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                                 {pkg.category || "Uncategorised"}
                                 {pkg.awardedVendorId ? ` · ${pkg.awardedVendorId}` : ""}
                               </p>
+                              {(pkg.startDate || pkg.endDate) && (
+                                <p className="flex items-center gap-1 text-[10px] text-slate-400 mt-1">
+                                  <CalendarDays className="w-3 h-3 flex-shrink-0" />
+                                  <span>{pkg.startDate ? fmtDate(pkg.startDate) : "TBD"}</span>
+                                  <span className="text-slate-300">→</span>
+                                  <span>{pkg.endDate ? fmtDate(pkg.endDate) : "TBD"}</span>
+                                </p>
+                              )}
                             </div>
                             <div className="flex items-center gap-4 flex-shrink-0">
                               <div className="text-right hidden sm:block">
