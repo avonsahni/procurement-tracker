@@ -382,26 +382,33 @@ export default function MilestoneTracker({
                           placeholder="Task name"
                         />
 
-                        {/* Dates */}
+                        {/* Dates — calendar icon triggers native date picker */}
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <CalendarDays className="w-3 h-3 text-slate-300" />
-                          <input
-                            type="date"
-                            value={tEdit.startDate}
-                            disabled={readonly || deleting}
-                            onChange={e => setTaskEdits(prev => ({ ...prev, [task.id]: { ...tEdit, startDate: e.target.value } }))}
-                            onBlur={() => handleTaskFieldBlur(task.id)}
-                            className="text-[10px] text-slate-500 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-400 outline-none disabled:cursor-default w-24"
-                          />
+                          <label className="relative flex items-center gap-0.5 cursor-pointer group/sp">
+                            <CalendarDays className="w-3 h-3 text-slate-300 group-hover/sp:text-blue-400 transition flex-shrink-0" />
+                            <span className="text-[10px] text-slate-400 whitespace-nowrap">{tEdit.startDate ? fmtDate(tEdit.startDate) : "–"}</span>
+                            <input
+                              type="date"
+                              value={tEdit.startDate}
+                              disabled={readonly || deleting}
+                              onChange={e => setTaskEdits(prev => ({ ...prev, [task.id]: { ...tEdit, startDate: e.target.value } }))}
+                              onBlur={() => handleTaskFieldBlur(task.id)}
+                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer disabled:cursor-default"
+                            />
+                          </label>
                           <span className="text-[10px] text-slate-300">→</span>
-                          <input
-                            type="date"
-                            value={tEdit.endDate}
-                            disabled={readonly || deleting}
-                            onChange={e => setTaskEdits(prev => ({ ...prev, [task.id]: { ...tEdit, endDate: e.target.value } }))}
-                            onBlur={() => handleTaskFieldBlur(task.id)}
-                            className="text-[10px] text-slate-500 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-400 outline-none disabled:cursor-default w-24"
-                          />
+                          <label className="relative flex items-center gap-0.5 cursor-pointer group/ep">
+                            <CalendarDays className="w-3 h-3 text-slate-300 group-hover/ep:text-blue-400 transition flex-shrink-0" />
+                            <span className="text-[10px] text-slate-400 whitespace-nowrap">{tEdit.endDate ? fmtDate(tEdit.endDate) : "–"}</span>
+                            <input
+                              type="date"
+                              value={tEdit.endDate}
+                              disabled={readonly || deleting}
+                              onChange={e => setTaskEdits(prev => ({ ...prev, [task.id]: { ...tEdit, endDate: e.target.value } }))}
+                              onBlur={() => handleTaskFieldBlur(task.id)}
+                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer disabled:cursor-default"
+                            />
+                          </label>
                         </div>
 
                         {/* Task progress bar — draggable */}
@@ -458,18 +465,26 @@ export default function MilestoneTracker({
                           placeholder="Task name…"
                           className="flex-1 min-w-0 text-xs border border-blue-300 rounded px-2 py-1.5 outline-none focus:border-blue-500 bg-white text-slate-700 placeholder:text-slate-400"
                         />
-                        <input
-                          type="date"
-                          value={form.startDate}
-                          onChange={e => setAddForm(name, { startDate: e.target.value })}
-                          className="text-[10px] border border-slate-200 rounded px-1.5 py-1.5 outline-none focus:border-blue-400 bg-white text-slate-500 w-28"
-                        />
-                        <input
-                          type="date"
-                          value={form.endDate}
-                          onChange={e => setAddForm(name, { endDate: e.target.value })}
-                          className="text-[10px] border border-slate-200 rounded px-1.5 py-1.5 outline-none focus:border-blue-400 bg-white text-slate-500 w-28"
-                        />
+                        <label className="relative flex items-center gap-1 border border-slate-200 rounded px-2 py-1.5 cursor-pointer hover:border-blue-300 transition bg-white group/as flex-shrink-0">
+                          <CalendarDays className="w-3.5 h-3.5 text-slate-400 group-hover/as:text-blue-500 flex-shrink-0 transition" />
+                          <span className="text-[10px] text-slate-500 whitespace-nowrap">{form.startDate ? fmtDate(form.startDate) : "Start"}</span>
+                          <input
+                            type="date"
+                            value={form.startDate}
+                            onChange={e => setAddForm(name, { startDate: e.target.value })}
+                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </label>
+                        <label className="relative flex items-center gap-1 border border-slate-200 rounded px-2 py-1.5 cursor-pointer hover:border-blue-300 transition bg-white group/ae flex-shrink-0">
+                          <CalendarDays className="w-3.5 h-3.5 text-slate-400 group-hover/ae:text-blue-500 flex-shrink-0 transition" />
+                          <span className="text-[10px] text-slate-500 whitespace-nowrap">{form.endDate ? fmtDate(form.endDate) : "End"}</span>
+                          <input
+                            type="date"
+                            value={form.endDate}
+                            onChange={e => setAddForm(name, { endDate: e.target.value })}
+                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                          />
+                        </label>
                         <button
                           onClick={() => handleAddTask(name)}
                           disabled={!form.name.trim() || form.busy}
