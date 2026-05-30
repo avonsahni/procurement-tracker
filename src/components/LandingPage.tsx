@@ -807,24 +807,6 @@ export default function LandingPage() {
       <section id="features" className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
-          </div>
-          <div className="w-screen relative left-1/2 right-1/2 -mx-[50vw] bg-slate-900 px-6 py-14 mb-14">
-            <div className="max-w-3xl mx-auto space-y-6">
-              <h2 className="text-center text-2xl sm:text-3xl font-extrabold italic text-white mb-8">
-                "The Story of ProcureTrack"
-              </h2>
-              <p className="text-base sm:text-lg font-bold italic text-white leading-relaxed">
-                "Real estate and infrastructure projects are inherently complex. Multiple teams, agencies, and stakeholders across the supply chain. But the hardest part isn't complexity — it's <span className="text-blue-400">visibility</span>.
-              </p>
-              <p className="text-base sm:text-lg font-bold italic text-slate-200 leading-relaxed">
-                Most tracking systems work in isolation. They demand data from you — email threads, spreadsheets, WhatsApp status updates, PowerPoint compilations — and still can't tell you what's actually happening on site in real time. They were designed for accountants, not project directors. They're either too rigid and data-hungry, or too loose and unmaintained. Either way, they don't answer the question you actually need answered: <span className="text-white">Where is my project, right now?</span>
-              </p>
-              <p className="text-base sm:text-lg font-bold italic text-slate-200 leading-relaxed">
-                After 28 years delivering infrastructure projects, we built ProcureTrack to address what no other software does. A system designed for <span className="text-blue-400">how projects actually work</span> — not how ERP vendors think they should. Minimal. Realistic. Usable. One dashboard that tracks every package from RFQ through handover, with real-time visibility for the entire team."
-              </p>
-            </div>
-          </div>
-          <div className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-3">
               Everything a project manager needs
             </h2>
