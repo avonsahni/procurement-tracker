@@ -7,6 +7,7 @@ import {
   Building2, Globe, Phone, MapPin, User, Mail, Lock,
   ChevronRight, ChevronLeft, CheckCircle2, Package,
   Briefcase, ArrowRight, Loader2, Eye, EyeOff, Tag, X,
+  AlertTriangle, Clock,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -172,13 +173,26 @@ function Step1({ data, onChange, errors }: {
           value={data.website} onChange={e => onChange("website", e.target.value)} />
       </Field>
 
-      {/* Info callout */}
+      {/* Workspace info */}
       <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3.5 flex gap-3">
         <Package className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-blue-700 leading-relaxed">
           Your organisation will have its own isolated workspace. All projects, packages,
           and vendors are private to your team.
         </p>
+      </div>
+
+      {/* Trial terms warning */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4 flex gap-3">
+        <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-amber-800">Free Trial — Please read before signing up</p>
+          <ul className="text-xs text-amber-700 leading-relaxed space-y-1">
+            <li className="flex items-start gap-1.5"><Clock className="w-3 h-3 flex-shrink-0 mt-0.5" /><span>Your trial lasts <strong>14 days</strong> from registration.</span></li>
+            <li className="flex items-start gap-1.5"><X className="w-3 h-3 flex-shrink-0 mt-0.5 text-red-500" /><span>When the trial expires, <strong>your account and all data are permanently deleted</strong> — projects, packages, documents, photos, and remarks.</span></li>
+            <li className="flex items-start gap-1.5"><CheckCircle2 className="w-3 h-3 flex-shrink-0 mt-0.5 text-emerald-500" /><span>Upgrade to a paid plan any time before expiry to keep your data.</span></li>
+          </ul>
+        </div>
       </div>
     </div>
   );
@@ -376,14 +390,18 @@ function SuccessScreen({ orgName, email, onGoToLogin, couponApplied, couponBenef
   orgName: string; email: string; onGoToLogin: () => void;
   couponApplied?: boolean; couponBenefit?: string;
 }) {
+  const trialEndDate = new Date();
+  trialEndDate.setDate(trialEndDate.getDate() + 14);
+  const trialEndLabel = trialEndDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
   return (
-    <div className="text-center py-6 space-y-5">
-      <div className="flex justify-center">
-        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
-          <CheckCircle2 className="w-9 h-9 text-emerald-500" />
+    <div className="py-6 space-y-5">
+      <div className="text-center">
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+            <CheckCircle2 className="w-9 h-9 text-emerald-500" />
+          </div>
         </div>
-      </div>
-      <div>
         <h2 className="text-xl font-bold text-slate-900">Organisation registered!</h2>
         <p className="text-sm text-slate-500 mt-2 leading-relaxed max-w-sm mx-auto">
           <strong className="text-slate-700">{orgName}</strong> has been created. A confirmation
@@ -391,20 +409,42 @@ function SuccessScreen({ orgName, email, onGoToLogin, couponApplied, couponBenef
           Confirm your email then sign in to get started.
         </p>
       </div>
-      <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm text-slate-600 text-left space-y-1.5 max-w-sm mx-auto">
-        <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Private workspace created</p>
-        <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> You are the organisation admin</p>
+
+      <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 text-sm text-slate-600 space-y-1.5">
+        <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /> Private workspace created</p>
+        <p className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /> You are the organisation admin</p>
         <p className="flex items-center gap-2">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
           {couponApplied && couponBenefit ? couponBenefit : '14-day free trial started'}
         </p>
       </div>
-      <button
-        onClick={onGoToLogin}
-        className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition"
-      >
-        Go to Sign In <ArrowRight className="w-4 h-4" />
-      </button>
+
+      {/* Trial deletion warning */}
+      {!couponApplied && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-4 flex gap-3">
+          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-semibold text-red-800 mb-1">Important: Data deletion on trial expiry</p>
+            <p className="text-xs text-red-700 leading-relaxed">
+              Your trial ends on <strong>{trialEndLabel}</strong>. If you have not upgraded to a paid plan
+              by then, <strong>your account and all data will be permanently and irrecoverably deleted</strong> —
+              including all projects, packages, documents, and photos.
+            </p>
+            <p className="text-xs text-red-600 mt-2 font-medium">
+              Upgrade before your trial expires to keep your workspace.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="text-center">
+        <button
+          onClick={onGoToLogin}
+          className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition"
+        >
+          Go to Sign In <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }
