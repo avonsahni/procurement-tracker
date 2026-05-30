@@ -374,8 +374,8 @@ function Step3({ data, onChange, errors, couponStatus, couponChecking, setCoupon
         />
         <span className="text-xs text-slate-500 leading-relaxed group-hover:text-slate-700 transition">
           I agree to the{" "}
-          <span className="text-blue-600 font-medium">Terms of Service</span> and{" "}
-          <span className="text-blue-600 font-medium">Privacy Policy</span>.
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:underline">Terms of Use</a> and{" "}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium hover:underline">Privacy Policy</a>.
           Your organisation's data is isolated and never shared with other accounts.
         </span>
       </label>

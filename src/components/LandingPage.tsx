@@ -1242,6 +1242,8 @@ export default function LandingPage() {
             <a href="#features" className="hover:text-slate-600 transition">Features</a>
             <a href="#pricing"  className="hover:text-slate-600 transition">Pricing</a>
             <a href="#contact"  className="hover:text-slate-600 transition">Contact</a>
+            <a href="/terms"    className="hover:text-slate-600 transition">Terms</a>
+            <a href="/privacy"  className="hover:text-slate-600 transition">Privacy</a>
             <button onClick={openLogin} className="hover:text-slate-600 transition">Sign in</button>
           </div>
         </div>
