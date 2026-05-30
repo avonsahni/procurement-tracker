@@ -2,8 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { fetchProjects } from "@/lib/store";
-import { formatCurrency } from "@/lib/types";
-import { ArrowLeft, BarChart3, TrendingUp, DollarSign, Layers, AlertTriangle, CheckCircle2, Clock, Receipt } from "lucide-react";
+import { formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
+import { ArrowLeft, BarChart3, TrendingUp, DollarSign, Layers, AlertTriangle, CheckCircle2, Clock, Receipt, Flag } from "lucide-react";
+
+interface MilestoneStat {
+  name: string;
+  avgProgress: number;
+  done: number;
+  inProgress: number;
+  total: number;
+}
 
 interface ProjectBudgetData {
   id: string;
@@ -15,6 +23,7 @@ interface ProjectBudgetData {
   billed: number;
   totalPackages: number;
   awardedPackages: number;
+  milestoneStats: MilestoneStat[];
 }
 
 const statusColors: Record<string, string> = {
@@ -41,6 +50,17 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
         billed: p.packages.reduce((s: number, pk: any) => s + (pk.billedAmount || 0), 0),
         totalPackages: p.packages.length,
         awardedPackages: p.packages.filter((pk: any) => pk.currentStage === "Award").length,
+        milestoneStats: EXECUTION_MILESTONES.map(mName => {
+          const progresses: number[] = p.packages.map((pk: any) => {
+            const m = pk.milestones?.find((m: any) => m.milestoneName === mName);
+            return m ? (m.progress ?? 0) : 0;
+          });
+          const total      = progresses.length;
+          const done       = progresses.filter(v => v === 100).length;
+          const inProgress = progresses.filter(v => v > 0 && v < 100).length;
+          const avgProgress = total > 0 ? progresses.reduce((s, v) => s + v, 0) / total : 0;
+          return { name: mName, avgProgress, done, inProgress, total };
+        }),
       }));
       setData(parsed);
     }).finally(() => setLoading(false));
@@ -414,156 +434,101 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
           </div>
         </div>
 
-        {/* DATA TABLE */}
+        {/* MILESTONE ACHIEVEMENT STATUS */}
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-          <div className="p-5 border-b border-slate-200">
-            <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Tabular Summary</p>
-            <h2 className="text-base font-semibold text-slate-900">Detailed Figures</h2>
+          <div className="p-5 border-b border-slate-200 flex items-center gap-3">
+            <div className="p-2 bg-blue-50 border border-blue-100 rounded-lg">
+              <Flag className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-0.5">Milestone Achievement</p>
+              <h2 className="text-base font-semibold text-slate-900">Execution Milestone Status · Per Project</h2>
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/50">
-                  {[
-                    { label: "Project",      key: "name" },
-                    { label: "Status",       key: null },
-                    { label: "Budget",       key: "budget" },
-                    { label: "Committed",    key: "committed" },
-                    { label: "Billed",       key: "billed" },
-                    { label: "Remaining",    key: null },
-                    { label: "Utilization",  key: "utilization" },
-                    { label: "Pkgs Awarded", key: null },
-                  ].map(({ label, key }) => (
-                    <th
-                      key={label}
-                      onClick={() => key && handleSort(key as any)}
-                      className={`px-5 py-3 text-xs font-medium text-slate-500 select-none ${key ? "cursor-pointer hover:text-slate-900 transition" : ""}`}
-                    >
-                      <span className="flex items-center gap-1">
-                        {label}
-                        {key && sortBy === key && (
-                          <span className="text-blue-600">{sortDir === "asc" ? "↑" : "↓"}</span>
-                        )}
-                      </span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((p, i) => {
-                  const utilization = p.budget > 0 ? (p.committed / p.budget) * 100 : 0;
-                  const remaining   = p.budget - p.committed;
-                  const isOver      = p.committed > p.budget;
+          {/* Legend */}
+          <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/60 flex items-center gap-5">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="text-xs text-slate-500">Completed (100%)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+              <span className="text-xs text-slate-500">In Progress</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+              <span className="text-xs text-slate-500">Not Started</span>
+            </div>
+          </div>
 
-                  return (
-                    <tr
-                      key={p.id}
-                      className={`border-b border-slate-100 hover:bg-slate-50/60 transition ${i === sorted.length - 1 ? "border-0" : ""}`}
-                    >
-                      <td className="px-5 py-3.5">
-                        <p className="text-sm font-semibold text-slate-900">{p.name}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{p.client}</p>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`text-xs font-medium ${statusColors[p.status]}`}>{p.status}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-sm font-mono font-medium text-blue-700">{formatCurrency(p.budget)}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`text-sm font-mono font-medium ${isOver ? "text-red-600" : "text-emerald-700"}`}>
-                          {formatCurrency(p.committed)}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div>
-                          <span className="text-sm font-mono font-medium text-blue-700">
-                            {formatCurrency(p.billed)}
-                          </span>
-                          {p.committed > 0 && (
-                            <p className="text-[10px] text-slate-400 mt-0.5">
-                              {((p.billed / p.committed) * 100).toFixed(1)}% of committed
-                            </p>
-                          )}
+          <div className="divide-y divide-slate-100">
+            {sorted.map(p => {
+              const totalDone = p.milestoneStats.reduce((s, m) => s + m.done, 0);
+              const totalPossible = p.milestoneStats.reduce((s, m) => s + m.total, 0);
+              const overallPct = totalPossible > 0 ? Math.round((totalDone / totalPossible) * 100) : 0;
+
+              return (
+                <div key={p.id} className="p-5">
+                  {/* Project header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded bg-slate-50 border border-slate-200 flex-shrink-0 ${statusColors[p.status]}`}>
+                        {p.status}
+                      </span>
+                      <span className="text-sm font-semibold text-slate-900 truncate">{p.name}</span>
+                      <span className="text-xs text-slate-400 hidden md:inline truncate">{p.client}</span>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                      <span className="text-xs text-slate-400">{p.totalPackages} pkg{p.totalPackages !== 1 ? "s" : ""}</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${overallPct === 100 ? "bg-emerald-500" : overallPct > 0 ? "bg-amber-400" : "bg-slate-200"}`}
+                            style={{ width: `${overallPct}%` }}
+                          />
                         </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`text-sm font-mono font-medium ${remaining < 0 ? "text-red-600" : "text-slate-700"}`}>
-                          {remaining < 0 ? "−" : ""}{formatCurrency(Math.abs(remaining))}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <span className="text-xs font-mono font-medium text-slate-600">{overallPct}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Milestone grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {p.milestoneStats.map((m, idx) => {
+                      const isComplete  = m.avgProgress === 100;
+                      const isActive    = m.avgProgress > 0 && m.avgProgress < 100;
+                      const barColor    = isComplete ? "bg-emerald-500" : isActive ? "bg-amber-400" : "bg-slate-200";
+                      const dotColor    = isComplete ? "bg-emerald-500" : isActive ? "bg-amber-400" : "bg-slate-300";
+                      const labelColor  = isComplete ? "text-emerald-700" : isActive ? "text-amber-700" : "text-slate-400";
+
+                      return (
+                        <div key={m.name} className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
+                            <span className="text-[10px] font-medium text-slate-500 leading-tight truncate">{m.name}</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mb-2">
                             <div
-                              className={`h-full rounded-full ${
-                                isOver ? "bg-red-500" : utilization > 80 ? "bg-amber-500" : "bg-emerald-500"
-                              }`}
-                              style={{ width: `${Math.min(100, utilization)}%` }}
+                              className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                              style={{ width: `${m.avgProgress}%` }}
                             />
                           </div>
-                          <span className={`text-xs font-mono font-medium ${
-                            isOver ? "text-red-600" : utilization > 80 ? "text-amber-700" : "text-slate-700"
-                          }`}>
-                            {utilization.toFixed(1)}%
-                          </span>
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs font-mono font-semibold ${labelColor}`}>
+                              {Math.round(m.avgProgress)}%
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {m.done}/{m.total} done
+                            </span>
+                          </div>
                         </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-1.5">
-                          {p.awardedPackages > 0
-                            ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            : <Clock className="w-3.5 h-3.5 text-slate-400" />
-                          }
-                          <span className="text-xs font-mono font-medium text-slate-700">
-                            {p.awardedPackages} / {p.totalPackages}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-
-              <tfoot>
-                <tr className="border-t-2 border-slate-200 bg-slate-50">
-                  <td className="px-5 py-3.5">
-                    <span className="text-xs font-medium text-slate-500">Portfolio Total</span>
-                  </td>
-                  <td className="px-5 py-3.5" />
-                  <td className="px-5 py-3.5">
-                    <span className="text-sm font-mono font-semibold text-blue-700">{formatCurrency(totalBudget)}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-sm font-mono font-semibold text-emerald-700">{formatCurrency(totalCommitted)}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div>
-                      <span className="text-sm font-mono font-semibold text-blue-700">{formatCurrency(totalBilled)}</span>
-                      {totalCommitted > 0 && (
-                        <p className="text-[10px] text-slate-400 mt-0.5">
-                          {billingUtilization.toFixed(1)}% of committed
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className={`text-sm font-mono font-semibold ${totalRemaining < 0 ? "text-red-600" : "text-slate-700"}`}>
-                      {totalRemaining < 0 ? "−" : ""}{formatCurrency(Math.abs(totalRemaining))}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-sm font-mono font-semibold text-slate-700">{overallUtilization.toFixed(1)}%</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-xs font-mono font-medium text-slate-700">
-                      {data.reduce((s, p) => s + p.awardedPackages, 0)} / {data.reduce((s, p) => s + p.totalPackages, 0)}
-                    </span>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
