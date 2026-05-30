@@ -781,6 +781,28 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Founder narrative ───────────────────────────────────────────────── */}
+      <section className="w-full bg-slate-900 px-6 py-16">
+        <div className="max-w-3xl mx-auto space-y-8">
+          <h2 className="text-center text-2xl sm:text-3xl font-extrabold italic text-white">
+            &ldquo;The Story of ProcureTrack&rdquo;
+          </h2>
+          <p className="text-base sm:text-lg font-bold italic text-white leading-relaxed">
+            &ldquo;Real estate and infrastructure projects are inherently complex. Multiple teams, agencies, and stakeholders across the supply chain. But the hardest part isn&rsquo;t complexity — it&rsquo;s{" "}
+            <span className="text-blue-400">visibility</span>.
+          </p>
+          <p className="text-base sm:text-lg font-bold italic text-slate-200 leading-relaxed">
+            Most tracking systems work in isolation. They demand data from you — email threads, spreadsheets, WhatsApp status updates, PowerPoint compilations — and still can&rsquo;t tell you what&rsquo;s actually happening on site in real time. They were designed for accountants, not project directors. Either way, they don&rsquo;t answer the question you actually need answered:{" "}
+            <span className="text-white">Where is my project, right now?</span>
+          </p>
+          <p className="text-base sm:text-lg font-bold italic text-slate-200 leading-relaxed">
+            After 28 years delivering infrastructure projects, we built ProcureTrack to address what no other software does. A system designed for{" "}
+            <span className="text-blue-400">how projects actually work</span>{" "}
+            — not how ERP vendors think they should. Minimal. Realistic. Usable. One dashboard that tracks every package from RFQ through handover, with real-time visibility for the entire team.&rdquo;
+          </p>
+        </div>
+      </section>
+
       {/* ── Features ────────────────────────────────────────────────────────── */}
       <section id="features" className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
