@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
-import { ORG_STORAGE_LIMIT_BYTES, humanBytes, storagePct } from '@/lib/storageLimit';
+import { storageLimitForPlan, humanBytes, storagePct } from '@/lib/storageLimit';
 import { withRoute } from '@/lib/withRoute';
 
 export const GET = withRoute(async () => {
@@ -15,18 +15,18 @@ export const GET = withRoute(async () => {
     .eq('org_id', auth.orgId)
     .maybeSingle();
 
-  const usedBytes = Number((usage as any)?.used_bytes ?? 0);
-  const limitBytes = ORG_STORAGE_LIMIT_BYTES;
+  const usedBytes      = Number((usage as any)?.used_bytes ?? 0);
+  const limitBytes     = storageLimitForPlan(auth.orgPlan);
   const remainingBytes = Math.max(0, limitBytes - usedBytes);
-  const pct = storagePct(usedBytes, limitBytes);
+  const pct            = storagePct(usedBytes, limitBytes);
 
   return NextResponse.json({
     usedBytes,
     limitBytes,
     remainingBytes,
     pct,
-    usedLabel: humanBytes(usedBytes),
-    limitLabel: humanBytes(limitBytes),
+    usedLabel:      humanBytes(usedBytes),
+    limitLabel:     humanBytes(limitBytes),
     remainingLabel: humanBytes(remainingBytes),
   });
 }, { route: '/api/storage/usage' });
