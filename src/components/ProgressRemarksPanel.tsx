@@ -97,7 +97,7 @@ interface ProgressRemarksPanelProps {
   packageId: string;
   orgId?: string;
   readonly?: boolean;
-  onAddRemark: (text: string, imageUrls?: string[]) => Promise<void>;
+  onAddRemark: (text: string, imageUrls?: string[], imageBytes?: number) => Promise<void>;
 }
 
 export default function ProgressRemarksPanel({
@@ -194,7 +194,7 @@ export default function ProgressRemarksPanel({
         imageUrls = results;
       }
 
-      await onAddRemark(text.trim(), imageUrls);
+      await onAddRemark(text.trim(), imageUrls, imageUrls ? totalSize : undefined);
       setText("");
       clearPhotos();
     } catch (err: any) {

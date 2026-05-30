@@ -10,7 +10,9 @@ import {
   Bug, Terminal, Smartphone, Tag, Percent, Gift,
   ToggleLeft, ToggleRight, IndianRupee, Plus, Mail,
   MessageSquare, Phone, Building, Inbox, Circle, Eye, EyeOff,
+  HardDrive, Database, RotateCcw, AlertTriangle,
 } from "lucide-react";
+import { humanBytes, storagePct, PLAN_STORAGE_LIMITS } from "@/lib/storageLimit";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,7 @@ interface OrgRow {
   memberCount: number;
   projectCount: number;
   ownerEmails: string[];
+  usedBytes: number;
 }
 
 interface OrgDetail extends OrgRow {
@@ -277,13 +280,14 @@ function OrgsSection({
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Members</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Projects</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Storage</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Valid Until</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400 text-sm">
+                  <td colSpan={8} className="text-center py-12 text-slate-400 text-sm">
                     No organisations match your filter
                   </td>
                 </tr>
@@ -351,6 +355,25 @@ function OrgsSection({
                     {/* Projects */}
                     <td className="px-4 py-3.5 text-center">
                       <span className="text-sm font-semibold text-slate-700">{org.projectCount}</span>
+                    </td>
+
+                    {/* Storage */}
+                    <td className="px-4 py-3.5 text-center min-w-[110px]">
+                      {(() => {
+                        const limit = PLAN_STORAGE_LIMITS[org.plan] ?? PLAN_STORAGE_LIMITS.trial;
+                        const pct   = storagePct(org.usedBytes, limit);
+                        const color = pct >= 95 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-400' : 'bg-emerald-500';
+                        return (
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                              {humanBytes(org.usedBytes)} / {humanBytes(limit)}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Valid Until */}
@@ -1008,7 +1031,7 @@ function OrgDetailView({
   onBack: () => void;
   onOrgUpdated: () => void;
 }) {
-  type DetailTab = 'users' | 'settings';
+  type DetailTab = 'users' | 'settings' | 'data';
   const [detailTab, setDetailTab] = useState<DetailTab>('users');
 
   // Org data (from already-loaded list, enriched by individual GET if needed)
@@ -1199,6 +1222,43 @@ function OrgDetailView({
     }
   };
 
+  // ── Data management actions ──
+  const [dataLoading, setDataLoading] = useState<'wipe' | 'seed' | null>(null);
+  const [dataMsg, setDataMsg]         = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const showDataMsg = (type: 'ok' | 'err', text: string) => {
+    setDataMsg({ type, text });
+    setTimeout(() => setDataMsg(null), 5000);
+  };
+
+  const handleWipeData = async () => {
+    if (!confirm(`Wipe ALL project data for "${org?.name}"?\n\nThis deletes every project, package, vendor, document and remark — but keeps the org account and users intact.`)) return;
+    setDataLoading('wipe');
+    try {
+      const res = await apiFetch(`/api/platform/orgs/${orgId}/wipe-data`, { method: 'POST' });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Wipe failed');
+      showDataMsg('ok', `All project data wiped (${d.filesDeleted ?? 0} storage file${d.filesDeleted !== 1 ? 's' : ''} removed).`);
+      onOrgUpdated();
+    } catch (e: any) {
+      showDataMsg('err', e.message || 'Wipe failed');
+    } finally { setDataLoading(null); }
+  };
+
+  const handleSeedData = async () => {
+    if (!confirm(`Load sample test data into "${org?.name}"?\n\nAny existing projects will be wiped first, then 5 sample projects with full packages will be created.`)) return;
+    setDataLoading('seed');
+    try {
+      const res = await apiFetch(`/api/platform/orgs/${orgId}/seed-data`, { method: 'POST' });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Seed failed');
+      showDataMsg('ok', '5 sample projects with packages, vendors and remarks loaded successfully.');
+      onOrgUpdated();
+    } catch (e: any) {
+      showDataMsg('err', e.message || 'Seed failed');
+    } finally { setDataLoading(null); }
+  };
+
   if (!org) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1248,6 +1308,7 @@ function OrgDetailView({
         {([
           { id: 'users' as const, label: 'Users', icon: Users },
           { id: 'settings' as const, label: 'Settings', icon: Edit2 },
+          { id: 'data' as const, label: 'Data', icon: Database },
         ]).map(t => (
           <button
             key={t.id}
@@ -1631,6 +1692,85 @@ function OrgDetailView({
                 <Trash2 className="w-4 h-4" /> Delete Organisation
               </button>
             </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* ── Data tab ── */}
+      {detailTab === 'data' && (
+        <div className="space-y-5 max-w-2xl">
+
+          {dataMsg && (
+            <div className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm border ${
+              dataMsg.type === 'ok'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-red-50 border-red-200 text-red-700'
+            }`}>
+              {dataMsg.type === 'ok'
+                ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                : <XCircle className="w-4 h-4 flex-shrink-0" />}
+              {dataMsg.text}
+            </div>
+          )}
+
+          {/* Wipe data */}
+          <div className="bg-white border border-red-200 rounded-xl p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-4 h-4 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Wipe All Project Data</h3>
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                  Permanently deletes every project, package, vendor, document, remark and uploaded file for this org.
+                  The organisation account and users are <strong>not</strong> affected.
+                </p>
+              </div>
+            </div>
+            <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2.5 flex items-center gap-2 text-xs text-red-700 mb-4">
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+              This action is irreversible. Storage files are permanently removed from the bucket.
+            </div>
+            <button
+              onClick={handleWipeData}
+              disabled={dataLoading !== null}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50"
+            >
+              {dataLoading === 'wipe'
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Wiping…</>
+                : <><Trash2 className="w-4 h-4" /> Wipe All Data</>}
+            </button>
+          </div>
+
+          {/* Load test data */}
+          <div className="bg-white border border-blue-200 rounded-xl p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <Database className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Load Sample Test Data</h3>
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                  Wipes existing project data, then seeds <strong>5 realistic projects</strong> (Skyline Residency, Hyperion Data Center,
+                  Metro Line Expansion, Oceanic Oil Refinery, Aviation Terminal 3) with full packages, vendors, audits and remarks.
+                  Useful for demos, onboarding, or resetting a test account.
+                </p>
+              </div>
+            </div>
+            <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5 flex items-center gap-2 text-xs text-blue-700 mb-4">
+              <RotateCcw className="w-3.5 h-3.5 flex-shrink-0" />
+              Existing projects will be wiped before loading. This may take a few seconds.
+            </div>
+            <button
+              onClick={handleSeedData}
+              disabled={dataLoading !== null}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50"
+            >
+              {dataLoading === 'seed'
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Loading…</>
+                : <><Database className="w-4 h-4" /> Load Test Data</>}
+            </button>
           </div>
 
         </div>

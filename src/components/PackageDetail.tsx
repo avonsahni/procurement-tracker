@@ -440,7 +440,7 @@ export default function PackageDetail({
               packageId={packageId}
               orgId={user?.orgId}
               readonly={!editMode}
-              onAddRemark={async (t, imageUrls) => { await addRemark(packageId, t, user?.fullName, imageUrls); await reloadPackage(); }}
+              onAddRemark={async (t, imageUrls, imageBytes) => { await addRemark(packageId, t, user?.fullName, imageUrls, imageBytes); await reloadPackage(); }}
             />
           </div>
         )}

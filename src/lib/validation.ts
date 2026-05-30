@@ -93,7 +93,8 @@ export const VendorUpdateSchema = z
 
 export const RemarkCreateSchema = z.object({
   text: trimmedString('text', 1, 2000),
-  imageUrls: z.array(z.string().max(1000)).max(10).optional(),
+  imageUrls:  z.array(z.string().max(1000)).max(10).optional(),
+  imageBytes: z.number().int().min(0).optional(),
 });
 
 export const DocumentCreateSchema = z.object({
