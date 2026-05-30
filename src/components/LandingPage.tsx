@@ -1237,6 +1237,7 @@ export default function LandingPage() {
           </div>
           <p className="text-xs text-slate-400 text-center">
             © {new Date().getFullYear()} ProcureTrack · DPDP-ready · All rights reserved
+            &nbsp;·&nbsp; <a href="mailto:admin@procuretrack.in" className="hover:text-slate-600 transition">admin@procuretrack.in</a>
           </p>
           <div className="flex items-center gap-4 text-xs text-slate-400">
             <a href="#features" className="hover:text-slate-600 transition">Features</a>
