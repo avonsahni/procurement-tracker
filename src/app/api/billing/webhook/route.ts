@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { verifyWebhookSignature } from '@/lib/razorpay';
 
-// Razorpay webhooks must be received as raw body for signature verification.
-export const config = { api: { bodyParser: false } };
+// Raw body required for Razorpay signature verification — Next.js App Router
+// reads req.text() directly, no bodyParser config needed.
+export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   const rawBody  = await req.text();

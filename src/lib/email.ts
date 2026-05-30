@@ -1,8 +1,6 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-const FROM = 'ProcureTrack <no-reply@procuretrack.in>';
+const FROM  = 'ProcureTrack <no-reply@procuretrack.in>';
 const ADMIN = 'admin@procuretrack.in';
 
 export async function sendContactNotification(data: {
@@ -12,6 +10,7 @@ export async function sendContactNotification(data: {
   company?: string | null;
   message: string;
 }) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
   return resend.emails.send({
     from:    FROM,
     to:      ADMIN,
