@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 
-const FROM  = 'ProcureTrack <admin@procuretrack.in>';
+const FROM  = 'ProcureTrack <noreply@mail.procuretrack.in>';
 const ADMIN = 'admin@procuretrack.in';
 
 export async function sendContactNotification(data: {
