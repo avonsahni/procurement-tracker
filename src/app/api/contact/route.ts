@@ -44,14 +44,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to send message. Please try again.' }, { status: 500 });
   }
 
-  // Fire email notification — non-fatal so a Resend hiccup never breaks the form
-  sendContactNotification({
-    name:    name.trim(),
-    email:   email.trim(),
-    phone:   phone?.trim() || null,
-    company: company?.trim() || null,
-    message: message.trim(),
-  }).catch(err => console.error('[contact] email error:', err));
+  // Send email — await so errors are visible in the response for debugging
+  try {
+    const result = await sendContactNotification({
+      name:    name.trim(),
+      email:   email.trim(),
+      phone:   phone?.trim() || null,
+      company: company?.trim() || null,
+      message: message.trim(),
+    });
+    console.log('[contact] email result:', JSON.stringify(result));
+  } catch (err: any) {
+    console.error('[contact] email error:', err);
+    return NextResponse.json({ ok: true, emailError: err?.message ?? String(err) });
+  }
 
   return NextResponse.json({ ok: true });
 }
