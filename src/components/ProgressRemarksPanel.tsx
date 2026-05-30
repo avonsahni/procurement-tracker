@@ -5,6 +5,38 @@ import { MessageSquare, Send, Loader2, Camera, X, ImageIcon } from "lucide-react
 import { Remark } from "@/lib/types";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 
+/** Convert any image File to a WebP Blob, capped at maxPx on the longest side. */
+function convertToWebP(file: File, maxPx = 1920, quality = 0.85): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      let { width, height } = img;
+      if (width > maxPx || height > maxPx) {
+        if (width >= height) { height = Math.round((height / width) * maxPx); width = maxPx; }
+        else { width = Math.round((width / height) * maxPx); height = maxPx; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("Canvas unavailable")); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        blob => blob ? resolve(blob) : reject(new Error("Conversion failed")),
+        "image/webp",
+        quality
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error("Image load failed")); };
+    img.src = objUrl;
+  });
+}
+
+const humanSize = (b: number) =>
+  b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : `${(b / (1024 * 1024)).toFixed(1)} MB`;
+
 interface ProgressRemarksPanelProps {
   remarks: Remark[];
   packageId: string;
@@ -62,14 +94,15 @@ export default function ProgressRemarksPanel({
 
   // Image attachment state
   const fileRef = useRef<HTMLInputElement>(null);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingFile, setPendingFile] = useState<{ blob: Blob; name: string; size: number } | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
 
   const sorted = [...remarks].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (!f.type.startsWith("image/")) {
@@ -81,8 +114,17 @@ export default function ProgressRemarksPanel({
       return;
     }
     setUploadErr(null);
-    setPendingFile(f);
-    setPreviewUrl(URL.createObjectURL(f));
+    setConverting(true);
+    try {
+      const webpBlob = await convertToWebP(f);
+      const baseName = f.name.replace(/\.[^.]+$/, "");
+      setPendingFile({ blob: webpBlob, name: baseName, size: webpBlob.size });
+      setPreviewUrl(URL.createObjectURL(webpBlob));
+    } catch {
+      setUploadErr("Image conversion failed. Please try a different file.");
+    } finally {
+      setConverting(false);
+    }
   };
 
   const clearImage = () => {
@@ -102,13 +144,17 @@ export default function ProgressRemarksPanel({
 
       if (pendingFile) {
         const supabase = createBrowserSupabase();
-        const safeFileName = pendingFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const safeBaseName = pendingFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const prefix = orgId || "shared";
-        storagePath = `${prefix}/${packageId}/remarks/${crypto.randomUUID()}_${safeFileName}`;
+        storagePath = `${prefix}/${packageId}/remarks/${crypto.randomUUID()}_${safeBaseName}.webp`;
 
         const { error: storageErr } = await supabase.storage
           .from("package-documents")
-          .upload(storagePath, pendingFile, { cacheControl: "3600", upsert: false });
+          .upload(storagePath, pendingFile.blob, {
+            contentType: "image/webp",
+            cacheControl: "3600",
+            upsert: false,
+          });
 
         if (storageErr) {
           setUploadErr(`Image upload failed: ${storageErr.message}`);
@@ -150,11 +196,13 @@ export default function ProgressRemarksPanel({
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              disabled={submitting}
+              disabled={submitting || converting}
               title="Attach photo"
               className="flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:border-blue-400 transition disabled:opacity-50"
             >
-              <Camera className="w-4 h-4" />
+              {converting
+                ? <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                : <Camera className="w-4 h-4" />}
             </button>
             <input
               ref={fileRef}
@@ -192,7 +240,10 @@ export default function ProgressRemarksPanel({
                   <X className="w-2.5 h-2.5" />
                 </button>
               </div>
-              <span className="text-xs text-slate-500 truncate max-w-[200px]">{pendingFile?.name}</span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-slate-600 font-medium truncate max-w-[200px]">{pendingFile?.name}.webp</span>
+                <span className="text-[11px] text-emerald-600 font-medium">{pendingFile ? humanSize(pendingFile.size) : ""} · WebP</span>
+              </div>
             </div>
           )}
 
