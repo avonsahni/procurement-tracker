@@ -84,7 +84,8 @@ function mapPackageRow(
       id: v.id, name: v.name, quotedAmount: Number(v.quoted_amount), revisedAmount: Number(v.revised_amount),
     })),
     remarks: (remarksByPkg[id] || []).map((r: any) => ({
-      id: r.id, user: r.username, text: r.text, timestamp: r.timestamp, userId: r.user_id, imageUrl: r.image_url || undefined,
+      id: r.id, user: r.username, text: r.text, timestamp: r.timestamp, userId: r.user_id,
+      imageUrls: Array.isArray(r.image_urls) && r.image_urls.length ? r.image_urls : undefined,
     })),
     documents: (docsByPkg[id] || []).map((d: any) => ({
       id: d.id, name: d.name, size: d.size || '', type: d.type || '', uploadedBy: d.username, uploadedAt: d.uploaded_at, storagePath: d.storage_path || '',
@@ -144,7 +145,7 @@ export async function assemblePackage(supabase: SupabaseClient, row: any) {
   const admin = createAdminSupabase();
   const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes, tasksRes] = await Promise.all([
     supabase.from('vendors').select('id, name, quoted_amount, revised_amount').eq('package_id', id),
-    supabase.from('remarks').select('id, username, text, timestamp, user_id, image_url').eq('package_id', id).order('timestamp'),
+    supabase.from('remarks').select('id, username, text, timestamp, user_id, image_urls').eq('package_id', id).order('timestamp'),
     supabase.from('documents').select('id, name, size, type, username, uploaded_at, storage_path').eq('package_id', id).order('uploaded_at'),
     supabase.from('audit_trail').select('id, username, field, old_value, new_value, timestamp').eq('package_id', id).order('timestamp'),
     supabase.from('invoices').select('id, amount, invoice_number, invoice_date, notes, username, created_at').eq('package_id', id).order('invoice_date'),
@@ -353,7 +354,7 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
     const admin = createAdminSupabase();
     const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes, tasksRes] = await Promise.all([
       supabase.from('vendors').select('id, package_id, name, quoted_amount, revised_amount').in('package_id', ids),
-      supabase.from('remarks').select('id, package_id, username, text, timestamp, user_id, image_url').in('package_id', ids).order('timestamp'),
+      supabase.from('remarks').select('id, package_id, username, text, timestamp, user_id, image_urls').in('package_id', ids).order('timestamp'),
       supabase.from('documents').select('id, package_id, name, size, type, username, uploaded_at, storage_path').in('package_id', ids).order('uploaded_at'),
       supabase.from('audit_trail').select('id, package_id, username, field, old_value, new_value, timestamp').in('package_id', ids).order('timestamp'),
       supabase.from('invoices').select('id, package_id, amount, invoice_number, invoice_date, notes, username, created_at').in('package_id', ids).order('invoice_date'),

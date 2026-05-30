@@ -90,7 +90,7 @@ export interface Remark {
   text: string;
   timestamp: string;
   userId?: string;
-  imageUrl?: string;
+  imageUrls?: string[];
 }
 
 export interface Document {

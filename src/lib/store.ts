@@ -124,8 +124,8 @@ export async function deleteVendor(pkgId: string, vid: string, user: string = 'S
 }
 
 // Remarks
-export async function addRemark(pkgId: string, text: string, user: string = 'User', imageUrl?: string): Promise<void> {
-  await api(`/api/packages/${pkgId}/remarks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, user, imageUrl }) });
+export async function addRemark(pkgId: string, text: string, user: string = 'User', imageUrls?: string[]): Promise<void> {
+  await api(`/api/packages/${pkgId}/remarks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, user, imageUrls }) });
 }
 
 // Documents

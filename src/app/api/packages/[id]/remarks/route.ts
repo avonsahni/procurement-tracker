@@ -9,7 +9,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id: pkgId } = await params;
   const parsed = await parseBody(req, RemarkCreateSchema);
   if (!parsed.ok) return parsed.response;
-  const { text, imageUrl } = parsed.data;
+  const { text, imageUrls } = parsed.data;
 
   const supabase = await createServerSupabase();
   const { data: pkg } = await supabase.from('packages').select('id').eq('id', pkgId).single();
@@ -17,13 +17,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: row, error } = await supabase
     .from('remarks')
-    .insert({ package_id: pkgId, username: auth.fullName, text, user_id: auth.id, image_url: imageUrl ?? null })
+    .insert({ package_id: pkgId, username: auth.fullName, text, user_id: auth.id, image_urls: imageUrls ?? [] })
     .select()
     .single();
 
   if (error || !row) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
 
   return NextResponse.json({
-    id: row.id, user: row.username, text: row.text, timestamp: row.timestamp, imageUrl: row.image_url ?? undefined,
+    id: row.id, user: row.username, text: row.text, timestamp: row.timestamp,
+    imageUrls: row.image_urls ?? [],
   }, { status: 201 });
 }
