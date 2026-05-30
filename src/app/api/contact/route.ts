@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { sendContactNotification } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   // Rate limit: 3 submissions per IP per hour
@@ -42,6 +43,15 @@ export async function POST(req: NextRequest) {
     console.error('[contact] insert error:', error.message);
     return NextResponse.json({ error: 'Failed to send message. Please try again.' }, { status: 500 });
   }
+
+  // Fire email notification — non-fatal so a Resend hiccup never breaks the form
+  sendContactNotification({
+    name:    name.trim(),
+    email:   email.trim(),
+    phone:   phone?.trim() || null,
+    company: company?.trim() || null,
+    message: message.trim(),
+  }).catch(err => console.error('[contact] email error:', err));
 
   return NextResponse.json({ ok: true });
 }
