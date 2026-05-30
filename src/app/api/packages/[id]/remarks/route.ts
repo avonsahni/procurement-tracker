@@ -9,7 +9,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id: pkgId } = await params;
   const parsed = await parseBody(req, RemarkCreateSchema);
   if (!parsed.ok) return parsed.response;
-  const { text, imageUrls } = parsed.data;
+  const { text, imageUrls, imageBytes } = parsed.data;
 
   const supabase = await createServerSupabase();
   const { data: pkg } = await supabase.from('packages').select('id').eq('id', pkgId).single();
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: row, error } = await supabase
     .from('remarks')
-    .insert({ package_id: pkgId, username: auth.fullName, text, user_id: auth.id, image_urls: imageUrls ?? [] })
+    .insert({ package_id: pkgId, username: auth.fullName, text, user_id: auth.id, image_urls: imageUrls ?? [], image_bytes: imageBytes ?? 0 })
     .select()
     .single();
 

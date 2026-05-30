@@ -20,10 +20,11 @@ export async function GET() {
 
   const orgIds = orgs.map((o: any) => o.id);
 
-  // Members, projects, and all auth users — fetch in parallel
-  const [membersRes, projectsRes, authRes] = await Promise.all([
+  // Members, projects, storage, and all auth users — fetch in parallel
+  const [membersRes, projectsRes, storageRes, authRes] = await Promise.all([
     admin.from('organization_members').select('org_id, user_id, role').in('org_id', orgIds),
     admin.from('projects').select('id, org_id').in('org_id', orgIds),
+    admin.from('org_storage_bytes').select('org_id, used_bytes').in('org_id', orgIds),
     admin.auth.admin.listUsers({ perPage: 1000 }),
   ]);
 
@@ -51,11 +52,18 @@ export async function GET() {
     projectCountByOrg[p.org_id] = (projectCountByOrg[p.org_id] || 0) + 1;
   }
 
+  // Storage bytes per org
+  const storageByOrg: Record<string, number> = {};
+  for (const s of storageRes.data || []) {
+    storageByOrg[(s as any).org_id] = Number((s as any).used_bytes) || 0;
+  }
+
   const result = orgs.map((org: any) => ({
     ...org,
     memberCount:  memberCountByOrg[org.id]  || 0,
     projectCount: projectCountByOrg[org.id] || 0,
     ownerEmails:  ownerEmailsByOrg[org.id]  || [],
+    usedBytes:    storageByOrg[org.id]      || 0,
   }));
 
   return NextResponse.json(result);

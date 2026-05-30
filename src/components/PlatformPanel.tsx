@@ -10,7 +10,9 @@ import {
   Bug, Terminal, Smartphone, Tag, Percent, Gift,
   ToggleLeft, ToggleRight, IndianRupee, Plus, Mail,
   MessageSquare, Phone, Building, Inbox, Circle, Eye, EyeOff,
+  HardDrive,
 } from "lucide-react";
+import { humanBytes, storagePct, PLAN_STORAGE_LIMITS } from "@/lib/storageLimit";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,7 @@ interface OrgRow {
   memberCount: number;
   projectCount: number;
   ownerEmails: string[];
+  usedBytes: number;
 }
 
 interface OrgDetail extends OrgRow {
@@ -277,13 +280,14 @@ function OrgsSection({
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Members</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Projects</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Storage</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Valid Until</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400 text-sm">
+                  <td colSpan={8} className="text-center py-12 text-slate-400 text-sm">
                     No organisations match your filter
                   </td>
                 </tr>
@@ -351,6 +355,25 @@ function OrgsSection({
                     {/* Projects */}
                     <td className="px-4 py-3.5 text-center">
                       <span className="text-sm font-semibold text-slate-700">{org.projectCount}</span>
+                    </td>
+
+                    {/* Storage */}
+                    <td className="px-4 py-3.5 text-center min-w-[110px]">
+                      {(() => {
+                        const limit = PLAN_STORAGE_LIMITS[org.plan] ?? PLAN_STORAGE_LIMITS.trial;
+                        const pct   = storagePct(org.usedBytes, limit);
+                        const color = pct >= 95 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-400' : 'bg-emerald-500';
+                        return (
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                              {humanBytes(org.usedBytes)} / {humanBytes(limit)}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Valid Until */}
