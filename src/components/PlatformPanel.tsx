@@ -10,7 +10,7 @@ import {
   Bug, Terminal, Smartphone, Tag, Percent, Gift,
   ToggleLeft, ToggleRight, IndianRupee, Plus, Mail,
   MessageSquare, Phone, Building, Inbox, Circle, Eye, EyeOff,
-  HardDrive, Database, RotateCcw, AlertTriangle,
+  HardDrive, Database, RotateCcw, AlertTriangle, CalendarDays,
 } from "lucide-react";
 import { humanBytes, storagePct, PLAN_STORAGE_LIMITS } from "@/lib/storageLimit";
 
@@ -1079,6 +1079,34 @@ function OrgDetailView({
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsMsg, setSettingsMsg]       = useState('');
 
+  // ── Extend expiry state ──
+  const [extendDate, setExtendDate]   = useState('');
+  const [extendSaving, setExtendSaving] = useState(false);
+  const [extendMsg, setExtendMsg]     = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const applyPreset = (days: number) => {
+    const base = org?.trial_ends_at ? new Date(org.trial_ends_at) : new Date();
+    base.setDate(base.getDate() + days);
+    setExtendDate(base.toISOString().slice(0, 10));
+  };
+
+  const handleExtendExpiry = async () => {
+    if (!extendDate) return;
+    setExtendSaving(true); setExtendMsg(null);
+    try {
+      const res = await apiFetch(`/api/platform/orgs/${orgId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trial_ends_at: new Date(extendDate).toISOString() }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Update failed');
+      setExtendMsg({ type: 'ok', text: `Expiry set to ${new Date(extendDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}` });
+      onOrgUpdated();
+    } catch (e: any) {
+      setExtendMsg({ type: 'err', text: e.message || 'Failed to update expiry' });
+    } finally { setExtendSaving(false); }
+  };
+
   // Sync settings state when detail loads
   useEffect(() => {
     if (!detail) return;
@@ -1643,6 +1671,69 @@ function OrgDetailView({
                 </div>
               </>
             )}
+          </div>
+
+          {/* ── Extend Expiry ── */}
+          <div className="bg-white border border-slate-200 rounded-xl p-6">
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-1">
+              <CalendarDays className="w-4 h-4 text-blue-500" /> Extend Plan Expiry
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Current expiry:&nbsp;
+              {org.trial_ends_at ? (
+                <span className="font-semibold text-slate-700">
+                  {fmtDate(org.trial_ends_at)}
+                  {(() => {
+                    const d = Math.ceil((new Date(org.trial_ends_at).getTime() - Date.now()) / 86_400_000);
+                    return d >= 0 ? ` — ${d}d left` : ` — expired ${Math.abs(d)}d ago`;
+                  })()}
+                </span>
+              ) : <span className="text-slate-400">No expiry set</span>}
+            </p>
+
+            {/* Presets */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {[
+                { label: '+7 days',  days: 7  },
+                { label: '+14 days', days: 14 },
+                { label: '+30 days', days: 30 },
+                { label: '+90 days', days: 90 },
+                { label: '+1 year',  days: 365 },
+              ].map(p => (
+                <button
+                  key={p.days}
+                  type="button"
+                  onClick={() => applyPreset(p.days)}
+                  className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom date + apply */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <input
+                type="date"
+                value={extendDate}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={e => setExtendDate(e.target.value)}
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+              />
+              <button
+                onClick={handleExtendExpiry}
+                disabled={!extendDate || extendSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-40"
+              >
+                {extendSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarDays className="w-4 h-4" />}
+                {extendSaving ? 'Saving…' : 'Apply'}
+              </button>
+              {extendMsg && (
+                <span className={`text-xs font-medium ${extendMsg.type === 'ok' ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {extendMsg.text}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* ── Quick Actions ── */}
