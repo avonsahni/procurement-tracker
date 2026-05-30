@@ -46,9 +46,7 @@ export default function Image() {
             marginBottom: "40px",
           }}
         >
-          <span
-            style={{ fontSize: "18px", color: "#93c5fd", fontWeight: 600 }}
-          >
+          <span style={{ fontSize: "18px", color: "#93c5fd", fontWeight: 600 }}>
             Procurement · Execution · Milestones
           </span>
         </div>
@@ -59,7 +57,7 @@ export default function Image() {
             display: "flex",
             alignItems: "center",
             gap: "16px",
-            marginBottom: "24px",
+            marginBottom: "28px",
           }}
         >
           <div
@@ -76,41 +74,54 @@ export default function Image() {
               color: "#fff",
             }}
           >
-            P
+            <span>P</span>
           </div>
-          <span
-            style={{ fontSize: "48px", fontWeight: 800, color: "#ffffff" }}
-          >
+          <span style={{ fontSize: "48px", fontWeight: 800, color: "#ffffff" }}>
             ProcureTrack
           </span>
         </div>
 
-        {/* Headline */}
+        {/* Headline — two separate lines to avoid mixed text+element children */}
         <div
           style={{
-            fontSize: "52px",
-            fontWeight: 800,
-            color: "#f1f5f9",
-            lineHeight: 1.15,
-            marginBottom: "28px",
-            maxWidth: "900px",
+            display: "flex",
+            flexDirection: "column",
+            marginBottom: "24px",
+            gap: "4px",
           }}
         >
-          The project lifecycle,{" "}
-          <span style={{ color: "#38bdf8" }}>on one dashboard</span>
+          <span
+            style={{
+              fontSize: "52px",
+              fontWeight: 800,
+              color: "#f1f5f9",
+              lineHeight: 1.15,
+            }}
+          >
+            The project lifecycle,
+          </span>
+          <span
+            style={{
+              fontSize: "52px",
+              fontWeight: 800,
+              color: "#38bdf8",
+              lineHeight: 1.15,
+            }}
+          >
+            on one dashboard
+          </span>
         </div>
 
         {/* Tagline */}
-        <div
+        <span
           style={{
             fontSize: "26px",
             color: "#94a3b8",
             fontWeight: 400,
-            maxWidth: "800px",
           }}
         >
           From RFQ to handover — every package, every rupee, live.
-        </div>
+        </span>
 
         {/* Bottom chips */}
         <div
@@ -122,27 +133,26 @@ export default function Image() {
             gap: "16px",
           }}
         >
-          {[
-            "RFQ to Award",
-            "Milestone Tracking",
-            "Budget Analytics",
-            "14-day Free Trial",
-          ].map((label) => (
-            <div
-              key={label}
-              style={{
-                background: "rgba(255,255,255,0.07)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                borderRadius: "8px",
-                padding: "8px 16px",
-                fontSize: "16px",
-                color: "#cbd5e1",
-                fontWeight: 500,
-              }}
-            >
-              {label}
-            </div>
-          ))}
+          {["RFQ to Award", "Milestone Tracking", "Budget Analytics", "14-day Free Trial"].map(
+            (label) => (
+              <div
+                key={label}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  background: "rgba(255,255,255,0.07)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: "8px",
+                  padding: "8px 16px",
+                  fontSize: "16px",
+                  color: "#cbd5e1",
+                  fontWeight: 500,
+                }}
+              >
+                <span>{label}</span>
+              </div>
+            )
+          )}
         </div>
       </div>
     ),
