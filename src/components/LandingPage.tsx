@@ -1097,24 +1097,36 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {contactDone ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-10 text-center">
-              <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-7 h-7 text-emerald-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-emerald-900 mb-2">Message sent!</h3>
-              <p className="text-emerald-700 text-sm mb-6">
-                Thanks for reaching out. We'll reply to <strong>{contactForm.email || 'your email'}</strong> shortly.
-              </p>
-              <button
-                onClick={() => setContactDone(false)}
-                className="text-sm text-emerald-700 underline hover:text-emerald-900 transition"
+          {contactDone && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center px-4"
+              style={{ background: 'rgba(0,0,0,0.45)' }}
+              onClick={() => setContactDone(false)}
+            >
+              <div
+                className="bg-white rounded-2xl shadow-2xl p-10 max-w-sm w-full text-center"
+                onClick={e => e.stopPropagation()}
               >
-                Send another message
-              </button>
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                  <CheckCircle2 className="w-9 h-9 text-emerald-500" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-3">
+                  Thanks for Contacting ProcureTrack Team.
+                </h3>
+                <p className="text-slate-500 text-sm leading-relaxed mb-7">
+                  We will reach back to you shortly.
+                </p>
+                <button
+                  onClick={() => setContactDone(false)}
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition"
+                >
+                  Close
+                </button>
+              </div>
             </div>
-          ) : (
-            <form onSubmit={handleContact} className="bg-slate-50 border border-slate-200 rounded-2xl p-8 space-y-5">
+          )}
+
+          <form onSubmit={handleContact} className="bg-slate-50 border border-slate-200 rounded-2xl p-8 space-y-5">
               {contactError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
                   {contactError}
@@ -1203,8 +1215,7 @@ export default function LandingPage() {
                 )}
               </button>
             </form>
-          )}
-        </div>
+          </div>
       </section>
 
       {/* ── Final CTA ───────────────────────────────────────────────────────── */}
