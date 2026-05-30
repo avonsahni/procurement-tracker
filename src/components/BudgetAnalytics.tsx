@@ -114,12 +114,12 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-amber-500 rounded-lg flex items-center justify-center">
                 <BarChart3 className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-sm font-semibold text-slate-900 leading-none">Budget Analytics</h1>
-                <p className="text-xs text-slate-500 mt-1">Budget vs Committed vs Billed · All Projects</p>
+                <h1 className="text-sm font-semibold text-slate-900 leading-none">Director Dashboard</h1>
+                <p className="text-xs text-slate-500 mt-1">Budget · Milestones · Portfolio Overview</p>
               </div>
             </div>
           </div>

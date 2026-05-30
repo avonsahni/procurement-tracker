@@ -509,9 +509,9 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
 
             <button
               onClick={onShowBudgetAnalytics}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white transition shadow-sm shadow-amber-200"
             >
-              <BarChart3 className="w-4 h-4" /> Analytics
+              <BarChart3 className="w-4 h-4" /> Director Dashboard
             </button>
 
             {user?.canEdit && !isOrgBlocked && (

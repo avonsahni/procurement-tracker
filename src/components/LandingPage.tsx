@@ -558,8 +558,8 @@ const FEATURES = [
   {
     icon: BarChart3,
     color: "text-amber-600 bg-amber-50",
-    title: "Budget Analytics",
-    desc: "Visualise budget utilisation across every project. Spot overspend before it happens with real-time award totals.",
+    title: "Director Dashboard",
+    desc: "One screen for every decision-maker — budget utilisation, milestone achievement status, and portfolio health across all projects in real time.",
     mockup: <AnalyticsMockup />,
   },
   {
@@ -742,7 +742,7 @@ export default function LandingPage() {
             From RFQ to handover — every package, every rupee, on one live dashboard.
             The single source of truth your project team will actually use.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
             <button
               onClick={openSignup}
               className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-md shadow-blue-200"
@@ -755,6 +755,17 @@ export default function LandingPage() {
             >
               Sign in to existing account
             </button>
+          </div>
+
+          {/* Director Dashboard highlight */}
+          <div className="inline-flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 mb-10">
+            <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <BarChart3 className="w-4 h-4 text-white" />
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-bold text-amber-800 uppercase tracking-wide leading-none mb-0.5">Director Dashboard</p>
+              <p className="text-xs text-amber-700">Portfolio health · Budget utilisation · Milestone achievement — all on one screen</p>
+            </div>
           </div>
 
           {/* Hero dashboard mockup */}
