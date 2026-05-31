@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { fetchProject, addPackage, deletePackage, fetchCategories, getCompanyInfo } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, CURRENCY_LABELS, formatCurrency, EXECUTION_MILESTONES, ProjectSummary, PackageSummary } from "@/lib/types";
@@ -63,8 +63,10 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
   const [showAddPkg, setShowAddPkg] = useState(false);
   const [newPkg, setNewPkg] = useState({ name: "", category: "", origin: "Domestic", currency: "INR" });
 
-  const loadData = async () => {
-    setLoading(true);
+  const hiddenAt = useRef<number>(0);
+
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [proj, cats, company] = await Promise.all([fetchProject(projectId), fetchCategories(), getCompanyInfo()]);
       setProject(proj ?? null);
@@ -72,7 +74,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
       const defaultCurrency = company.defaultCurrency || 'INR';
       setNewPkg(p => ({ ...p, category: p.category || cats[0] || '', currency: defaultCurrency }));
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally { if (!silent) setLoading(false); }
   };
 
   useEffect(() => { loadData(); }, [projectId]);
@@ -83,11 +85,17 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
     if (initialView && initialView !== "landing") setView(initialView);
   }, [initialView]);
 
-  // Reload when user navigates back (browser back-cache restores component without remounting)
+  // Silent background refresh when returning to tab — only if away >5 minutes
   useEffect(() => {
-    const handleVisible = () => { if (document.visibilityState === "visible") loadData(); };
-    document.addEventListener("visibilitychange", handleVisible);
-    return () => document.removeEventListener("visibilitychange", handleVisible);
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt.current = Date.now();
+      } else if (document.visibilityState === "visible") {
+        if (Date.now() - hiddenAt.current > 5 * 60 * 1000) loadData(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [projectId]);
 
   if (loading) return (

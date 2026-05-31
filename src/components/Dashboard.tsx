@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   fetchProjects,
@@ -402,8 +402,10 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
   const [newProj, setNewProj] = useState({ name: "", client: "", budget: "" });
   const [search, setSearch] = useState("");
 
-  const loadData = async () => {
-    setLoading(true);
+  const hiddenAt = useRef<number>(0);
+
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [p, c, ci] = await Promise.all([fetchProjects(), fetchCategories(), getCompanyInfo()]);
       setProjects(p);
@@ -412,17 +414,22 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
     } catch (e) {
       console.error("Load failed", e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
-    // Reload whenever the user navigates back to this page (e.g. after editing
-    // milestones in a package detail page and returning to the portfolio).
-    const handleVisible = () => { if (document.visibilityState === "visible") loadData(); };
-    document.addEventListener("visibilitychange", handleVisible);
-    return () => document.removeEventListener("visibilitychange", handleVisible);
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt.current = Date.now();
+      } else if (document.visibilityState === "visible") {
+        // Only silently refresh if away for more than 5 minutes
+        if (Date.now() - hiddenAt.current > 5 * 60 * 1000) loadData(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
   const handleAddProject = async () => {
