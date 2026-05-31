@@ -732,8 +732,8 @@ export default function LandingPage() {
       <section className="pt-20 pb-16 px-6 text-center bg-gradient-to-b from-slate-50 to-white">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight mb-4">
-            The project lifecycle,<br />
-            <span className="text-blue-600">on one dashboard</span>
+            Procurement &amp; Project Lifecycle Tracking<br />
+            <span className="text-blue-600">on One Dashboard</span>
           </h1>
           <p className="text-xl sm:text-2xl font-semibold text-slate-700 mb-4">
             The End of Weekly Reports &mdash; <em><strong>Every Milestone Tracked</strong></em>

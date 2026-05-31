@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://procuretrack.in";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.procuretrack.in";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     template: "%s | ProcureTrack",
   },
   description:
-    "ProcureTrack is procurement and execution tracking software for engineering and infrastructure project teams. Manage RFQ to handover, milestones, vendors, budgets, and billing — all in one live dashboard.",
+    "Procurement and execution tracking for engineering and infrastructure teams. RFQ to handover, vendors, milestones, and budgets — on one live dashboard.",
   keywords: [
     "procurement tracking software",
     "construction procurement management India",

@@ -4,5 +4,13 @@
       "path": "/api/cron/cleanup-expired-trials",
       "schedule": "0 2 * * *"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "procuretrack.in" }],
+      "destination": "https://www.procuretrack.in/:path*",
+      "permanent": true
+    }
   ]
 }
