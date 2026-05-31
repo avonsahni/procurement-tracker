@@ -330,7 +330,11 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                   </div>
                 </div>
 
-                <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-3">
+                <div className="border-t border-slate-100 pt-4 grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-[10px] text-slate-400">Total Budget</p>
+                    <p className="text-sm font-mono font-semibold text-blue-700">{formatCurrency(project.budget)}</p>
+                  </div>
                   <div>
                     <p className="text-[10px] text-slate-400">Awarded Value</p>
                     <p className="text-sm font-mono font-semibold text-emerald-700">{formatCurrency(totalAwarded)}</p>
