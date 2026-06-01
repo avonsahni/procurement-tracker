@@ -13,7 +13,7 @@ export const MILESTONE_WEIGHTS: Record<ExecutionMilestoneName, number> = {
   "Mobilisation":             5,
   "Preliminaries":            5,
   "Procurement":             30,
-  "Installation":            40,
+  "Installation":            50,
   "Testing and Commissioning": 5,
   "Handover":                 5,
 };
