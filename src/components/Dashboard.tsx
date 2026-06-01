@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   fetchProjects,
@@ -409,6 +409,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
   };
   const [newProj, setNewProj] = useState(emptyProj);
   const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
   const [search, setSearch] = useState("");
 
   const loadData = async () => {
@@ -436,7 +437,8 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
 
   const handleAddProject = async () => {
     if (!newProj.name.trim()) return;
-    if (creating) return;
+    if (creatingRef.current) return;
+    creatingRef.current = true;
     setCreating(true);
     try {
       await addProject({
@@ -459,6 +461,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
       setNewProj(emptyProj);
       loadData();
     } finally {
+      creatingRef.current = false;
       setCreating(false);
     }
   };
