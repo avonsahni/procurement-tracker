@@ -31,13 +31,14 @@ interface FormData {
   confirmPassword: string;
   agreeTerms:   boolean;
   couponCode:   string;
+  seedData:     boolean;
 }
 
 const EMPTY: FormData = {
   orgName: "", orgType: "", website: "",
   addressLine1: "", city: "", stateRegion: "", country: "", phone: "",
   fullName: "", jobTitle: "", email: "", password: "", confirmPassword: "", agreeTerms: false,
-  couponCode: "",
+  couponCode: "", seedData: false,
 };
 
 const ORG_TYPES = [
@@ -365,6 +366,25 @@ function Step3({ data, onChange, errors, couponStatus, couponChecking, setCoupon
         )}
       </div>
 
+      {/* Sample data opt-in */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-4">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={data.seedData}
+            onChange={e => onChange("seedData", e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-blue-600 flex-shrink-0"
+          />
+          <div>
+            <p className="text-sm font-medium text-slate-800">Pre-load 5 sample demo projects</p>
+            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+              Populates your workspace with realistic procurement data so you can explore the features right away.
+              You can also do this any time later from <strong>Admin → Settings → Sample Data</strong>.
+            </p>
+          </div>
+        </label>
+      </div>
+
       <label className="flex items-start gap-3 cursor-pointer group">
         <input
           type="checkbox"
@@ -560,6 +580,7 @@ export default function RegisterPage() {
           country: data.country,
           phone: data.phone,
           couponCode: data.couponCode,
+          seedData: data.seedData,
         }
       );
       setDone(true);

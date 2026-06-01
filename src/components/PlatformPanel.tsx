@@ -1010,13 +1010,14 @@ type OrgMember = {
   id: string;
   email: string;
   fullName: string;
-  role: 'owner' | 'admin' | 'viewer';
+  role: 'owner' | 'admin' | 'user' | 'viewer';
   joinedAt: string;
 };
 
 const ROLE_STYLES: Record<string, string> = {
   owner:  'bg-orange-50 text-orange-700 ring-orange-200',
   admin:  'bg-violet-50 text-violet-700 ring-violet-200',
+  user:   'bg-blue-50 text-blue-700 ring-blue-200',
   viewer: 'bg-slate-100 text-slate-600 ring-slate-200',
 };
 
@@ -1050,7 +1051,7 @@ function OrgDetailView({
 
   // Add user form
   const [addEmail, setAddEmail]     = useState('');
-  const [addRole, setAddRole]       = useState<'owner' | 'admin' | 'viewer'>('viewer');
+  const [addRole, setAddRole]       = useState<'admin' | 'user' | 'viewer'>('user');
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError]     = useState('');
   const [addSuccess, setAddSuccess] = useState('');
@@ -1185,7 +1186,7 @@ function OrgDetailView({
       setMembers(prev => [...prev, data]);
       setAddSuccess(`${data.email} added as ${data.role}.`);
       setAddEmail('');
-      setAddRole('viewer');
+      setAddRole('user');
     } catch (e: any) {
       setAddError(e.message || 'Failed to add user');
     } finally { setAddLoading(false); }
@@ -1266,7 +1267,9 @@ function OrgDetailView({
       const res = await apiFetch(`/api/platform/orgs/${orgId}/wipe-data`, { method: 'POST' });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Wipe failed');
-      showDataMsg('ok', `All project data wiped (${d.filesDeleted ?? 0} storage file${d.filesDeleted !== 1 ? 's' : ''} removed).`);
+      const proj = d.projectsWiped ?? 0;
+      const files = d.filesDeleted ?? 0;
+      showDataMsg('ok', `Wiped ${proj} project${proj !== 1 ? 's' : ''} and ${files} storage file${files !== 1 ? 's' : ''}.`);
       onOrgUpdated();
     } catch (e: any) {
       showDataMsg('err', e.message || 'Wipe failed');
@@ -1408,8 +1411,9 @@ function OrgDetailView({
                           onChange={e => handleRoleChange(member.id, e.target.value)}
                           className={`text-xs font-semibold px-2 py-1 rounded-lg border cursor-pointer outline-none transition ${ROLE_STYLES[member.role]} ${roleLoading === member.id ? 'opacity-50' : ''}`}
                         >
-                          <option value="owner">Owner</option>
+                          {member.role === 'owner' && <option value="owner">Owner</option>}
                           <option value="admin">Admin</option>
+                          <option value="user">User</option>
                           <option value="viewer">Viewer</option>
                         </select>
                         {roleLoading === member.id && <Loader2 className="w-3 h-3 animate-spin text-slate-400 inline ml-1" />}
@@ -1469,12 +1473,12 @@ function OrgDetailView({
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Role</label>
                 <select
                   value={addRole}
-                  onChange={e => setAddRole(e.target.value as OrgMember['role'])}
+                  onChange={e => setAddRole(e.target.value as 'admin' | 'user' | 'viewer')}
                   className="px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
                 >
-                  <option value="viewer">Viewer</option>
                   <option value="admin">Admin</option>
-                  <option value="owner">Owner</option>
+                  <option value="user">User</option>
+                  <option value="viewer">Viewer</option>
                 </select>
               </div>
               <button

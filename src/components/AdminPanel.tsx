@@ -692,12 +692,17 @@ function CategoriesSection() {
   );
 }
 
-function DangerSection({ onReset }: { onReset: () => void }) {
-  const [seeding, setSeeding] = useState(false);
-  const [resetting, setResetting] = useState(false);
+function DangerSection({ onReset, sampleCount: initialSampleCount }: { onReset: () => void; sampleCount: number }) {
+  const [seeding, setSeeding]       = useState(false);
+  const [resetting, setResetting]   = useState(false);
+  const [deletingSample, setDeletingSample] = useState(false);
+  const [sampleCount, setSampleCount] = useState(initialSampleCount);
+
+  // Keep in sync if parent refreshes
+  useEffect(() => { setSampleCount(initialSampleCount); }, [initialSampleCount]);
 
   const handleSeed = async () => {
-    if (!confirm("Load 5 sample projects (21 packages each)? This will be skipped if your organisation already has projects.")) return;
+    if (!confirm("Load 5 sample projects (21 packages each) into your workspace?")) return;
     setSeeding(true);
     try {
       const res = await fetch("/api/seed", {
@@ -709,20 +714,36 @@ function DangerSection({ onReset }: { onReset: () => void }) {
         alert(body.error || `Seed failed (${res.status})`);
         return;
       }
-      if (body.seeded === false) {
-        alert("Sample data was skipped — your organisation already has projects.");
-        return;
-      }
+      setSampleCount(5);
       onReset();
     } finally { setSeeding(false); }
+  };
+
+  // Deletes ONLY sample/demo projects — real user projects are never touched.
+  const handleDeleteSampleData = async () => {
+    if (!confirm("Delete the sample/demo projects? Your own projects will not be affected.")) return;
+    setDeletingSample(true);
+    try {
+      const res = await fetch("/api/seed", { method: "DELETE", headers: { 'X-Requested-With': 'fetch' } });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(body.error || `Delete failed (${res.status})`);
+        return;
+      }
+      setSampleCount(0);
+      onReset();
+    } finally { setDeletingSample(false); }
   };
 
   const handleReset = async () => {
     const confirmed = prompt('Type "WIPE" to delete all projects and packages permanently:');
     if (confirmed !== "WIPE") return;
     setResetting(true);
-    try { await fetch("/api/reset", { method: "POST" }); onReset(); }
-    finally { setResetting(false); }
+    try {
+      await fetch("/api/reset", { method: "POST", headers: { 'X-Requested-With': 'fetch' } });
+      setSampleCount(0);
+      onReset();
+    } finally { setResetting(false); }
   };
 
   return (
@@ -733,19 +754,43 @@ function DangerSection({ onReset }: { onReset: () => void }) {
       </div>
 
       <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-200">
+        {/* Sample data toggle */}
         <div className="p-5 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-slate-900">Load Sample Data</p>
-            <p className="text-xs text-slate-500 mt-0.5">Adds 5 projects with 21 packages each for testing purposes.</p>
+            {sampleCount > 0 ? (
+              <>
+                <p className="text-sm font-semibold text-slate-900">Delete Sample Data</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Removes the {sampleCount} demo project{sampleCount !== 1 ? 's' : ''} loaded for exploring the app.
+                  Your own projects are not affected.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-slate-900">Load Sample Data</p>
+                <p className="text-xs text-slate-500 mt-0.5">Adds 5 realistic demo projects with 21 packages each for exploring the app.</p>
+              </>
+            )}
           </div>
-          <button
-            onClick={handleSeed}
-            disabled={seeding}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition disabled:opacity-50 flex-shrink-0"
-          >
-            {seeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            {seeding ? "Loading…" : "Load Sample Data"}
-          </button>
+          {sampleCount > 0 ? (
+            <button
+              onClick={handleDeleteSampleData}
+              disabled={deletingSample}
+              className="flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition disabled:opacity-50 flex-shrink-0"
+            >
+              {deletingSample ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {deletingSample ? "Deleting…" : "Delete Sample Data"}
+            </button>
+          ) : (
+            <button
+              onClick={handleSeed}
+              disabled={seeding}
+              className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition disabled:opacity-50 flex-shrink-0"
+            >
+              {seeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              {seeding ? "Loading…" : "Load Sample Data"}
+            </button>
+          )}
         </div>
 
         <div className="p-5 flex items-center justify-between gap-4 bg-red-50">
@@ -1191,6 +1236,7 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
   const [tab, setTab] = useState<Tab>(defaultTab);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [orgName, setOrgName] = useState("My Organisation");
+  const [sampleCount, setSampleCount] = useState(0);
 
   // When org becomes blocked, snap to an allowed tab
   useEffect(() => {
@@ -1213,10 +1259,19 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
     } catch { /* silent */ }
   }, []);
 
+  const loadSampleCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/projects', { headers: { 'X-Requested-With': 'fetch' } });
+      const data = await res.json();
+      setSampleCount(Array.isArray(data) ? data.filter((p: any) => p.isSample).length : 0);
+    } catch { /* silent */ }
+  }, []);
+
   useEffect(() => {
     loadUsers();
     loadBranding();
-  }, [loadUsers, loadBranding]);
+    loadSampleCount();
+  }, [loadUsers, loadBranding, loadSampleCount]);
 
   const visibleNav = isOrgBlocked
     ? NAV.filter(n => BLOCKED_TABS.includes(n.id))
@@ -1280,7 +1335,7 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
           {tab === "categories" && <CategoriesSection />}
           {tab === "audit"      && <AuditLogSection />}
           {tab === "export"     && <ExportSection    orgName={orgName} />}
-          {tab === "danger"     && <DangerSection    onReset={() => { loadUsers(); }} />}
+          {tab === "danger"     && <DangerSection    onReset={() => { loadUsers(); loadSampleCount(); }} sampleCount={sampleCount} />}
         </main>
       </div>
     </div>

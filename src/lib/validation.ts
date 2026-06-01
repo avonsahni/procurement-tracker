@@ -39,6 +39,7 @@ export const SignupSchema = z.object({
   country:      z.string().trim().max(100).optional().default(''),
   phone:        z.string().trim().max(50).optional().default(''),
   couponCode:   z.string().trim().max(50).optional().default(''),
+  seedData:     z.boolean().optional().default(false),
 });
 
 export const ProjectCreateSchema = z.object({

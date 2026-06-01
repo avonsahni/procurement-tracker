@@ -143,6 +143,7 @@ export interface Project {
   client: string;
   budget: number;
   status: "Active" | "On Hold" | "Completed";
+  isSample?: boolean;
   packages: Package[];
   startDate?: string;
   endDate?: string;
@@ -188,6 +189,7 @@ export interface ProjectSummary {
   client: string;
   budget: number;
   status: 'Active' | 'On Hold' | 'Completed';
+  isSample?: boolean;
   packages: PackageSummary[];
   startDate?: string;
   endDate?: string;

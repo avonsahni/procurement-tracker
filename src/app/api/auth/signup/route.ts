@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     email, password, fullName, jobTitle,
     orgName, orgType, website,
     addressLine1, city, stateRegion, country, phone,
-    couponCode,
+    couponCode, seedData,
   } = parsed.data;
 
   const supabase = await createServerSupabase();
@@ -72,8 +72,8 @@ export async function POST(req: NextRequest) {
         .eq('id', data.user.id);
     }
 
-    // Seed sample projects for the new org so the dashboard isn't empty on first login
-    if (membership?.org_id) {
+    // Only seed when the user explicitly opted in
+    if (seedData && membership?.org_id) {
       await seedSampleData(admin, data.user.id, membership.org_id);
     }
 

@@ -317,6 +317,7 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     client: row.client || '',
     budget: Number(row.budget) || 0,
     status: row.status,
+    isSample: row.is_sample ?? false,
     startDate: projStarts.length ? projStarts[0] : undefined,
     endDate:   projEnds.length ? projEnds[projEnds.length - 1] : undefined,
     packages,

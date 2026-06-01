@@ -142,12 +142,6 @@ const VENDOR_POOLS = [
 ];
 
 export async function seedSampleData(supabase: SupabaseClient, userId: string, orgId: string) {
-  // Idempotent — skip if the org already has projects
-  const { count } = await supabase
-    .from('projects')
-    .select('id', { count: 'exact', head: true })
-    .eq('org_id', orgId);
-  if ((count ?? 0) > 0) return { seeded: false, count };
 
   const now = new Date().toISOString();
 
@@ -169,6 +163,7 @@ export async function seedSampleData(supabase: SupabaseClient, userId: string, o
         client: sp.client,
         budget: sp.budget,
         status: sp.status,
+        is_sample: true,
       })
       .select('id')
       .single();

@@ -11,24 +11,32 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { id: orgId } = await params;
   const admin = createAdminSupabase();
 
-  // Find the org owner to use as the seed author
-  const { data: ownerRow } = await admin
+  // Find a member to use as the seed author — prefer owner, fall back to any member
+  const { data: members } = await admin
     .from('organization_members')
-    .select('user_id')
+    .select('user_id, role')
     .eq('org_id', orgId)
-    .eq('role', 'owner')
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: true });
+
+  const ownerRow =
+    (members ?? []).find((m: any) => m.role === 'owner') ??
+    (members ?? []).find((m: any) => m.role === 'admin') ??
+    (members ?? [])[0] ?? null;
 
   if (!ownerRow?.user_id) {
-    return NextResponse.json({ error: 'No owner found for this org' }, { status: 400 });
+    return NextResponse.json({ error: 'No members found for this org' }, { status: 400 });
   }
 
-  // Wipe existing projects first so seedSampleData's idempotency guard doesn't block it
-  await admin.from('projects').delete().eq('org_id', orgId);
+  // Wipe existing projects first so the idempotency guard in seedSampleData doesn't block
+  const { error: wipeErr } = await admin.from('projects').delete().eq('org_id', orgId);
+  if (wipeErr) return NextResponse.json({ error: `Wipe failed: ${wipeErr.message}` }, { status: 500 });
 
   // Seed fresh sample data
-  await seedSampleData(admin, ownerRow.user_id, orgId);
+  const result = await seedSampleData(admin, ownerRow.user_id, orgId);
 
-  return NextResponse.json({ ok: true });
+  if (!result || !(result as any).seeded) {
+    return NextResponse.json({ error: 'Seed was skipped — projects may not have been wiped correctly' }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, ...result });
 }
