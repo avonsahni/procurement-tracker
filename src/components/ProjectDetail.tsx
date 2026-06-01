@@ -10,7 +10,7 @@ import {
   ArrowLeft, Plus, Briefcase, Package, Trash2, X,
   Clock, CheckCircle2, Lock, Unlock, Search,
   ShoppingCart, Activity, ChevronRight, ArrowRight,
-  HardDrive, Receipt, Target, CalendarDays,
+  HardDrive, Receipt, Target, CalendarDays, TrendingUp,
 } from "lucide-react";
 
 const fmtDate = (d: string) =>
@@ -525,6 +525,93 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                   Open Execution Dashboard <ArrowRight className="w-4 h-4" />
                 </div>
               </button>
+
+              {/* ── Cashflow Summary card (non-clickable, full width) ──────── */}
+              <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col gap-5">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 text-teal-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-semibold text-slate-900">Cashflow Dashboard</h2>
+                      <p className="text-xs text-slate-500">Inflow &amp; outflow across all awarded packages</p>
+                    </div>
+                  </div>
+                </div>
+
+                {(totalInflow === 0 && totalOutflow === 0) ? (
+                  <div className="flex-1 flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-slate-200 rounded-xl">
+                    <TrendingUp className="w-8 h-8 text-slate-300 mb-2" />
+                    <p className="text-sm text-slate-500">No cashflow recorded yet</p>
+                    <p className="text-xs text-slate-400 mt-1">Record cash receipts and payments inside each awarded package</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Summary tiles */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-emerald-600 mb-1">Total Inflow</p>
+                        <p className="text-base font-mono font-bold text-emerald-700 leading-none">{formatCurrency(totalInflow)}</p>
+                        <p className="text-[10px] text-emerald-500 mt-1">{totalAwarded > 0 ? ((totalInflow / totalAwarded) * 100).toFixed(1) : 0}% of awarded</p>
+                      </div>
+                      <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-red-600 mb-1">Total Outflow</p>
+                        <p className="text-base font-mono font-bold text-red-700 leading-none">{formatCurrency(totalOutflow)}</p>
+                        <p className="text-[10px] text-red-500 mt-1">{totalAwarded > 0 ? ((totalOutflow / totalAwarded) * 100).toFixed(1) : 0}% of awarded</p>
+                      </div>
+                      <div className={`${netCashflow >= 0 ? "bg-teal-50 border-teal-100" : "bg-orange-50 border-orange-100"} border rounded-xl p-3 text-center`}>
+                        <p className={`text-[10px] mb-1 ${netCashflow >= 0 ? "text-teal-600" : "text-orange-600"}`}>Net Position</p>
+                        <p className={`text-base font-mono font-bold leading-none ${netCashflow >= 0 ? "text-teal-700" : "text-orange-700"}`}>{netCashflow < 0 ? "-" : ""}{formatCurrency(Math.abs(netCashflow))}</p>
+                        <p className={`text-[10px] mt-1 ${netCashflow >= 0 ? "text-teal-500" : "text-orange-500"}`}>{netCashflow >= 0 ? "surplus" : "deficit"}</p>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
+                        <p className="text-[10px] text-slate-500 mb-1">Coverage</p>
+                        <p className="text-base font-mono font-bold text-slate-700 leading-none">
+                          {totalInflow > 0 ? Math.min(100, (totalOutflow / totalInflow) * 100).toFixed(0) : 0}%
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-1">outflow / inflow</p>
+                      </div>
+                    </div>
+
+                    {/* Per-package cashflow bars */}
+                    {awardedPkgs.some(p => (p.totalInflowAmount || 0) > 0 || (p.totalOutflowAmount || 0) > 0) && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold text-slate-600">Per Package</p>
+                        {awardedPkgs.filter(p => (p.totalInflowAmount || 0) > 0 || (p.totalOutflowAmount || 0) > 0).map(pkg => {
+                          const award   = pkg.awardValue || 0;
+                          const inPct   = award > 0 ? Math.min(100, ((pkg.totalInflowAmount  || 0) / award) * 100) : 0;
+                          const outPct  = award > 0 ? Math.min(100, ((pkg.totalOutflowAmount || 0) / award) * 100) : 0;
+                          return (
+                            <div key={pkg.id} className="space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-slate-700 truncate max-w-[200px]">{pkg.name}</span>
+                                <span className="text-[10px] font-mono text-slate-400 flex-shrink-0 ml-2">{formatCurrency(pkg.awardValue || 0, pkg.currency)}</span>
+                              </div>
+                              <div className="pl-3 space-y-1 border-l-2 border-slate-100">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-slate-400 w-20 flex-shrink-0">Inflow</span>
+                                  <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                    <div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${inPct}%` }} />
+                                  </div>
+                                  <span className="text-[10px] font-mono text-emerald-600 w-16 text-right flex-shrink-0">{formatCurrency(pkg.totalInflowAmount || 0, pkg.currency)}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-slate-400 w-20 flex-shrink-0">Outflow</span>
+                                  <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                    <div className="h-full rounded-full bg-red-400 transition-all" style={{ width: `${outPct}%` }} />
+                                  </div>
+                                  <span className="text-[10px] font-mono text-red-600 w-16 text-right flex-shrink-0">{formatCurrency(pkg.totalOutflowAmount || 0, pkg.currency)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
 
             </div>
           </>
