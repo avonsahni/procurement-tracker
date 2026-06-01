@@ -55,7 +55,13 @@ export const POST = withRoute(async (req: NextRequest) => {
     .select()
     .single();
 
-  if (error || !row) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
+  if (error || !row) {
+    const isDuplicate = error?.code === '23505';
+    return NextResponse.json(
+      { error: isDuplicate ? `A project named "${name}" already exists` : (error?.message || 'Insert failed') },
+      { status: isDuplicate ? 409 : 500 },
+    );
+  }
 
   const adminClient = createAdminSupabase();
   await addOrgAuditEntry(adminClient, auth.orgId, auth.id, auth.fullName,
