@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Users, Settings, Tag, Shield, BarChart3,
   Plus, Trash2, X, RefreshCw, Edit2, Crown, Eye,
@@ -13,9 +14,10 @@ import {
 import { useAuth } from "@/components/auth/AuthContext";
 import {
   getUsers, addUser, updateUser, deleteUser, updateCompanyInfo,
-  UserAccount, CompanyInfo,
+  fetchProjects, addProject, deleteProject, updateProject,
+  UserAccount, CompanyInfo, NewProjectInput,
 } from "@/lib/store";
-import { CURRENCY_LABELS } from "@/lib/types";
+import { CURRENCY_LABELS, formatCurrency } from "@/lib/types";
 import BillingUpgradeModal from "@/components/BillingUpgradeModal";
 
 const API = (path: string, opts?: RequestInit) => {
@@ -1213,12 +1215,421 @@ function projectClientById(projects: any[], projectId: string): string {
   return projects.find((p: any) => p.id === projectId)?.client || '';
 }
 
+// ─────────────────────── projects section ───────────────────────
+
+const STATUS_BADGE: Record<string, string> = {
+  Active:     'bg-blue-50 text-blue-700 ring-blue-200',
+  'On Hold':  'bg-amber-50 text-amber-700 ring-amber-200',
+  Completed:  'bg-slate-100 text-slate-600 ring-slate-200',
+};
+
+const EMPTY_PROJ_FORM = {
+  name: '', client: '', budget: '',
+  address: '', projectType: '', builtUpArea: '',
+  estimatedStartDate: '', estimatedDurationMonths: '', tenderedCost: '',
+  projectManager: '',
+  clientContactName: '', clientContactEmail: '', clientContactPhone: '',
+  projectRemarks: '',
+};
+
+function ProjectsSection() {
+  const { isOrgBlocked } = useAuth();
+  const router = useRouter();
+
+  const [projects, setProjects]   = useState<any[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [search, setSearch]       = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'Active' | 'On Hold' | 'Completed'>('all');
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating]     = useState(false);
+  const creatingRef                 = useRef(false);
+  const [createError, setCreateError] = useState('');
+  const [form, setForm]             = useState(EMPTY_PROJ_FORM);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchProjects();
+      setProjects(Array.isArray(data) ? data : []);
+    } catch { /* silent */ } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const closeCreate = () => { if (!creating) { setShowCreate(false); setCreateError(''); } };
+
+  const handleCreate = async () => {
+    if (!form.name.trim()) return;
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    setCreating(true);
+    try {
+      await addProject({
+        name:                    form.name.trim(),
+        client:                  form.client.trim()             || undefined,
+        budget:                  form.budget ? parseFloat(form.budget) : 0,
+        address:                 form.address.trim()            || undefined,
+        projectType:             form.projectType               || undefined,
+        builtUpArea:             form.builtUpArea.trim()        || undefined,
+        estimatedStartDate:      form.estimatedStartDate        || null,
+        estimatedDurationMonths: form.estimatedDurationMonths ? parseInt(form.estimatedDurationMonths) : null,
+        tenderedCost:            form.tenderedCost ? parseFloat(form.tenderedCost) : null,
+        projectManager:          form.projectManager.trim()     || undefined,
+        clientContactName:       form.clientContactName.trim()  || undefined,
+        clientContactEmail:      form.clientContactEmail.trim() || undefined,
+        clientContactPhone:      form.clientContactPhone.trim() || undefined,
+        projectRemarks:          form.projectRemarks.trim()     || undefined,
+      } as NewProjectInput);
+      setShowCreate(false);
+      setForm(EMPTY_PROJ_FORM);
+      setCreateError('');
+      load();
+    } catch (err: any) {
+      setCreateError(err?.message || 'Failed to create project');
+    } finally {
+      creatingRef.current = false;
+      setCreating(false);
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete "${name}" and all its packages? This cannot be undone.`)) return;
+    try { await deleteProject(id); load(); }
+    catch (e: any) { alert(e.message || 'Delete failed'); }
+  };
+
+  const handleStatusChange = async (id: string, status: string) => {
+    try { await updateProject(id, { status: status as any }); load(); }
+    catch (e: any) { alert(e.message || 'Update failed'); }
+  };
+
+  const filtered = projects.filter(p => {
+    const matchStatus = filterStatus === 'all' || p.status === filterStatus;
+    const q = search.toLowerCase();
+    return matchStatus && (!q ||
+      p.name.toLowerCase().includes(q) ||
+      (p.client || '').toLowerCase().includes(q) ||
+      (p.projectManager || '').toLowerCase().includes(q));
+  });
+
+  const fieldCls = 'w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60';
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">Projects</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {projects.length} project{projects.length !== 1 ? 's' : ''} in your organisation
+          </p>
+        </div>
+        {!isOrgBlocked && (
+          <button
+            onClick={() => { setShowCreate(true); setCreateError(''); }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition"
+          >
+            <Plus className="w-4 h-4" /> New Project
+          </button>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search projects…"
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+          />
+        </div>
+        {(['all', 'Active', 'On Hold', 'Completed'] as const).map(s => (
+          <button
+            key={s}
+            onClick={() => setFilterStatus(s)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${filterStatus === s ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+          >
+            {s === 'all' ? 'All' : s}
+          </button>
+        ))}
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-20 bg-white border border-slate-200 rounded-xl">
+          <FolderOpen className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+          <p className="text-slate-500 text-sm font-medium">No projects found</p>
+          {!isOrgBlocked && <p className="text-slate-400 text-xs mt-1">Click "New Project" to create one</p>}
+        </div>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[960px]">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Project</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Budget</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Tendered Cost</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Est. Start</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Duration</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Project Manager</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Pkgs</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map(p => (
+                  <tr key={p.id} className="hover:bg-slate-50 transition group">
+                    {/* Name + client + address */}
+                    <td className="px-5 py-4 max-w-[240px]">
+                      <p className="font-semibold text-slate-900 truncate">{p.name}</p>
+                      {p.client    && <p className="text-xs text-slate-500 mt-0.5 truncate">{p.client}</p>}
+                      {p.address   && <p className="text-xs text-slate-400 mt-0.5 truncate">{p.address}</p>}
+                    </td>
+                    {/* Status */}
+                    <td className="px-4 py-4">
+                      {isOrgBlocked ? (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ring-1 ring-inset ${STATUS_BADGE[p.status] || STATUS_BADGE.Active}`}>{p.status}</span>
+                      ) : (
+                        <select
+                          value={p.status}
+                          onChange={e => handleStatusChange(p.id, e.target.value)}
+                          className="text-xs px-2 py-1 border border-slate-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500/30"
+                        >
+                          <option>Active</option>
+                          <option>On Hold</option>
+                          <option>Completed</option>
+                        </select>
+                      )}
+                    </td>
+                    {/* Type */}
+                    <td className="px-4 py-4">
+                      {p.projectType
+                        ? <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200 whitespace-nowrap">{p.projectType}</span>
+                        : <span className="text-slate-300 text-xs">—</span>}
+                    </td>
+                    {/* Budget */}
+                    <td className="px-4 py-4 font-mono text-sm font-semibold text-blue-700 whitespace-nowrap">
+                      {formatCurrency(p.budget)}
+                    </td>
+                    {/* Tendered */}
+                    <td className="px-4 py-4 font-mono text-sm text-slate-600 whitespace-nowrap">
+                      {p.tenderedCost != null ? formatCurrency(p.tenderedCost) : <span className="text-slate-300">—</span>}
+                    </td>
+                    {/* Est. start */}
+                    <td className="px-4 py-4 text-xs text-slate-600 whitespace-nowrap">
+                      {p.estimatedStartDate
+                        ? new Date(p.estimatedStartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : <span className="text-slate-300">—</span>}
+                    </td>
+                    {/* Duration */}
+                    <td className="px-4 py-4 text-xs text-slate-600 whitespace-nowrap">
+                      {p.estimatedDurationMonths != null ? `${p.estimatedDurationMonths} mo` : <span className="text-slate-300">—</span>}
+                    </td>
+                    {/* PM */}
+                    <td className="px-4 py-4 text-xs text-slate-600 max-w-[130px] truncate">
+                      {p.projectManager || <span className="text-slate-300">—</span>}
+                    </td>
+                    {/* Packages */}
+                    <td className="px-4 py-4 text-center font-mono font-semibold text-slate-700">
+                      {(p.packages || []).length}
+                    </td>
+                    {/* Actions */}
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <button
+                          onClick={() => router.push(`/projects/${p.id}`)}
+                          className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition whitespace-nowrap"
+                        >
+                          Open
+                        </button>
+                        {!isOrgBlocked && (
+                          <button
+                            onClick={() => handleDelete(p.id, p.name)}
+                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                            title="Delete project"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Create modal */}
+      {showCreate && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6"
+          onClick={closeCreate}
+        >
+          <div
+            className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 flex-shrink-0">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">New Project</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Fields marked <span className="text-red-500">*</span> are required</p>
+              </div>
+              <button onClick={closeCreate} disabled={creating} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 disabled:opacity-40">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="overflow-y-auto flex-1 px-8 py-6 space-y-6">
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Project Information</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Name <span className="text-red-500">*</span></label>
+                    <input
+                      value={form.name}
+                      onChange={e => { setForm({ ...form, name: e.target.value }); setCreateError(''); }}
+                      disabled={creating} autoFocus
+                      className={`${fieldCls} ${createError ? 'border-red-400' : ''}`}
+                      placeholder="e.g. SKYLINE RESIDENCY PHASE 2"
+                    />
+                    {createError && <p className="mt-1.5 text-xs text-red-600">{createError}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Client</label>
+                    <input value={form.client} onChange={e => setForm({ ...form, client: e.target.value })} disabled={creating} className={fieldCls} placeholder="e.g. DLF INFRASTRUCTURE" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Type</label>
+                    <select value={form.projectType} onChange={e => setForm({ ...form, projectType: e.target.value })} disabled={creating} className={fieldCls}>
+                      <option value="">Select type…</option>
+                      <option>Building</option>
+                      <option>Infrastructure</option>
+                      <option>Roads and Highways</option>
+                      <option>Hospitals</option>
+                      <option>Hotel</option>
+                      <option>Commercial</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Location &amp; Scope</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Address</label>
+                    <input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} disabled={creating} className={fieldCls} placeholder="Site / plot address" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Built-Up Area</label>
+                    <input value={form.builtUpArea} onChange={e => setForm({ ...form, builtUpArea: e.target.value })} disabled={creating} className={fieldCls} placeholder="e.g. 12,500 sqft" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Financial</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Procurement Budget</label>
+                    <input type="number" value={form.budget} onChange={e => setForm({ ...form, budget: e.target.value })} disabled={creating} className={`${fieldCls} font-mono`} placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Tendered Cost</label>
+                    <input type="number" value={form.tenderedCost} onChange={e => setForm({ ...form, tenderedCost: e.target.value })} disabled={creating} className={`${fieldCls} font-mono`} placeholder="0" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Schedule</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Estimated Start Date</label>
+                    <input type="date" value={form.estimatedStartDate} onChange={e => setForm({ ...form, estimatedStartDate: e.target.value })} disabled={creating} className={fieldCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Estimated Duration (months)</label>
+                    <input type="number" min="0" value={form.estimatedDurationMonths} onChange={e => setForm({ ...form, estimatedDurationMonths: e.target.value })} disabled={creating} className={`${fieldCls} font-mono`} placeholder="e.g. 18" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Team</p>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Manager</label>
+                  <input value={form.projectManager} onChange={e => setForm({ ...form, projectManager: e.target.value })} disabled={creating} className={fieldCls} placeholder="Assigned PM name" />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Client Contact</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Contact Name</label>
+                    <input value={form.clientContactName} onChange={e => setForm({ ...form, clientContactName: e.target.value })} disabled={creating} className={fieldCls} placeholder="Point of contact at client" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Email</label>
+                    <input type="email" value={form.clientContactEmail} onChange={e => setForm({ ...form, clientContactEmail: e.target.value })} disabled={creating} className={fieldCls} placeholder="contact@client.com" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Phone</label>
+                    <input value={form.clientContactPhone} onChange={e => setForm({ ...form, clientContactPhone: e.target.value })} disabled={creating} className={fieldCls} placeholder="+91 98765 43210" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Notes</p>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Remarks</label>
+                  <textarea value={form.projectRemarks} onChange={e => setForm({ ...form, projectRemarks: e.target.value })} disabled={creating} rows={3} className={`${fieldCls} resize-none`} placeholder="Any relevant notes or context…" />
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal footer */}
+            <div className="px-8 py-5 border-t border-slate-100 flex-shrink-0">
+              <button
+                onClick={handleCreate}
+                disabled={creating || !form.name.trim()}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {creating ? <><Loader2 className="w-4 h-4 animate-spin" />Creating…</> : 'Initialize Project'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────────── main component ───────────────────────
 
-type Tab = "overview" | "users" | "branding" | "categories" | "audit" | "export" | "danger";
+type Tab = "overview" | "projects" | "users" | "branding" | "categories" | "audit" | "export" | "danger";
 
 const NAV: { id: Tab; icon: any; label: string }[] = [
   { id: "overview",    icon: BarChart3,     label: "Overview" },
+  { id: "projects",    icon: FolderOpen,    label: "Projects" },
   { id: "users",       icon: Users,         label: "Users" },
   { id: "branding",    icon: Globe,         label: "Branding" },
   { id: "categories",  icon: Tag,           label: "Categories" },
@@ -1228,7 +1639,7 @@ const NAV: { id: Tab; icon: any; label: string }[] = [
 ];
 
 // Tabs available when the org is expired/paused — read-only + export only.
-const BLOCKED_TABS: Tab[] = ["overview", "audit", "export"];
+const BLOCKED_TABS: Tab[] = ["overview", "projects", "audit", "export"];
 
 export default function AdminPanel({ onBack, initialTab }: { onBack: () => void; initialTab?: Tab }) {
   const { isOrgBlocked } = useAuth();
@@ -1330,6 +1741,7 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
         {/* Main content */}
         <main className="flex-1 overflow-y-auto p-8">
           {tab === "overview"   && <OverviewSection  users={users} orgName={orgName} />}
+          {tab === "projects"   && <ProjectsSection />}
           {tab === "users"      && <UsersSection     users={users} onRefresh={loadUsers} />}
           {tab === "branding"   && <BrandingSection  onSaved={loadBranding} />}
           {tab === "categories" && <CategoriesSection />}

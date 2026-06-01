@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   fetchProjects,
-  addProject,
   deleteProject,
   updateProject,
   fetchCategories,
@@ -16,7 +15,7 @@ import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import HelpGuide from "@/components/HelpGuide";
 import {
-  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown, Loader2
+  Trash2, Building2, FolderOpen, Activity, Settings, Lock, Unlock, Shield, Box, Layers, Search, Edit2, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown,
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
@@ -395,22 +394,8 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
   const [projects, setProjects] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddProject, setShowAddProject] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-
   const [company, setCompany] = useState<CompanyInfo>({ name: "", tagline: "" });
-  const emptyProj = {
-    name: "", client: "", budget: "",
-    address: "", projectType: "", builtUpArea: "",
-    estimatedStartDate: "", estimatedDurationMonths: "", tenderedCost: "",
-    projectManager: "",
-    clientContactName: "", clientContactEmail: "", clientContactPhone: "",
-    projectRemarks: "",
-  };
-  const [newProj, setNewProj] = useState(emptyProj);
-  const [creating, setCreating] = useState(false);
-  const creatingRef = useRef(false);
-  const [createError, setCreateError] = useState("");
   const [search, setSearch] = useState("");
 
   const hiddenAt = useRef<number>(0);
@@ -442,40 +427,6 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
-
-  const handleAddProject = async () => {
-    if (!newProj.name.trim()) return;
-    if (creatingRef.current) return;
-    creatingRef.current = true;
-    setCreating(true);
-    try {
-      await addProject({
-        name: newProj.name.trim(),
-        client: newProj.client.trim() || undefined,
-        budget: newProj.budget ? parseFloat(newProj.budget) : 0,
-        address: newProj.address.trim() || undefined,
-        projectType: newProj.projectType || undefined,
-        builtUpArea: newProj.builtUpArea.trim() || undefined,
-        estimatedStartDate: newProj.estimatedStartDate || null,
-        estimatedDurationMonths: newProj.estimatedDurationMonths ? parseInt(newProj.estimatedDurationMonths) : null,
-        tenderedCost: newProj.tenderedCost ? parseFloat(newProj.tenderedCost) : null,
-        projectManager: newProj.projectManager.trim() || undefined,
-        clientContactName: newProj.clientContactName.trim() || undefined,
-        clientContactEmail: newProj.clientContactEmail.trim() || undefined,
-        clientContactPhone: newProj.clientContactPhone.trim() || undefined,
-        projectRemarks: newProj.projectRemarks.trim() || undefined,
-      });
-      setShowAddProject(false);
-      setNewProj(emptyProj);
-      setCreateError("");
-      loadData();
-    } catch (err: any) {
-      setCreateError(err?.message || 'Failed to create project');
-    } finally {
-      creatingRef.current = false;
-      setCreating(false);
-    }
-  };
 
   const handleDeleteProject = async (id: string) => {
     if (!editMode) return;
@@ -741,11 +692,6 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
             Project Portfolio
             <span className="bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-0.5 rounded-full">{filteredProjects.length} total</span>
           </h2>
-          {editMode && user?.role === 'admin' && (
-            <button onClick={() => setShowAddProject(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
-              <Plus className="w-4 h-4" /> New Project
-            </button>
-          )}
         </div>
 
         {/* PORTFOLIO GRID */}
@@ -773,257 +719,6 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
           )}
         </div>
       </main>
-
-      {/* NEW PROJECT MODAL */}
-      {showAddProject && (
-        <div
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6"
-          onClick={() => { if (!creating) { setShowAddProject(false); setCreateError(""); } }}
-        >
-          <div
-            className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Sticky header */}
-            <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 flex-shrink-0">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">New Project</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Fields marked <span className="text-red-500">*</span> are required</p>
-              </div>
-              <button
-                onClick={() => { if (!creating) { setShowAddProject(false); setCreateError(""); } }}
-                disabled={creating}
-                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Scrollable body */}
-            <div className="overflow-y-auto flex-1 px-8 py-6 space-y-6">
-
-              {/* ── Project Information ─────────────────────────────────── */}
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Project Information</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Name <span className="text-red-500">*</span></label>
-                    <input
-                      value={newProj.name}
-                      onChange={e => { setNewProj({ ...newProj, name: e.target.value }); setCreateError(""); }}
-                      disabled={creating}
-                      autoFocus
-                      className={`w-full px-3.5 py-2.5 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60 ${createError ? 'border-red-400' : 'border-slate-200'}`}
-                      placeholder="e.g. SKYLINE RESIDENCY PHASE 2"
-                    />
-                    {createError && <p className="mt-1.5 text-xs text-red-600">{createError}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Client</label>
-                    <input
-                      value={newProj.client}
-                      onChange={e => setNewProj({ ...newProj, client: e.target.value })}
-                      disabled={creating}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60"
-                      placeholder="e.g. DLF INFRASTRUCTURE"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Type</label>
-                    <select
-                      value={newProj.projectType}
-                      onChange={e => setNewProj({ ...newProj, projectType: e.target.value })}
-                      disabled={creating}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 disabled:opacity-60"
-                    >
-                      <option value="">Select type…</option>
-                      <option>Building</option>
-                      <option>Infrastructure</option>
-                      <option>Roads and Highways</option>
-                      <option>Hospitals</option>
-                      <option>Hotel</option>
-                      <option>Commercial</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Location & Scope ────────────────────────────────────── */}
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Location &amp; Scope</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Address</label>
-                    <input
-                      value={newProj.address}
-                      onChange={e => setNewProj({ ...newProj, address: e.target.value })}
-                      disabled={creating}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60"
-                      placeholder="Site / plot address"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Built-Up Area</label>
-                    <input
-                      value={newProj.builtUpArea}
-                      onChange={e => setNewProj({ ...newProj, builtUpArea: e.target.value })}
-                      disabled={creating}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60"
-                      placeholder="e.g. 12,500 sqft"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Financial ───────────────────────────────────────────── */}
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Financial</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Procurement Budget</label>
-                    <input
-                      type="number"
-                      value={newProj.budget}
-                      onChange={e => setNewProj({ ...newProj, budget: e.target.value })}
-                      disabled={creating}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none font-mono text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Tendered Cost</label>
-                    <input
-                      type="number"
-                      value={newProj.tenderedCost}
-                      onChange={e => setNewProj({ ...newProj, tenderedCost: e.target.value })}
-                      disabled={creating}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none font-mono text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Schedule ────────────────────────────────────────────── */}
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Schedule</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Estimated Start Date</label>
-                    <input
-                      type="date"
-                      value={newProj.estimatedStartDate}
-                      onChange={e => setNewProj({ ...newProj, estimatedStartDate: e.target.value })}
-                      disabled={creating}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 disabled:opacity-60"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Estimated Duration (months)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={newProj.estimatedDurationMonths}
-                      onChange={e => setNewProj({ ...newProj, estimatedDurationMonths: e.target.value })}
-                      disabled={creating}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none font-mono text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60"
-                      placeholder="e.g. 18"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Team ────────────────────────────────────────────────── */}
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Team</p>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Manager</label>
-                  <input
-                    value={newProj.projectManager}
-                    onChange={e => setNewProj({ ...newProj, projectManager: e.target.value })}
-                    disabled={creating}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60"
-                    placeholder="Assigned PM name"
-                  />
-                </div>
-              </div>
-
-              {/* ── Client Contact ───────────────────────────────────────── */}
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Client Contact</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Contact Name</label>
-                    <input
-                      value={newProj.clientContactName}
-                      onChange={e => setNewProj({ ...newProj, clientContactName: e.target.value })}
-                      disabled={creating}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60"
-                      placeholder="Point of contact at client"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Email</label>
-                    <input
-                      type="email"
-                      value={newProj.clientContactEmail}
-                      onChange={e => setNewProj({ ...newProj, clientContactEmail: e.target.value })}
-                      disabled={creating}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60"
-                      placeholder="contact@client.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Phone</label>
-                    <input
-                      value={newProj.clientContactPhone}
-                      onChange={e => setNewProj({ ...newProj, clientContactPhone: e.target.value })}
-                      disabled={creating}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60"
-                      placeholder="+91 98765 43210"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Notes ───────────────────────────────────────────────── */}
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Notes</p>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Remarks</label>
-                  <textarea
-                    value={newProj.projectRemarks}
-                    onChange={e => setNewProj({ ...newProj, projectRemarks: e.target.value })}
-                    disabled={creating}
-                    rows={3}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60 resize-none"
-                    placeholder="Any relevant notes or context…"
-                  />
-                </div>
-              </div>
-
-            </div>
-
-            {/* Sticky footer */}
-            <div className="px-8 py-5 border-t border-slate-100 flex-shrink-0">
-              <button
-                onClick={handleAddProject}
-                disabled={creating || !newProj.name.trim()}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {creating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Creating…
-                  </>
-                ) : (
-                  'Initialize Project'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── HELP GUIDE ─────────────────────────────────────────────────────── */}
       {showHelp && <HelpGuide onClose={() => setShowHelp(false)} />}
