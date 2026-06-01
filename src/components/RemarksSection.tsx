@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MessageSquare, Send, Trash2, Edit2, Check, X } from "lucide-react";
 import { Remark } from "@/lib/types";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 interface RemarksSectionProps {
   remarks: Remark[];
@@ -27,6 +28,7 @@ export default function RemarksSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const confirm = useConfirm();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +60,7 @@ export default function RemarksSection({
 
   const handleDelete = async (id: string) => {
     if (!onDeleteRemark) return;
-    if (!confirm("Delete this remark? This cannot be undone.")) return;
+    if (!await confirm("Delete this remark? This cannot be undone.")) return;
     setBusyId(id);
     try {
       await onDeleteRemark(id);

@@ -27,6 +27,7 @@ import {
 } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
+import { useConfirm } from "@/components/ConfirmDialog";
 import UserMenu from "@/components/UserMenu";
 import StageStepper from "@/components/StageStepper";
 import VendorMatrix from "@/components/VendorMatrix";
@@ -53,6 +54,7 @@ export default function PackageDetail({
   onBack: () => void;
 }) {
   const { user, editMode, setEditMode } = useAuth();
+  const confirm = useConfirm();
   const router = useRouter();
   const [pkg, setPkg]         = useState<any>(null);
   const [project, setProject] = useState<any>(null);
@@ -614,6 +616,7 @@ export default function PackageDetail({
                               {effectiveEditMode && (
                                 <td className="px-2 py-2.5">
                                   <button onClick={async () => {
+                                      if (!await confirm("Delete this cash receipt? This cannot be undone.")) return;
                                       setPkg((prev: any) => prev ? { ...prev, cashInflow: (prev.cashInflow || []).filter((x: any) => x.id !== r.id), totalInflowAmount: Math.max(0, (prev.totalInflowAmount || 0) - r.amount) } : prev);
                                       await deleteCashInflow(packageId, r.id);
                                     }}
@@ -757,6 +760,7 @@ export default function PackageDetail({
                               {effectiveEditMode && (
                                 <td className="px-2 py-2.5">
                                   <button onClick={async () => {
+                                      if (!await confirm("Delete this payment record? This cannot be undone.")) return;
                                       setPkg((prev: any) => prev ? { ...prev, cashOutflow: (prev.cashOutflow || []).filter((x: any) => x.id !== r.id), totalOutflowAmount: Math.max(0, (prev.totalOutflowAmount || 0) - r.amount) } : prev);
                                       await deleteCashOutflow(packageId, r.id);
                                     }}

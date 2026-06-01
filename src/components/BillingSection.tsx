@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Receipt, Plus, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Invoice, Currency, formatCurrency } from "@/lib/types";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 interface BillingSectionProps {
   invoices: Invoice[];
@@ -22,6 +23,7 @@ export default function BillingSection({
   readonly,
 }: BillingSectionProps) {
   const [showAdd, setShowAdd] = useState(false);
+  const confirm = useConfirm();
   const [amount, setAmount] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -150,7 +152,7 @@ export default function BillingSection({
                 </div>
                 {!readonly && (
                   <button
-                    onClick={() => onDeleteInvoice(inv.id)}
+                    onClick={async () => { if (await confirm("Delete this invoice? This cannot be undone.")) onDeleteInvoice(inv.id); }}
                     className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

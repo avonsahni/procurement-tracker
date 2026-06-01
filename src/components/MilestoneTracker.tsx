@@ -6,6 +6,7 @@ import {
   Plus, Trash2, CalendarDays, AlertCircle,
 } from "lucide-react";
 import { EXECUTION_MILESTONES, MILESTONE_WEIGHTS, TOTAL_MILESTONE_WEIGHT, PackageMilestone, MilestoneTask } from "@/lib/types";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 // ── DraggableBar ─────────────────────────────────────────────────────────────
 
@@ -158,6 +159,7 @@ export default function MilestoneTracker({
   // ── Expand + add-form state ────────────────────────────────────────────────
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showAddForm, setShowAddForm] = useState<Record<string, boolean>>({});
+  const confirm = useConfirm();
 
   type AddForm = { name: string; startDate: string; endDate: string; busy: boolean };
   const [addForms, setAddForms] = useState<Record<string, AddForm>>({});
@@ -265,6 +267,7 @@ export default function MilestoneTracker({
 
   const handleDeleteTask = async (taskId: string) => {
     if (!onDeleteTask) return;
+    if (!await confirm("Delete this task? This cannot be undone.")) return;
     setDeletingIds(prev => new Set(prev).add(taskId));
     try { await onDeleteTask(taskId); }
     finally { setDeletingIds(prev => { const s = new Set(prev); s.delete(taskId); return s; }); }

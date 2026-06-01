@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { fetchProject, addPackage, deletePackage, fetchCategories, getCompanyInfo } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, CURRENCY_LABELS, formatCurrency, EXECUTION_MILESTONES, MILESTONE_WEIGHTS, TOTAL_MILESTONE_WEIGHT, ProjectSummary, PackageSummary } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
+import { useConfirm } from "@/components/ConfirmDialog";
 import UserMenu from "@/components/UserMenu";
 import {
   ArrowLeft, Plus, Briefcase, Package, Trash2, X,
@@ -49,6 +50,7 @@ interface ProjectDetailProps {
 export default function ProjectDetail({ projectId, initialView, onBack }: ProjectDetailProps) {
   const { user, editMode, setEditMode } = useAuth();
   const router = useRouter();
+  const confirm = useConfirm();
 
   const [project, setProject]       = useState<ProjectSummary | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
@@ -191,7 +193,8 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
 
   const handleDeletePkg = async (pkgId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!effectiveEditMode || !confirm("Delete package?")) return;
+    if (!effectiveEditMode) return;
+    if (!await confirm("Delete this package and all its data? This cannot be undone.")) return;
     await deletePackage(pkgId);
     loadData();
   };

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2, CheckCircle2, TrendingDown, X } from "lucide-react";
 import { formatCurrency, Currency, Vendor } from "@/lib/types";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 interface VendorMatrixProps {
   vendors: Vendor[];
@@ -28,6 +29,7 @@ export default function VendorMatrix({
   readonly
 }: VendorMatrixProps) {
   const [showAdd, setShowAdd] = useState(false);
+  const confirm = useConfirm();
   const [newV, setNewV] = useState({ name: "", quoted: "", revised: "" });
 
   const handleAdd = () => {
@@ -122,7 +124,7 @@ export default function VendorMatrix({
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-right">
-                      {!readonly && <button onClick={() => onDelete(v.id)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition"><Trash2 className="w-4 h-4" /></button>}
+                      {!readonly && <button onClick={async () => { if (await confirm("Delete this vendor?")) onDelete(v.id); }} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition"><Trash2 className="w-4 h-4" /></button>}
                     </td>
                   </tr>
                 );

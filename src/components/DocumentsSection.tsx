@@ -7,6 +7,7 @@ import {
   Paperclip, Upload, Trash2, FileText,
   Download, Loader2,
 } from "lucide-react";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 interface DocumentsSectionProps {
   documents: Document[];
@@ -25,6 +26,7 @@ export default function DocumentsSection({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const confirm = useConfirm();
 
   const humanSize = (bytes: number) =>
     bytes < 1024 * 1024
@@ -214,7 +216,7 @@ export default function DocumentsSection({
 
               {!readonly && (
                 <button
-                  onClick={() => onDeleteDocument(doc.id)}
+                  onClick={async () => { if (await confirm(`Delete "${doc.name}"? This cannot be undone.`)) onDeleteDocument(doc.id); }}
                   title="Delete"
                   className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                 >
