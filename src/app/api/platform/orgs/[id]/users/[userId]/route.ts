@@ -13,18 +13,26 @@ export async function PATCH(
   const { id: orgId, userId } = await params;
   const { role } = await req.json();
 
-  if (!['owner', 'admin', 'viewer'].includes(role)) {
-    return NextResponse.json({ error: 'Invalid role. Must be owner, admin, or viewer.' }, { status: 400 });
+  if (!['owner', 'admin', 'user', 'viewer'].includes(role)) {
+    return NextResponse.json({ error: 'Invalid role. Must be admin, user, or viewer.' }, { status: 400 });
   }
+
+  // Map display role → orgRole + canEdit
+  const orgRole = role === 'owner' ? 'owner' : role === 'admin' ? 'admin' : 'viewer';
+  const canEdit = role !== 'viewer';
 
   const admin = createAdminSupabase();
   const { error } = await admin
     .from('organization_members')
-    .update({ role })
+    .update({ role: orgRole })
     .eq('org_id', orgId)
     .eq('user_id', userId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Update can_edit on their profile
+  await admin.from('profiles').update({ can_edit: canEdit }).eq('id', userId);
+
   return NextResponse.json({ ok: true, role });
 }
 

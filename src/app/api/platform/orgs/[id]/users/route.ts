@@ -32,24 +32,34 @@ export async function GET(
   const members = membersRes.data || [];
   const memberIds = members.map(m => m.user_id);
 
-  // Fetch profiles for the specific user IDs
+  // Fetch profiles including can_edit to derive the display role
   const { data: profiles } = memberIds.length > 0
-    ? await admin.from('profiles').select('id, full_name').in('id', memberIds)
+    ? await admin.from('profiles').select('id, full_name, can_edit').in('id', memberIds)
     : { data: [] };
 
   const emailById: Record<string, string> = {};
   for (const u of authRes.data?.users || []) emailById[u.id] = u.email ?? '';
 
-  const nameById: Record<string, string> = {};
-  for (const p of profiles || []) nameById[p.id] = p.full_name ?? '';
+  const profileById: Record<string, any> = {};
+  for (const p of profiles || []) profileById[p.id] = p;
 
-  const result = members.map(m => ({
-    id:       m.user_id,
-    email:    emailById[m.user_id] ?? '',
-    fullName: nameById[m.user_id] ?? '',
-    role:     m.role as 'owner' | 'admin' | 'viewer',
-    joinedAt: m.created_at,
-  }));
+  const result = members.map(m => {
+    const profile  = profileById[m.user_id];
+    const canEdit  = profile?.can_edit ?? true;
+    const orgRole  = m.role as 'owner' | 'admin' | 'viewer';
+    // Derive the 3-tier display role (keep owner as-is for the platform admin view)
+    const role = orgRole === 'owner' ? 'owner'
+               : orgRole === 'admin' ? 'admin'
+               : canEdit             ? 'user'
+               :                       'viewer';
+    return {
+      id:       m.user_id,
+      email:    emailById[m.user_id] ?? '',
+      fullName: profile?.full_name ?? '',
+      role,
+      joinedAt: m.created_at,
+    };
+  });
 
   return NextResponse.json(result);
 }
@@ -63,12 +73,16 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { id: orgId } = await params;
-  const { email, role = 'viewer' } = await req.json();
+  const { email, role = 'user' } = await req.json();
 
   if (!email) return NextResponse.json({ error: 'email is required' }, { status: 400 });
-  if (!['owner', 'admin', 'viewer'].includes(role)) {
-    return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+  if (!['admin', 'user', 'viewer'].includes(role)) {
+    return NextResponse.json({ error: 'Invalid role. Must be admin, user, or viewer.' }, { status: 400 });
   }
+
+  // Map display role → orgRole + canEdit
+  const orgRole  = role === 'admin' ? 'admin' : 'viewer';
+  const canEdit  = role !== 'viewer';
 
   const admin = createAdminSupabase();
 
@@ -95,9 +109,12 @@ export async function POST(
 
   const { error: insertErr } = await admin
     .from('organization_members')
-    .insert({ org_id: orgId, user_id: targetUser.id, role });
+    .insert({ org_id: orgId, user_id: targetUser.id, role: orgRole });
 
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
+
+  // Set can_edit on their profile
+  await admin.from('profiles').update({ can_edit: canEdit }).eq('id', targetUser.id);
 
   // Fetch their profile name
   const { data: profile } = await admin.from('profiles').select('full_name').eq('id', targetUser.id).maybeSingle();
