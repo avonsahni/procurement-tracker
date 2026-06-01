@@ -10,6 +10,17 @@ export async function POST() {
   if (auth instanceof NextResponse) return auth;
 
   const supabase = await createServerSupabase();
+
+  // Don't seed if projects already exist
+  const { count } = await supabase
+    .from('projects')
+    .select('id', { count: 'exact', head: true })
+    .eq('org_id', auth.orgId);
+
+  if ((count ?? 0) > 0) {
+    return NextResponse.json({ ok: false, seeded: false, message: 'Projects already exist' }, { status: 409 });
+  }
+
   const result = await seedSampleData(supabase, auth.id, auth.orgId);
 
   const admin = createAdminSupabase();
