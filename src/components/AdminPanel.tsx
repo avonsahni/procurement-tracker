@@ -76,8 +76,8 @@ function Toggle({ on, onChange, disabled }: { on: boolean; onChange: (v: boolean
 
 function OverviewSection({ users, orgName }: { users: UserAccount[]; orgName: string }) {
   const admins  = users.filter(u => u.role === "admin").length;
-  const editors = users.filter(u => u.canEdit && u.role !== "admin").length;
-  const viewers = users.filter(u => !u.canEdit && u.role !== "admin").length;
+  const members = users.filter(u => u.role === "user").length;
+  const viewers = users.filter(u => u.role === "viewer").length;
 
   return (
     <div className="space-y-8">
@@ -88,9 +88,9 @@ function OverviewSection({ users, orgName }: { users: UserAccount[]; orgName: st
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Users"   value={users.length} color="blue"    sub="in this org" />
-        <StatCard label="Admins"        value={admins}       color="violet"   sub="owner / admin" />
-        <StatCard label="Editors"       value={editors}      color="emerald"  sub="can edit packages" />
-        <StatCard label="View Only"     value={viewers}      color="amber"    sub="read access" />
+        <StatCard label="Admins"        value={admins}       color="violet"   sub="full control" />
+        <StatCard label="Users"         value={members}      color="emerald"  sub="edit, no project create" />
+        <StatCard label="Viewers"       value={viewers}      color="amber"    sub="read-only access" />
       </div>
 
       {/* Plan validity */}
@@ -104,15 +104,19 @@ function OverviewSection({ users, orgName }: { users: UserAccount[]; orgName: st
         <div className="space-y-2">
           {users.map(u => (
             <div key={u.id} className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0 ${u.role === "admin" ? "bg-blue-600" : "bg-slate-400"}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0 ${u.role === "admin" ? "bg-violet-600" : u.role === "user" ? "bg-blue-500" : "bg-slate-400"}`}>
                 {u.fullName?.charAt(0)?.toUpperCase() ?? "?"}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-900 truncate">{u.fullName}</p>
                 <p className="text-xs text-slate-500 truncate">{u.username}</p>
               </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${u.role === "admin" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200" : "bg-slate-100 text-slate-600"}`}>
-                {u.role === "admin" ? "Admin" : u.canEdit ? "Editor" : "Viewer"}
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ring-1 ${
+                u.role === "admin"  ? "bg-violet-50 text-violet-700 ring-violet-200" :
+                u.role === "user"   ? "bg-blue-50 text-blue-700 ring-blue-200" :
+                                     "bg-slate-100 text-slate-500 ring-slate-200"
+              }`}>
+                {u.role === "admin" ? "Admin" : u.role === "user" ? "User" : "Viewer"}
               </span>
             </div>
           ))}
@@ -302,9 +306,9 @@ function StorageUsageCard() {
 function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: () => void }) {
   const { user: me } = useAuth();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "admin" | "user">("all");
+  const [filter, setFilter] = useState<"all" | "admin" | "user" | "viewer">("all");
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ fullName: "", email: "", password: "", role: "user", canEdit: true });
+  const [form, setForm] = useState({ fullName: "", email: "", password: "", role: "user" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -322,8 +326,8 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
     if (form.password.length < 8) { setError("Password must be at least 8 characters"); return; }
     setSaving(true); setError("");
     try {
-      await addUser({ username: form.email, fullName: form.fullName, password: form.password, role: form.role as "admin" | "user", canEdit: form.canEdit });
-      setForm({ fullName: "", email: "", password: "", role: "user", canEdit: true });
+      await addUser({ username: form.email, fullName: form.fullName, password: form.password, role: form.role as "admin" | "user" | "viewer", canEdit: form.role !== "viewer" });
+      setForm({ fullName: "", email: "", password: "", role: "user" });
       setShowAdd(false);
       onRefresh();
     } catch (e: any) {
@@ -343,9 +347,9 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
     }
   };
 
-  const handleToggleEdit = async (u: UserAccount) => {
+  const handleRoleChange = async (u: UserAccount, newRole: "admin" | "user" | "viewer") => {
     try {
-      await updateUser(u.id, { canEdit: !u.canEdit });
+      await updateUser(u.id, { role: newRole });
       onRefresh();
     } catch (e: any) { alert(e.message); }
   };
@@ -379,13 +383,13 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
             className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
           />
         </div>
-        {(["all", "admin", "user"] as const).map(f => (
+        {(["all", "admin", "user", "viewer"] as const).map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${filter === f ? "bg-blue-600 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
           >
-            {f === "all" ? "All" : f === "admin" ? "Admins" : "Users"}
+            {f === "all" ? "All" : f === "admin" ? "Admins" : f === "user" ? "Users" : "Viewers"}
           </button>
         ))}
       </div>
@@ -403,13 +407,10 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
             <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="Email address" type="email" className="px-3 py-2 border border-blue-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30" />
             <input value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Password (min 8 chars)" type="password" className="px-3 py-2 border border-blue-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30" />
             <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className="px-3 py-2 border border-blue-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30">
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
+              <option value="user">User — edit, add, delete (no project create/delete)</option>
+              <option value="admin">Admin — full control including projects</option>
+              <option value="viewer">Viewer — read only</option>
             </select>
-          </div>
-          <div className="flex items-center gap-3">
-            <Toggle on={form.canEdit} onChange={v => setForm({ ...form, canEdit: v })} />
-            <span className="text-sm text-slate-700">Can edit packages</span>
           </div>
           <div className="flex gap-2 pt-1">
             <button onClick={handleAdd} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50">
@@ -428,7 +429,7 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
             <tr>
               <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">User</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Role</th>
-              <th className="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Can Edit</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Permissions</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
@@ -452,16 +453,28 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
                   </td>
                   <td className="px-5 py-3.5">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ring-1 ${
-                      u.role === "admin"
-                        ? "bg-violet-50 text-violet-700 ring-violet-200"
-                        : "bg-slate-100 text-slate-600 ring-slate-200"
+                      u.role === "admin"  ? "bg-violet-50 text-violet-700 ring-violet-200" :
+                      u.role === "user"   ? "bg-blue-50 text-blue-700 ring-blue-200" :
+                                           "bg-slate-100 text-slate-500 ring-slate-200"
                     }`}>
-                      {u.role === "admin" ? <Crown className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                      {u.role === "admin" ? "Admin" : "User"}
+                      {u.role === "admin" ? <Crown className="w-3 h-3" /> : u.role === "user" ? <Edit2 className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                      {u.role === "admin" ? "Admin" : u.role === "user" ? "User" : "Viewer"}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-center">
-                    <Toggle on={u.canEdit} onChange={() => handleToggleEdit(u)} disabled={isMe} />
+                  <td className="px-5 py-3.5">
+                    {isMe ? (
+                      <span className="text-xs text-slate-400 italic">own account</span>
+                    ) : (
+                      <select
+                        value={u.role}
+                        onChange={e => handleRoleChange(u, e.target.value as "admin" | "user" | "viewer")}
+                        className="px-2 py-1 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-blue-500/30"
+                      >
+                        <option value="admin">Admin — full control</option>
+                        <option value="user">User — edit, no project create</option>
+                        <option value="viewer">Viewer — read only</option>
+                      </select>
+                    )}
                   </td>
                   <td className="px-5 py-3.5 text-right">
                     {!isMe && (
@@ -484,9 +497,9 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
       {/* Permission guide */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { icon: Crown, color: "amber", title: "Admin", desc: "Full access — manage users, settings & all projects" },
-          { icon: Edit2, color: "blue",  title: "User + Edit", desc: "Can enter edit mode and modify packages" },
-          { icon: Eye,   color: "slate", title: "View Only", desc: "Read-only access to all projects" },
+          { icon: Crown, color: "violet", title: "Admin", desc: "Full control — create/delete projects, manage users, settings, and all packages" },
+          { icon: Edit2, color: "blue",   title: "User",  desc: "Edit, add and delete packages, vendors, documents and remarks — cannot create or delete projects" },
+          { icon: Eye,   color: "slate",  title: "Viewer", desc: "Read-only access throughout the entire app" },
         ].map(({ icon: Icon, color, title, desc }) => (
           <div key={title} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex gap-3">
             <Icon className={`w-5 h-5 flex-shrink-0 text-${color}-500 mt-0.5`} />

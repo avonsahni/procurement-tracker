@@ -41,14 +41,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const updates: Record<string, any> = {};
   if (body.fullName !== undefined) updates.full_name = body.fullName;
-  if (body.canEdit !== undefined) updates.can_edit = body.canEdit;
-  if (Object.keys(updates).length > 0) {
-    await admin.from('profiles').update(updates).eq('id', id);
-  }
 
   if (body.role !== undefined && isOrgAdmin && !isSelf) {
-    const orgRole = body.role === 'admin' ? 'admin' : 'viewer';
-    await admin.from('organization_members').update({ role: orgRole }).eq('user_id', id).eq('org_id', auth.orgId);
+    // admin → orgRole:'admin', canEdit:true
+    // user  → orgRole:'viewer', canEdit:true
+    // viewer → orgRole:'viewer', canEdit:false
+    const newOrgRole = body.role === 'admin' ? 'admin' : 'viewer';
+    const newCanEdit = body.role !== 'viewer';
+    updates.can_edit = newCanEdit;
+    await admin.from('organization_members').update({ role: newOrgRole }).eq('user_id', id).eq('org_id', auth.orgId);
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await admin.from('profiles').update(updates).eq('id', id);
   }
 
   if (body.password && isSelf) {

@@ -36,13 +36,16 @@ export const GET = withRoute(async () => {
     .filter(u => ids.includes(u.id))
     .map(u => {
       const profile = profileById[u.id];
-      const orgRole = roleByUserId[u.id] || 'viewer';
+      const orgRole  = roleByUserId[u.id] || 'viewer';
+      const canEdit  = profile?.can_edit ?? true;
+      const isOrgAdmin = orgRole === 'owner' || orgRole === 'admin';
+      const role = isOrgAdmin ? 'admin' : canEdit ? 'user' : 'viewer';
       return {
         id: u.id,
         username: u.email ?? '',
         fullName: profile?.full_name || u.user_metadata?.full_name || u.email?.split('@')[0] || 'User',
-        role: orgRole === 'owner' || orgRole === 'admin' ? 'admin' : 'user',
-        canEdit: profile?.can_edit ?? true,
+        role,
+        canEdit,
         orgRole,
         isYou: u.id === auth.id,
       };
@@ -60,12 +63,14 @@ export const POST = withRoute(async (req: NextRequest) => {
     return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
   }
 
-  // Map UI role (admin/user) to org role
-  const orgRole = role === 'admin' ? 'admin' : 'viewer';
+  // admin → orgRole:'admin', canEdit:true
+  // user  → orgRole:'viewer', canEdit:true
+  // viewer → orgRole:'viewer', canEdit:false
+  const orgRole  = role === 'admin' ? 'admin' : 'viewer';
+  const editFlag = role !== 'viewer';
 
   const admin = createAdminSupabase();
 
-  // Pass org_id in metadata so the handle_new_user trigger joins the right org
   const { data, error } = await admin.auth.admin.createUser({
     email: username,
     password,
@@ -79,8 +84,7 @@ export const POST = withRoute(async (req: NextRequest) => {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  // Update can_edit on the profile the trigger just created
-  await admin.from('profiles').update({ can_edit: canEdit ?? true }).eq('id', data.user.id);
+  await admin.from('profiles').update({ can_edit: editFlag }).eq('id', data.user.id);
 
   await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,
     'User Invited', 'user_mgmt', fullName || username,
@@ -91,7 +95,7 @@ export const POST = withRoute(async (req: NextRequest) => {
     username: data.user.email ?? '',
     fullName: fullName || username,
     role: role || 'user',
-    canEdit: canEdit ?? true,
+    canEdit: editFlag,
     orgRole,
   });
 }, { route: '/api/users' });

@@ -10,7 +10,7 @@ export type AuthUser = {
   id: string;
   email: string;
   fullName: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'viewer';
   canEdit: boolean;
   orgId: string;
   orgRole: 'owner' | 'admin' | 'viewer';
@@ -60,12 +60,16 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   const orgPlan     = (org?.plan              as OrgPlan)     ?? 'trial';
   const trialEndsAt = org?.trial_ends_at ?? null;
 
+  const canEdit = profile?.can_edit ?? true;
+  const isOrgAdmin = orgRole === 'owner' || orgRole === 'admin';
+  const role: 'admin' | 'user' | 'viewer' = isOrgAdmin ? 'admin' : canEdit ? 'user' : 'viewer';
+
   return {
     id: user.id,
     email: user.email ?? '',
     fullName: profile?.full_name || user.email?.split('@')[0] || 'User',
-    role: orgRole === 'owner' || orgRole === 'admin' ? 'admin' : 'user',
-    canEdit: profile?.can_edit ?? true,
+    role,
+    canEdit,
     orgId: membership?.org_id ?? '',
     orgRole,
     isPlatformAdmin: profile?.is_platform_admin ?? false,

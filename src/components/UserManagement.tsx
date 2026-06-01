@@ -58,8 +58,7 @@ function UserModal({ user, onClose, onSave }: UserModalProps) {
   const [username, setUsername] = useState(user?.username ?? "");
   const [password, setPassword] = useState("");
   const [changePass, setChangePass] = useState(false);
-  const [role, setRole] = useState<"admin" | "user">(user?.role ?? "user");
-  const [canEdit, setCanEdit] = useState(user?.canEdit ?? false);
+  const [role, setRole] = useState<"admin" | "user" | "viewer">(user?.role ?? "user");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -74,11 +73,11 @@ function UserModal({ user, onClose, onSave }: UserModalProps) {
     setSaving(true);
     try {
       if (isEdit) {
-        const updates: any = { fullName: fullName.trim(), role, canEdit };
+        const updates: any = { fullName: fullName.trim(), role };
         if (changePass) updates.password = password;
         await updateUser(user!.id, updates);
       } else {
-        await addUser({ username: username.trim(), fullName: fullName.trim(), password, role, canEdit });
+        await addUser({ username: username.trim(), fullName: fullName.trim(), password, role, canEdit: role !== "viewer" });
       }
       onSave();
       onClose();
@@ -178,38 +177,27 @@ function UserModal({ user, onClose, onSave }: UserModalProps) {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Role</label>
-              <div className="flex rounded-lg overflow-hidden border border-slate-200">
-                {(["user", "admin"] as const).map(r => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRole(r)}
-                    className={`flex-1 py-2 text-xs font-medium transition cursor-pointer ${
-                      role === r
-                        ? "bg-blue-600 text-white"
-                        : "bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    {r === "admin" ? "Admin" : "User"}
-                  </button>
-                ))}
-              </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1.5">Role</label>
+            <div className="flex rounded-lg overflow-hidden border border-slate-200">
+              {(["user", "admin", "viewer"] as const).map(r => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRole(r)}
+                  className={`flex-1 py-2 text-xs font-medium transition cursor-pointer ${
+                    role === r ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {r === "admin" ? "Admin" : r === "user" ? "User" : "Viewer"}
+                </button>
+              ))}
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Edit Access</label>
-              <div
-                className={`h-[34px] px-3 rounded-lg border flex items-center justify-between cursor-pointer transition ${canEdit ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200"}`}
-                onClick={() => setCanEdit(!canEdit)}
-              >
-                <span className={`text-xs font-medium ${canEdit ? "text-blue-700" : "text-slate-500"}`}>
-                  {canEdit ? "Enabled" : "Disabled"}
-                </span>
-                <Toggle on={canEdit} onChange={setCanEdit} />
-              </div>
-            </div>
+            <p className="text-[10px] text-slate-400 mt-1.5">
+              {role === "admin" ? "Full control — create/delete projects, manage users" :
+               role === "user"  ? "Edit, add, delete packages/vendors/docs — cannot create or delete projects" :
+                                  "Read-only access throughout the app"}
+            </p>
           </div>
 
           <button
@@ -279,9 +267,9 @@ export default function UserManagement({ onBack }: { onBack: () => void }) {
 
   const stats = {
     total: users.length,
-    admins: users.filter(u => u.role === "admin").length,
-    editors: users.filter(u => u.canEdit).length,
-    viewOnly: users.filter(u => !u.canEdit).length,
+    admins:  users.filter(u => u.role === "admin").length,
+    members: users.filter(u => u.role === "user").length,
+    viewers: users.filter(u => u.role === "viewer").length,
   };
 
   return (
@@ -327,10 +315,10 @@ export default function UserManagement({ onBack }: { onBack: () => void }) {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
-            { label: "Total Users", val: stats.total, icon: Users, accent: "text-blue-700" },
-            { label: "Admins", val: stats.admins, icon: Crown, accent: "text-amber-700" },
-            { label: "Can Edit", val: stats.editors, icon: Unlock, accent: "text-emerald-700" },
-            { label: "View Only", val: stats.viewOnly, icon: Lock, accent: "text-slate-700" },
+            { label: "Total Users", val: stats.total,   icon: Users,  accent: "text-blue-700" },
+            { label: "Admins",      val: stats.admins,  icon: Crown,  accent: "text-violet-700" },
+            { label: "Users",       val: stats.members, icon: Unlock, accent: "text-emerald-700" },
+            { label: "Viewers",     val: stats.viewers, icon: Lock,   accent: "text-slate-700" },
           ].map(s => (
             <div key={s.label} className="bg-white border border-slate-200 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -406,15 +394,14 @@ export default function UserManagement({ onBack }: { onBack: () => void }) {
                   </div>
 
                   <div className="flex flex-col items-center gap-1 px-3">
-                    <span className="text-xs text-slate-400">Edit</span>
-                    <Toggle
-                      on={u.canEdit}
-                      disabled={isAdmin}
-                      onChange={async (v) => {
-                        await updateUser(u.id, { canEdit: v });
-                        loadUsers();
-                      }}
-                    />
+                    <span className="text-xs text-slate-400">Access</span>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      u.role === "admin"  ? "bg-violet-50 text-violet-700" :
+                      u.role === "user"   ? "bg-blue-50 text-blue-700" :
+                                           "bg-slate-100 text-slate-500"
+                    }`}>
+                      {u.role === "admin" ? "Full" : u.role === "user" ? "Edit" : "View"}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">

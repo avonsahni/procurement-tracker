@@ -13,7 +13,8 @@ export interface UserAccount {
   id: string;
   username: string;
   fullName: string;
-  role: "admin" | "user";
+  /** admin = full control; user = edit/add/delete (no project create/delete); viewer = read-only */
+  role: "admin" | "user" | "viewer";
   canEdit: boolean;
   orgId?: string;
   orgRole?: "owner" | "admin" | "viewer";
