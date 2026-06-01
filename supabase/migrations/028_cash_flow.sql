@@ -13,18 +13,18 @@ create table if not exists public.cash_inflow (
 create index if not exists cash_inflow_package_id_idx on public.cash_inflow(package_id);
 alter table public.cash_inflow enable row level security;
 drop policy if exists "cash_inflow_via_package" on public.cash_inflow;
-create policy "cash_inflow_via_package" on public.cash_inflow
+create policy "cash_inflow_via_org" on public.cash_inflow
   for all using (
     exists (
       select 1 from public.packages pk
-      join public.projects p on p.id = pk.project_id
-      where pk.id = cash_inflow.package_id and p.owner_id = auth.uid()
+      join public.projects proj on proj.id = pk.project_id
+      where pk.id = cash_inflow.package_id and proj.org_id = any(public.my_org_ids())
     )
   ) with check (
     exists (
       select 1 from public.packages pk
-      join public.projects p on p.id = pk.project_id
-      where pk.id = cash_inflow.package_id and p.owner_id = auth.uid()
+      join public.projects proj on proj.id = pk.project_id
+      where pk.id = cash_inflow.package_id and proj.org_id = any(public.my_org_ids())
     )
   );
 
@@ -43,17 +43,17 @@ create table if not exists public.cash_outflow (
 create index if not exists cash_outflow_package_id_idx on public.cash_outflow(package_id);
 alter table public.cash_outflow enable row level security;
 drop policy if exists "cash_outflow_via_package" on public.cash_outflow;
-create policy "cash_outflow_via_package" on public.cash_outflow
+create policy "cash_outflow_via_org" on public.cash_outflow
   for all using (
     exists (
       select 1 from public.packages pk
-      join public.projects p on p.id = pk.project_id
-      where pk.id = cash_outflow.package_id and p.owner_id = auth.uid()
+      join public.projects proj on proj.id = pk.project_id
+      where pk.id = cash_outflow.package_id and proj.org_id = any(public.my_org_ids())
     )
   ) with check (
     exists (
       select 1 from public.packages pk
-      join public.projects p on p.id = pk.project_id
-      where pk.id = cash_outflow.package_id and p.owner_id = auth.uid()
+      join public.projects proj on proj.id = pk.project_id
+      where pk.id = cash_outflow.package_id and proj.org_id = any(public.my_org_ids())
     )
   );
