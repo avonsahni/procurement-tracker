@@ -21,6 +21,8 @@ interface ProjectBudgetData {
   budget: number;
   committed: number;
   billed: number;
+  cashInflow: number;
+  cashOutflow: number;
   totalPackages: number;
   awardedPackages: number;
   milestoneStats: MilestoneStat[];
@@ -46,8 +48,10 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
         client: p.client,
         status: p.status,
         budget: p.budget,
-        committed: p.packages.reduce((s: number, pk: any) => s + (pk.awardValue || 0), 0),
-        billed: p.packages.reduce((s: number, pk: any) => s + (pk.billedAmount || 0), 0),
+        committed:   p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((s: number, pk: any) => s + (pk.awardValue || 0), 0),
+        billed:      p.packages.reduce((s: number, pk: any) => s + (pk.billedAmount || 0), 0),
+        cashInflow:  p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((s: number, pk: any) => s + (pk.totalInflowAmount  || 0), 0),
+        cashOutflow: p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((s: number, pk: any) => s + (pk.totalOutflowAmount || 0), 0),
         totalPackages: p.packages.length,
         awardedPackages: p.packages.filter((pk: any) => pk.currentStage === "Award").length,
         milestoneStats: EXECUTION_MILESTONES.map(mName => {
@@ -308,7 +312,7 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
               <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">Project Breakdown</p>
               <h2 className="text-xl font-semibold text-slate-900">Budget vs Committed vs Billed · Per Project</h2>
             </div>
-            <div className="flex items-center gap-4 text-xs">
+            <div className="flex flex-wrap items-center gap-4 text-xs">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-slate-300" />
                 <span className="text-slate-500">Budget</span>
@@ -320,6 +324,14 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-blue-600" />
                 <span className="text-slate-500">Billed</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-teal-400" />
+                <span className="text-slate-500">Cash Inflow</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-red-400" />
+                <span className="text-slate-500">Cash Outflow</span>
               </div>
             </div>
           </div>
@@ -408,6 +420,46 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
                       <div className="w-32 flex-shrink-0 text-right">
                         <span className="text-xs font-mono font-medium text-blue-700">
                           {formatCurrency(p.billed)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Cash Inflow row */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-20 flex-shrink-0 text-right">
+                        <span className="text-xs text-slate-400">Cash In</span>
+                      </div>
+                      <div className="flex-1 h-4 bg-slate-100 rounded-lg overflow-hidden">
+                        <div className="h-full relative" style={{ width: `${budgetPct}%` }}>
+                          <div
+                            className="h-full bg-teal-400 rounded-lg transition-all duration-500"
+                            style={{ width: `${p.budget > 0 ? Math.min((p.cashInflow / p.budget) * 100, 100) : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="w-32 flex-shrink-0 text-right">
+                        <span className="text-xs font-mono font-medium text-teal-700">
+                          {formatCurrency(p.cashInflow)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Cash Outflow row */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-20 flex-shrink-0 text-right">
+                        <span className="text-xs text-slate-400">Cash Out</span>
+                      </div>
+                      <div className="flex-1 h-4 bg-slate-100 rounded-lg overflow-hidden">
+                        <div className="h-full relative" style={{ width: `${budgetPct}%` }}>
+                          <div
+                            className="h-full bg-red-400 rounded-lg transition-all duration-500"
+                            style={{ width: `${p.budget > 0 ? Math.min((p.cashOutflow / p.budget) * 100, 100) : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="w-32 flex-shrink-0 text-right">
+                        <span className="text-xs font-mono font-medium text-red-600">
+                          {formatCurrency(p.cashOutflow)}
                         </span>
                       </div>
                     </div>
