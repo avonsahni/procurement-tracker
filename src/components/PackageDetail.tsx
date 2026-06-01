@@ -597,6 +597,7 @@ export default function PackageDetail({
                             <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Date Received</th>
                             <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-right whitespace-nowrap">Amount</th>
                             <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Remarks</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">User</th>
                             {effectiveEditMode && <th className="w-8" />}
                           </tr>
                         </thead>
@@ -613,6 +614,7 @@ export default function PackageDetail({
                                 {formatCurrency(r.amount, pkg.currency)}
                               </td>
                               <td className="px-3 py-2.5 text-slate-400 italic">{r.remarks || '—'}</td>
+                              <td className="px-3 py-2.5 text-slate-500 text-xs whitespace-nowrap">{r.createdBy || '—'}</td>
                               {effectiveEditMode && (
                                 <td className="px-2 py-2.5">
                                   <button onClick={async () => {
@@ -741,6 +743,7 @@ export default function PackageDetail({
                             <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Date Paid</th>
                             <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-right whitespace-nowrap">Amount</th>
                             <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Remarks</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">User</th>
                             {effectiveEditMode && <th className="w-8" />}
                           </tr>
                         </thead>
@@ -757,6 +760,7 @@ export default function PackageDetail({
                                 {formatCurrency(r.amount, pkg.currency)}
                               </td>
                               <td className="px-3 py-2.5 text-slate-400 italic">{r.remarks || '—'}</td>
+                              <td className="px-3 py-2.5 text-slate-500 text-xs whitespace-nowrap">{r.createdBy || '—'}</td>
                               {effectiveEditMode && (
                                 <td className="px-2 py-2.5">
                                   <button onClick={async () => {
