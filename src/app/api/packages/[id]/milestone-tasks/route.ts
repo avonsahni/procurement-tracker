@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { createServerSupabase } from '@/lib/supabase/server';
 import { guard } from '@/lib/auth';
 import { rollUpMilestoneTasks } from '@/lib/db';
 import { withRoute } from '@/lib/withRoute';
@@ -15,26 +16,22 @@ const CreateSchema = z.object({
   sortOrder:     z.number().int().min(0).optional(),
 });
 
-/** Verifies that pkgId belongs to orgId. Returns the package row or null. */
-async function getOwnedPackage(admin: ReturnType<typeof createAdminSupabase>, pkgId: string, orgId: string) {
-  const { data: pkg } = await admin.from('packages').select('id, project_id').eq('id', pkgId).maybeSingle();
-  if (!pkg) return null;
-  const { data: proj } = await admin.from('projects').select('org_id').eq('id', pkg.project_id).maybeSingle();
-  if (!proj || proj.org_id !== orgId) return null;
-  return pkg;
-}
-
 export const GET = withRoute(async (_req: NextRequest, ctx) => {
   const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
 
   const { id: pkgId } = await ctx!.params as { id: string };
+
+  // RLS check: if the package is not visible to this user, return 404
+  const supabase = await createServerSupabase();
+  const { data: pkg } = await supabase
+    .from('packages')
+    .select('id')
+    .eq('id', pkgId)
+    .maybeSingle();
+  if (!pkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+
   const admin = createAdminSupabase();
-
-  if (!await getOwnedPackage(admin, pkgId, auth.orgId)) {
-    return NextResponse.json({ error: 'Package not found' }, { status: 404 });
-  }
-
   const { data, error } = await admin
     .from('milestone_tasks')
     .select('*')
@@ -58,19 +55,33 @@ export const POST = withRoute(async (req: NextRequest, ctx) => {
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
 
+  // RLS check: package must be visible to this user
+  const supabase = await createServerSupabase();
+  const { data: pkg } = await supabase
+    .from('packages')
+    .select('id, project_id')
+    .eq('id', pkgId)
+    .maybeSingle();
+  if (!pkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+
   const admin = createAdminSupabase();
 
-  const ownedPkg = await getOwnedPackage(admin, pkgId, auth.orgId);
-  if (!ownedPkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
-
-  const g = await assertProjectActive(admin, ownedPkg.project_id, auth);
+  const g = await assertProjectActive(admin, pkg.project_id, auth);
   if (g) return g;
+
+  // Get org_id from the project (source of truth, not from auth token)
+  const { data: proj } = await admin
+    .from('projects')
+    .select('org_id')
+    .eq('id', pkg.project_id)
+    .maybeSingle();
+  if (!proj?.org_id) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
   const { data: task, error } = await admin
     .from('milestone_tasks')
     .insert({
       package_id:     pkgId,
-      org_id:         auth.orgId,
+      org_id:         proj.org_id,
       milestone_name: parsed.data.milestoneName,
       name:           parsed.data.name,
       description:    parsed.data.description ?? null,
