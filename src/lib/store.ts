@@ -1,4 +1,4 @@
-import type { Project, ProjectSummary } from "./types";
+import type { Project, ProjectSummary, Invoice, CashInflow, CashOutflow } from "./types";
 
 export interface CompanyInfo {
   name: string;
@@ -157,8 +157,8 @@ export async function deleteDocument(pkgId: string, did: string, user: string = 
 export async function addInvoice(
   pkgId: string,
   inv: { amount: number; invoiceNumber?: string; invoiceDate?: string; notes?: string }
-): Promise<void> {
-  await api(`/api/packages/${pkgId}/invoices`, {
+): Promise<Invoice> {
+  return api(`/api/packages/${pkgId}/invoices`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(inv),
@@ -172,8 +172,8 @@ export async function deleteInvoice(pkgId: string, iid: string): Promise<void> {
 export async function addCashInflow(
   pkgId: string,
   data: { onAccount: string; fromParty: string; dateReceived: string; amount: number; remarks?: string }
-): Promise<void> {
-  await api(`/api/packages/${pkgId}/cash-inflow`, {
+): Promise<CashInflow> {
+  return api(`/api/packages/${pkgId}/cash-inflow`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -187,8 +187,8 @@ export async function deleteCashInflow(pkgId: string, eid: string): Promise<void
 export async function addCashOutflow(
   pkgId: string,
   data: { toWhom: string; onAccountOf: string; datePaid: string; amount: number; remarks?: string }
-): Promise<void> {
-  await api(`/api/packages/${pkgId}/cash-outflow`, {
+): Promise<CashOutflow> {
+  return api(`/api/packages/${pkgId}/cash-outflow`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),

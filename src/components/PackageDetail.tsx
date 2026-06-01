@@ -195,16 +195,21 @@ export default function PackageDetail({
     if (!inflowForm.onAccount || !inflowForm.fromParty || !inflowForm.dateReceived || !inflowForm.amount) return;
     setInflowSaving(true); setInflowError(null);
     try {
-      await addCashInflow(packageId, {
+      const record = await addCashInflow(packageId, {
         onAccount: inflowForm.onAccount,
         fromParty: inflowForm.fromParty,
         dateReceived: inflowForm.dateReceived,
         amount: parseFloat(inflowForm.amount),
         remarks: inflowForm.remarks || undefined,
       });
+      // Instant optimistic update — no full reload needed
+      setPkg((prev: any) => prev ? {
+        ...prev,
+        cashInflow: [...(prev.cashInflow || []), record],
+        totalInflowAmount: (prev.totalInflowAmount || 0) + record.amount,
+      } : prev);
       setInflowForm({ onAccount: '', fromParty: '', dateReceived: '', amount: '', remarks: '' });
       setShowInflowForm(false);
-      await reloadPackage();
     } catch (e: any) {
       setInflowError(e.message || 'Failed to save');
     } finally {
@@ -216,16 +221,21 @@ export default function PackageDetail({
     if (!outflowForm.toWhom || !outflowForm.onAccountOf || !outflowForm.datePaid || !outflowForm.amount) return;
     setOutflowSaving(true); setOutflowError(null);
     try {
-      await addCashOutflow(packageId, {
+      const record = await addCashOutflow(packageId, {
         toWhom: outflowForm.toWhom,
         onAccountOf: outflowForm.onAccountOf,
         datePaid: outflowForm.datePaid,
         amount: parseFloat(outflowForm.amount),
         remarks: outflowForm.remarks || undefined,
       });
+      // Instant optimistic update — no full reload needed
+      setPkg((prev: any) => prev ? {
+        ...prev,
+        cashOutflow: [...(prev.cashOutflow || []), record],
+        totalOutflowAmount: (prev.totalOutflowAmount || 0) + record.amount,
+      } : prev);
       setOutflowForm({ toWhom: '', onAccountOf: '', datePaid: '', amount: '', remarks: '' });
       setShowOutflowForm(false);
-      await reloadPackage();
     } catch (e: any) {
       setOutflowError(e.message || 'Failed to save');
     } finally {
@@ -454,8 +464,23 @@ export default function PackageDetail({
               awardValue={pkg.awardValue || 0}
               currency={pkg.currency}
               readonly={!effectiveEditMode}
-              onAddInvoice={async (inv) => { await addInvoice(packageId, inv); await reloadPackage(); }}
-              onDeleteInvoice={async (iid) => { await deleteInvoice(packageId, iid); await reloadPackage(); }}
+              onAddInvoice={async (inv) => {
+                const record = await addInvoice(packageId, inv);
+                setPkg((prev: any) => prev ? {
+                  ...prev,
+                  invoices: [...(prev.invoices || []), record],
+                  billedAmount: (prev.billedAmount || 0) + record.amount,
+                } : prev);
+              }}
+              onDeleteInvoice={async (iid) => {
+                const removed = (pkg.invoices || []).find((i: any) => i.id === iid);
+                setPkg((prev: any) => prev ? {
+                  ...prev,
+                  invoices: (prev.invoices || []).filter((i: any) => i.id !== iid),
+                  billedAmount: Math.max(0, (prev.billedAmount || 0) - (removed?.amount || 0)),
+                } : prev);
+                await deleteInvoice(packageId, iid);
+              }}
             />
 
             {/* ── CASH INFLOW ─────────────────────────────────────────────── */}
@@ -561,7 +586,10 @@ export default function PackageDetail({
                         </div>
                       </div>
                       {effectiveEditMode && (
-                        <button onClick={async () => { await deleteCashInflow(packageId, r.id); await reloadPackage(); }}
+                        <button onClick={async () => {
+                            setPkg((prev: any) => prev ? { ...prev, cashInflow: (prev.cashInflow || []).filter((x: any) => x.id !== r.id), totalInflowAmount: Math.max(0, (prev.totalInflowAmount || 0) - r.amount) } : prev);
+                            await deleteCashInflow(packageId, r.id);
+                          }}
                           className="p-1 text-slate-300 hover:text-red-500 transition flex-shrink-0">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -675,7 +703,10 @@ export default function PackageDetail({
                         </div>
                       </div>
                       {effectiveEditMode && (
-                        <button onClick={async () => { await deleteCashOutflow(packageId, r.id); await reloadPackage(); }}
+                        <button onClick={async () => {
+                            setPkg((prev: any) => prev ? { ...prev, cashOutflow: (prev.cashOutflow || []).filter((x: any) => x.id !== r.id), totalOutflowAmount: Math.max(0, (prev.totalOutflowAmount || 0) - r.amount) } : prev);
+                            await deleteCashOutflow(packageId, r.id);
+                          }}
                           className="p-1 text-slate-300 hover:text-red-500 transition flex-shrink-0">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
