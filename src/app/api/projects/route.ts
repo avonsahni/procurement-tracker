@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { assembleProject, assembleProjectSummary, addOrgAuditEntry } from '@/lib/db';
+import { assembleProject, assembleProjectSummary, assembleBatchProjectSummaries, addOrgAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { ProjectCreateSchema, parseBody } from '@/lib/validation';
@@ -18,9 +18,8 @@ export const GET = withRoute(async () => {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Use the slim summary (no vendors/remarks/docs/audit/invoices) — the
-  // dashboard only needs stage, awardValue, and category per package.
-  const projects = await Promise.all((rows || []).map(r => assembleProjectSummary(supabase, r)));
+  // Batch assembly: 4 total DB queries regardless of project count (previously N×4)
+  const projects = await assembleBatchProjectSummaries(supabase, rows || []);
   return NextResponse.json(projects);
 }, { route: '/api/projects' });
 

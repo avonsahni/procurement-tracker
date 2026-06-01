@@ -382,8 +382,114 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
     client: row.client || '',
     budget: Number(row.budget) || 0,
     status: row.status,
+    isSample: row.is_sample ?? false,
     packages,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/**
+ * Batch-fetches summary data for multiple projects in exactly 4 queries total,
+ * regardless of project count.  Replaces the N×4 pattern from calling
+ * assembleProjectSummary once per project row.
+ */
+export async function assembleBatchProjectSummaries(supabase: SupabaseClient, rows: any[]) {
+  if (rows.length === 0) return [];
+
+  const projectIds = rows.map(r => r.id);
+
+  // 1. All packages for all projects
+  const { data: pkgRows } = await supabase
+    .from('packages')
+    .select('id, project_id, name, category, origin, currency, current_stage, award_value, awarded_vendor_id, rfq_float_date, award_date, start_date, end_date, created_at, updated_at')
+    .in('project_id', projectIds)
+    .order('created_at');
+
+  const pkgs = pkgRows || [];
+  const pkgIds = pkgs.map((p: any) => p.id);
+
+  let billedByPkg: Record<string, number> = {};
+  let vendorCountByPkg: Record<string, number> = {};
+  let milestonesByPkg: Record<string, any[]> = {};
+  let milestonesProgressSumByPkg: Record<string, number> = {};
+  let milestonesTotalByPkg: Record<string, number> = {};
+
+  if (pkgIds.length > 0) {
+    // 2–4. Invoices, vendors, milestones — all in parallel
+    const [invRes, vendorRes, milestoneRes] = await Promise.all([
+      supabase.from('invoices').select('package_id, amount').in('package_id', pkgIds),
+      supabase.from('vendors').select('package_id').in('package_id', pkgIds),
+      supabase.from('package_milestones')
+        .select('id, package_id, milestone_name, display_order, progress, completed_at, completed_by')
+        .in('package_id', pkgIds)
+        .order('display_order'),
+    ]);
+
+    for (const inv of invRes.data || []) {
+      billedByPkg[inv.package_id] = (billedByPkg[inv.package_id] || 0) + Number(inv.amount);
+    }
+    for (const v of vendorRes.data || []) {
+      vendorCountByPkg[v.package_id] = (vendorCountByPkg[v.package_id] || 0) + 1;
+    }
+    for (const m of milestoneRes.data || []) {
+      milestonesTotalByPkg[m.package_id] = (milestonesTotalByPkg[m.package_id] || 0) + 1;
+      milestonesProgressSumByPkg[m.package_id] = (milestonesProgressSumByPkg[m.package_id] || 0) + Number(m.progress || 0);
+    }
+    milestonesByPkg = groupBy(milestoneRes.data || [], 'package_id');
+  }
+
+  const pkgsByProject = groupBy(pkgs, 'project_id');
+
+  return rows.map(row => {
+    const projPkgs = pkgsByProject[row.id] || [];
+
+    const packages = projPkgs.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      description: '',
+      category: p.category || '',
+      origin: p.origin,
+      currency: p.currency,
+      currentStage: p.current_stage,
+      rfqFloatDate: p.rfq_float_date || undefined,
+      awardDate: p.award_date || undefined,
+      awardValue: p.award_value ?? undefined,
+      awardedVendorId: p.awarded_vendor_id || undefined,
+      startDate: p.start_date || undefined,
+      endDate: p.end_date || undefined,
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+      billedAmount: billedByPkg[p.id] || 0,
+      vendorCount: vendorCountByPkg[p.id] || 0,
+      milestonesProgressSum: milestonesProgressSumByPkg[p.id] || 0,
+      totalMilestones: milestonesTotalByPkg[p.id] || 0,
+      vendors: [], remarks: [], documents: [], auditTrail: [], invoices: [],
+      milestones: (milestonesByPkg[p.id] || []).map((m: any) => ({
+        id: m.id,
+        milestoneName: m.milestone_name,
+        displayOrder: m.display_order,
+        progress: Number(m.progress || 0),
+        completedAt: m.completed_at || undefined,
+        completedBy: m.completed_by || undefined,
+      })),
+    }));
+
+    const projStarts = packages.filter(p => p.startDate).map(p => p.startDate!).sort();
+    const projEnds   = packages.filter(p => p.endDate).map(p => p.endDate!).sort();
+
+    return {
+      id: row.id,
+      name: row.name,
+      client: row.client || '',
+      budget: Number(row.budget) || 0,
+      status: row.status,
+      isSample: row.is_sample ?? false,
+      startDate: projStarts.length ? projStarts[0] : undefined,
+      endDate:   projEnds.length ? projEnds[projEnds.length - 1] : undefined,
+      packages,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  });
 }

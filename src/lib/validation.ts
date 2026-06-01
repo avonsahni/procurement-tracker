@@ -18,7 +18,7 @@ export const STAGES = [
 const stage = z.enum(STAGES);
 const origin = z.enum(['Domestic', 'Import']);
 const currency = z.enum(['INR', 'USD', 'GBP', 'EUR', 'JPY', 'AED', 'SGD']);
-const role = z.enum(['admin', 'user']);
+const role = z.enum(['admin', 'user', 'viewer']);
 
 export const LoginSchema = z.object({
   email: z.string().trim().email('valid email required'),

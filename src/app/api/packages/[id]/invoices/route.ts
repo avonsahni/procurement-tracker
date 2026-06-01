@@ -55,17 +55,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // ────────────────────────────────────────────────────────────────────────
 
   // ── HARD CONSTRAINT 2: total project billed ≤ project budget ────────────
-  const [{ data: project }, { data: allProjectInvoices }] = await Promise.all([
-    supabase.from('projects').select('budget').eq('id', pkg.project_id).single(),
-    supabase
-      .from('invoices')
-      .select('amount, packages!inner(project_id)')
-      .eq('packages.project_id', pkg.project_id),
-  ]);
+  const { data: project } = await supabase
+    .from('projects').select('budget').eq('id', pkg.project_id).single();
 
   if (project) {
-    const projectBudget  = Number(project.budget);
-    const projectBilled  = (allProjectInvoices || []).reduce((s, i) => s + Number(i.amount), 0);
+    // Fetch all sibling package IDs then sum their invoices — avoids unreliable embedded join
+    const { data: siblingPkgs } = await supabase
+      .from('packages').select('id').eq('project_id', pkg.project_id);
+    const siblingIds = (siblingPkgs || []).map((p: any) => p.id);
+
+    const { data: projectInvoices } = siblingIds.length
+      ? await supabase.from('invoices').select('amount').in('package_id', siblingIds)
+      : { data: [] };
+
+    const projectBudget = Number(project.budget);
+    const projectBilled = (projectInvoices || []).reduce((s, i) => s + Number(i.amount), 0);
 
     if (projectBilled + amount > projectBudget) {
       const remaining = projectBudget - projectBilled;
