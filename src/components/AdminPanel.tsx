@@ -1247,6 +1247,12 @@ function ProjectsSection() {
   const [detailSaving, setDetailSaving]   = useState(false);
   const [detailError, setDetailError]     = useState('');
 
+  // Two-step delete confirmation
+  const [deleteTarget, setDeleteTarget]       = useState<{ id: string; name: string } | null>(null);
+  const [deleteStep, setDeleteStep]           = useState<1 | 2>(1);
+  const [deleteWord, setDeleteWord]           = useState('');
+  const [deleting, setDeleting]               = useState(false);
+
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating]     = useState(false);
   const creatingRef                 = useRef(false);
@@ -1299,10 +1305,18 @@ function ProjectsSection() {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete "${name}" and all its packages? This cannot be undone.`)) return;
-    try { await deleteProject(id); load(); }
+  const openDeleteModal = (id: string, name: string) => {
+    setDeleteTarget({ id, name });
+    setDeleteStep(1);
+    setDeleteWord('');
+  };
+  const closeDeleteModal = () => { if (!deleting) { setDeleteTarget(null); setDeleteWord(''); } };
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || deleteWord !== 'DELETE' || deleting) return;
+    setDeleting(true);
+    try { await deleteProject(deleteTarget.id); setDeleteTarget(null); setDeleteWord(''); load(); }
     catch (e: any) { alert(e.message || 'Delete failed'); }
+    finally { setDeleting(false); }
   };
 
   const handleStatusChange = async (id: string, status: string) => {
@@ -1513,7 +1527,7 @@ function ProjectsSection() {
                         </button>
                         {!isOrgBlocked && (
                           <button
-                            onClick={() => handleDelete(p.id, p.name)}
+                            onClick={() => openDeleteModal(p.id, p.name)}
                             className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
                             title="Delete project"
                           >
@@ -1526,6 +1540,91 @@ function ProjectsSection() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Two-step Delete confirmation modal ─────────────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-red-100 bg-red-50 rounded-t-2xl">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-red-900">Delete Project</h3>
+                <p className="text-xs text-red-600 mt-0.5">This action is permanent and cannot be undone</p>
+              </div>
+              <button onClick={closeDeleteModal} className="ml-auto p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {deleteStep === 1 ? (
+                <>
+                  {/* Step 1 — warning */}
+                  <p className="text-sm text-slate-700">
+                    You are about to permanently delete <span className="font-semibold text-slate-900">"{deleteTarget.name}"</span>.
+                  </p>
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
+                    <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">Warning — the following will be deleted:</p>
+                    <ul className="text-xs text-red-700 space-y-1 list-disc list-inside">
+                      <li>All packages and their full procurement history</li>
+                      <li>All vendors, quoted amounts, and award records</li>
+                      <li>All invoices and billing history</li>
+                      <li>All documents, remarks, and audit trail</li>
+                      <li>All milestones and task progress</li>
+                    </ul>
+                    <p className="text-xs font-semibold text-red-800 pt-1 border-t border-red-200">
+                      This data cannot be recovered once deleted. Proceed with extreme caution.
+                    </p>
+                  </div>
+                  <div className="flex gap-3 pt-1">
+                    <button onClick={closeDeleteModal} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => setDeleteStep(2)}
+                      className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition"
+                    >
+                      Yes, I understand — Continue
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Step 2 — type to confirm */}
+                  <p className="text-sm text-slate-700">
+                    To confirm, type <span className="font-mono font-bold text-red-700 bg-red-50 px-1.5 py-0.5 rounded">DELETE</span> in the field below.
+                  </p>
+                  <input
+                    autoFocus
+                    value={deleteWord}
+                    onChange={e => setDeleteWord(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && deleteWord === 'DELETE') handleConfirmDelete(); }}
+                    placeholder="Type DELETE to confirm"
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 focus:border-red-400 rounded-xl outline-none text-sm font-mono placeholder-slate-300 transition"
+                  />
+                  <div className="flex gap-3 pt-1">
+                    <button onClick={() => setDeleteStep(1)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
+                      Back
+                    </button>
+                    <button
+                      onClick={handleConfirmDelete}
+                      disabled={deleteWord !== 'DELETE' || deleting}
+                      className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold flex items-center justify-center gap-2 transition"
+                    >
+                      {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      {deleting ? 'Deleting…' : 'Delete Project'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
