@@ -6,6 +6,26 @@ import { createAdminSupabase } from '@/lib/supabase/admin';
 import { ProjectUpdateSchema, parseBody } from '@/lib/validation';
 import { assertProjectActive } from '@/lib/projectGuard';
 
+// Maps validated camelCase fields → actual snake_case DB columns.
+// name/client/budget/status already match their column names.
+const COLUMN_MAP: Record<string, string> = {
+  name: 'name',
+  client: 'client',
+  budget: 'budget',
+  status: 'status',
+  address: 'address',
+  projectType: 'project_type',
+  builtUpArea: 'built_up_area',
+  estimatedStartDate: 'estimated_start_date',
+  estimatedDurationMonths: 'estimated_duration_months',
+  tenderedCost: 'tendered_cost',
+  projectManager: 'project_manager',
+  clientContactName: 'client_contact_name',
+  clientContactEmail: 'client_contact_email',
+  clientContactPhone: 'client_contact_phone',
+  projectRemarks: 'project_remarks',
+};
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
@@ -30,9 +50,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const g = await assertProjectActive(supabase, id, auth);
   if (g) return g;
 
+  const setObj: Record<string, any> = { updated_at: new Date().toISOString() };
+  for (const [k, v] of Object.entries(parsed.data)) {
+    if (COLUMN_MAP[k]) setObj[COLUMN_MAP[k]] = v;
+  }
+
   const { data: row, error } = await supabase
     .from('projects')
-    .update({ ...parsed.data, updated_at: new Date().toISOString() })
+    .update(setObj)
     .eq('id', id)
     .select()
     .single();

@@ -42,6 +42,7 @@ export const SignupSchema = z.object({
   seedData:     z.boolean().optional().default(false),
 });
 
+// Create-time detail fields default to '' so new rows always have concrete values.
 const projectDetailFields = {
   address:                  z.string().trim().max(500).optional().default(''),
   projectType:              z.string().trim().max(100).optional().default(''),
@@ -54,6 +55,22 @@ const projectDetailFields = {
   clientContactEmail:       z.string().trim().max(300).optional().default(''),
   clientContactPhone:       z.string().trim().max(50).optional().default(''),
   projectRemarks:           z.string().trim().max(2000).optional().default(''),
+};
+
+// Update-time detail fields have NO defaults — so a partial update (e.g. just
+// changing status) stays partial and never wipes existing metadata to ''.
+const projectDetailFieldsOptional = {
+  address:                  z.string().trim().max(500).optional(),
+  projectType:              z.string().trim().max(100).optional(),
+  builtUpArea:              z.string().trim().max(200).optional(),
+  estimatedStartDate:       z.string().nullable().optional(),
+  estimatedDurationMonths:  z.number().int().min(0).nullable().optional(),
+  tenderedCost:             nonNegNumber('tenderedCost').nullable().optional(),
+  projectManager:           z.string().trim().max(200).optional(),
+  clientContactName:        z.string().trim().max(200).optional(),
+  clientContactEmail:       z.string().trim().max(300).optional(),
+  clientContactPhone:       z.string().trim().max(50).optional(),
+  projectRemarks:           z.string().trim().max(2000).optional(),
 };
 
 export const ProjectCreateSchema = z.object({
@@ -69,7 +86,7 @@ export const ProjectUpdateSchema = z
     client: z.string().trim().max(200).optional(),
     budget: nonNegNumber('budget').optional(),
     status: z.enum(['Active', 'Paused', 'On Hold', 'Completed']).optional(),
-    ...projectDetailFields,
+    ...projectDetailFieldsOptional,
   })
   .refine(o => Object.keys(o).length > 0, { message: 'No valid fields' });
 
