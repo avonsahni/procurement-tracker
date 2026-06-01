@@ -679,13 +679,14 @@ function CategoriesSection() {
   );
 }
 
-function DangerSection({ onReset, projectCount: initialProjectCount }: { onReset: () => void; projectCount: number }) {
-  const [seeding, setSeeding]     = useState(false);
-  const [resetting, setResetting] = useState(false);
-  const [projCount, setProjCount] = useState(initialProjectCount);
+function DangerSection({ onReset, sampleCount: initialSampleCount }: { onReset: () => void; sampleCount: number }) {
+  const [seeding, setSeeding]       = useState(false);
+  const [resetting, setResetting]   = useState(false);
+  const [deletingSample, setDeletingSample] = useState(false);
+  const [sampleCount, setSampleCount] = useState(initialSampleCount);
 
   // Keep in sync if parent refreshes
-  useEffect(() => { setProjCount(initialProjectCount); }, [initialProjectCount]);
+  useEffect(() => { setSampleCount(initialSampleCount); }, [initialSampleCount]);
 
   const handleSeed = async () => {
     if (!confirm("Load 5 sample projects (21 packages each) into your workspace?")) return;
@@ -700,20 +701,25 @@ function DangerSection({ onReset, projectCount: initialProjectCount }: { onReset
         alert(body.error || `Seed failed (${res.status})`);
         return;
       }
-      setProjCount(5);
+      setSampleCount(5);
       onReset();
     } finally { setSeeding(false); }
   };
 
+  // Deletes ONLY sample/demo projects — real user projects are never touched.
   const handleDeleteSampleData = async () => {
-    const confirmed = prompt('Type "DELETE" to remove all sample data and projects permanently:');
-    if (confirmed !== "DELETE") return;
-    setResetting(true);
+    if (!confirm("Delete the sample/demo projects? Your own projects will not be affected.")) return;
+    setDeletingSample(true);
     try {
-      await fetch("/api/reset", { method: "POST", headers: { 'X-Requested-With': 'fetch' } });
-      setProjCount(0);
+      const res = await fetch("/api/seed", { method: "DELETE", headers: { 'X-Requested-With': 'fetch' } });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(body.error || `Delete failed (${res.status})`);
+        return;
+      }
+      setSampleCount(0);
       onReset();
-    } finally { setResetting(false); }
+    } finally { setDeletingSample(false); }
   };
 
   const handleReset = async () => {
@@ -722,7 +728,7 @@ function DangerSection({ onReset, projectCount: initialProjectCount }: { onReset
     setResetting(true);
     try {
       await fetch("/api/reset", { method: "POST", headers: { 'X-Requested-With': 'fetch' } });
-      setProjCount(0);
+      setSampleCount(0);
       onReset();
     } finally { setResetting(false); }
   };
@@ -738,29 +744,29 @@ function DangerSection({ onReset, projectCount: initialProjectCount }: { onReset
         {/* Sample data toggle */}
         <div className="p-5 flex items-center justify-between gap-4">
           <div>
-            {projCount > 0 ? (
+            {sampleCount > 0 ? (
               <>
                 <p className="text-sm font-semibold text-slate-900">Delete Sample Data</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Removes all {projCount} project{projCount !== 1 ? 's' : ''} and associated data from your workspace.
-                  Load fresh sample data any time.
+                  Removes the {sampleCount} demo project{sampleCount !== 1 ? 's' : ''} loaded for exploring the app.
+                  Your own projects are not affected.
                 </p>
               </>
             ) : (
               <>
                 <p className="text-sm font-semibold text-slate-900">Load Sample Data</p>
-                <p className="text-xs text-slate-500 mt-0.5">Adds 5 realistic projects with 21 packages each for exploring the app.</p>
+                <p className="text-xs text-slate-500 mt-0.5">Adds 5 realistic demo projects with 21 packages each for exploring the app.</p>
               </>
             )}
           </div>
-          {projCount > 0 ? (
+          {sampleCount > 0 ? (
             <button
               onClick={handleDeleteSampleData}
-              disabled={resetting}
+              disabled={deletingSample}
               className="flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition disabled:opacity-50 flex-shrink-0"
             >
-              {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              {resetting ? "Deleting…" : "Delete Sample Data"}
+              {deletingSample ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {deletingSample ? "Deleting…" : "Delete Sample Data"}
             </button>
           ) : (
             <button
@@ -1217,7 +1223,7 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
   const [tab, setTab] = useState<Tab>(defaultTab);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [orgName, setOrgName] = useState("My Organisation");
-  const [projectCount, setProjectCount] = useState(0);
+  const [sampleCount, setSampleCount] = useState(0);
 
   // When org becomes blocked, snap to an allowed tab
   useEffect(() => {
@@ -1240,19 +1246,19 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
     } catch { /* silent */ }
   }, []);
 
-  const loadProjectCount = useCallback(async () => {
+  const loadSampleCount = useCallback(async () => {
     try {
       const res = await fetch('/api/projects', { headers: { 'X-Requested-With': 'fetch' } });
       const data = await res.json();
-      setProjectCount(Array.isArray(data) ? data.length : 0);
+      setSampleCount(Array.isArray(data) ? data.filter((p: any) => p.isSample).length : 0);
     } catch { /* silent */ }
   }, []);
 
   useEffect(() => {
     loadUsers();
     loadBranding();
-    loadProjectCount();
-  }, [loadUsers, loadBranding, loadProjectCount]);
+    loadSampleCount();
+  }, [loadUsers, loadBranding, loadSampleCount]);
 
   const visibleNav = isOrgBlocked
     ? NAV.filter(n => BLOCKED_TABS.includes(n.id))
@@ -1316,7 +1322,7 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
           {tab === "categories" && <CategoriesSection />}
           {tab === "audit"      && <AuditLogSection />}
           {tab === "export"     && <ExportSection    orgName={orgName} />}
-          {tab === "danger"     && <DangerSection    onReset={() => { loadUsers(); loadProjectCount(); }} projectCount={projectCount} />}
+          {tab === "danger"     && <DangerSection    onReset={() => { loadUsers(); loadSampleCount(); }} sampleCount={sampleCount} />}
         </main>
       </div>
     </div>

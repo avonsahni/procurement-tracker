@@ -163,6 +163,7 @@ export async function seedSampleData(supabase: SupabaseClient, userId: string, o
         client: sp.client,
         budget: sp.budget,
         status: sp.status,
+        is_sample: true,
       })
       .select('id')
       .single();

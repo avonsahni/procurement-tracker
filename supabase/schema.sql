@@ -45,10 +45,12 @@ create table if not exists public.projects (
   client text default '',
   budget numeric default 0,
   status text default 'Active' check (status in ('Active', 'On Hold', 'Completed')),
+  is_sample boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 create index if not exists projects_owner_id_idx on public.projects(owner_id);
+create index if not exists projects_is_sample_idx on public.projects(is_sample);
 
 -- ─────────────────────── packages ───────────────────────
 create table if not exists public.packages (
