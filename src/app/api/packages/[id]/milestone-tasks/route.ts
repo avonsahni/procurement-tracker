@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { guard } from '@/lib/auth';
-import { rollUpMilestoneTasks } from '@/lib/db';
+import { rollUpMilestoneTasks, logPackageAudit } from '@/lib/db';
 import { withRoute } from '@/lib/withRoute';
 import { z } from 'zod';
 import { assertProjectActive } from '@/lib/projectGuard';
@@ -97,6 +97,9 @@ export const POST = withRoute(async (req: NextRequest, ctx) => {
   if (error || !task) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
 
   await rollUpMilestoneTasks(admin, pkgId);
+  await logPackageAudit(admin, auth, pkgId, 'Task Added', 'milestone', {
+    task: task.name, milestone: task.milestone_name,
+  });
 
   return NextResponse.json(task, { status: 201 });
 }, { route: '/api/packages/[id]/milestone-tasks' });

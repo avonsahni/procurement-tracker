@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { guard } from '@/lib/auth';
-import { rollUpMilestoneTasks } from '@/lib/db';
+import { rollUpMilestoneTasks, logPackageAudit } from '@/lib/db';
 import { withRoute } from '@/lib/withRoute';
 import { z } from 'zod';
 import { assertProjectActive } from '@/lib/projectGuard';
@@ -55,15 +55,23 @@ export const PATCH = withRoute(async (req: NextRequest, ctx) => {
   if (parsed.data.endDate     !== undefined) updates.end_date    = parsed.data.endDate;
   if (parsed.data.sortOrder   !== undefined) updates.sort_order  = parsed.data.sortOrder;
 
-  const { error } = await admin
+  const { data: updatedTask, error } = await admin
     .from('milestone_tasks')
     .update(updates)
     .eq('id', tid)
-    .eq('package_id', pkgId);
+    .eq('package_id', pkgId)
+    .select('name, milestone_name, progress')
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await rollUpMilestoneTasks(admin, pkgId);
+  if (updatedTask) {
+    await logPackageAudit(admin, auth, pkgId, 'Task Updated', 'milestone', {
+      task: updatedTask.name, milestone: updatedTask.milestone_name,
+      ...(parsed.data.progress !== undefined ? { progress: `${updatedTask.progress}%` } : {}),
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }, { route: '/api/packages/[id]/milestone-tasks/[tid]' });
@@ -82,6 +90,13 @@ export const DELETE = withRoute(async (_req: NextRequest, ctx) => {
   const g = await assertProjectActive(admin, pkg.project_id, auth);
   if (g) return g;
 
+  const { data: existing } = await admin
+    .from('milestone_tasks')
+    .select('name, milestone_name')
+    .eq('id', tid)
+    .eq('package_id', pkgId)
+    .maybeSingle();
+
   const { error } = await admin
     .from('milestone_tasks')
     .delete()
@@ -91,6 +106,11 @@ export const DELETE = withRoute(async (_req: NextRequest, ctx) => {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await rollUpMilestoneTasks(admin, pkgId);
+  if (existing) {
+    await logPackageAudit(admin, auth, pkgId, 'Task Deleted', 'milestone', {
+      task: existing.name, milestone: existing.milestone_name,
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }, { route: '/api/packages/[id]/milestone-tasks/[tid]' });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { assertPackageProjectActive } from '@/lib/projectGuard';
 
@@ -42,6 +43,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logPackageAudit(admin, auth, pkgId, 'Remark Edited', 'remark', {
+    preview: String(updated.text).slice(0, 80),
+  });
 
   return NextResponse.json({
     id: updated.id,
@@ -105,6 +110,8 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
   const { error } = await admin.from('remarks').delete().eq('id', rid);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logPackageAudit(admin, auth, pkgId, 'Remark Deleted', 'remark');
 
   return NextResponse.json({ ok: true });
 }

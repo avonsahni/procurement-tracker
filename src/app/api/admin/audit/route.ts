@@ -3,7 +3,7 @@ import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { withRoute } from '@/lib/withRoute';
 
-// GET /api/admin/audit — returns last 200 org audit log entries, admin only.
+// GET /api/admin/audit — returns last 500 org audit log entries, admin only.
 // Uses 'user' guard so audit log remains readable even for expired orgs,
 // then manually verifies admin role.
 export const GET = withRoute(async () => {
@@ -20,7 +20,7 @@ export const GET = withRoute(async () => {
     .select('id, user_name, action, category, entity_name, details, created_at')
     .eq('org_id', auth.orgId)
     .order('created_at', { ascending: false })
-    .limit(200);
+    .limit(500);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data || []);

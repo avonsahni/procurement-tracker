@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { addAuditEntry } from '@/lib/db';
+import { createAdminSupabase } from '@/lib/supabase/admin';
+import { addAuditEntry, logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { VendorUpdateSchema, parseBody } from '@/lib/validation';
 import { assertPackageProjectActive } from '@/lib/projectGuard';
@@ -36,6 +37,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  await logPackageAudit(createAdminSupabase(), auth, pkgId, 'Vendor Updated', 'package', {
+    vendor: row.name, quoted: Number(row.quoted_amount), revised: Number(row.revised_amount),
+  });
 
   return NextResponse.json({
     id: row.id, name: row.name, quotedAmount: Number(row.quoted_amount), revisedAmount: Number(row.revised_amount),

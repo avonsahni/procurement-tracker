@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { createAdminSupabase } from '@/lib/supabase/admin';
+import { logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { RemarkCreateSchema, parseBody } from '@/lib/validation';
 import { assertProjectActive } from '@/lib/projectGuard';
@@ -26,6 +28,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single();
 
   if (error || !row) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
+
+  await logPackageAudit(createAdminSupabase(), auth, pkgId, 'Remark Posted', 'remark', {
+    preview: String(text).slice(0, 80),
+  });
 
   return NextResponse.json({
     id: row.id, user: row.username, text: row.text, timestamp: row.timestamp,

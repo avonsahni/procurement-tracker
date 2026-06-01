@@ -9,7 +9,7 @@ import {
   ChevronRight, Loader2, Globe, Key, UserPlus, Lock,
   Download, FileSpreadsheet, Package, Layers, Receipt, Activity,
   Clock, FolderOpen, UserCheck, UserMinus, Database, Zap,
-  TrendingUp, CreditCard,
+  TrendingUp, TrendingDown, CreditCard, MessageSquare, ClipboardList,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
@@ -830,25 +830,39 @@ const CATEGORY_STYLES: Record<string, { color: string; icon: any }> = {
   user_mgmt: { color: 'text-violet-600 bg-violet-50 border-violet-200', icon: Users },
   project:   { color: 'text-blue-600 bg-blue-50 border-blue-200',       icon: FolderOpen },
   package:   { color: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: Package },
+  cashflow:  { color: 'text-teal-600 bg-teal-50 border-teal-200',       icon: TrendingUp },
+  milestone: { color: 'text-indigo-600 bg-indigo-50 border-indigo-200', icon: ClipboardList },
+  remark:    { color: 'text-sky-600 bg-sky-50 border-sky-200',          icon: MessageSquare },
   settings:  { color: 'text-amber-600 bg-amber-50 border-amber-200',    icon: Settings },
   admin:     { color: 'text-red-600 bg-red-50 border-red-200',          icon: Database },
   general:   { color: 'text-slate-600 bg-slate-100 border-slate-200',   icon: Activity },
 };
 
 const ACTION_ICONS: Record<string, any> = {
-  'User Invited':       UserPlus,
-  'User Updated':       UserCheck,
-  'User Removed':       UserMinus,
-  'Project Created':    FolderOpen,
-  'Project Deleted':    Trash2,
-  'Package Awarded':    Zap,
-  'Branding Updated':   Globe,
-  'Category Added':     Tag,
-  'Category Renamed':   Tag,
-  'Category Deleted':   Trash2,
-  'Data Exported':      Download,
-  'Data Wiped':         AlertTriangle,
-  'Sample Data Loaded': RefreshCw,
+  'User Invited':         UserPlus,
+  'User Updated':         UserCheck,
+  'User Removed':         UserMinus,
+  'Project Created':      FolderOpen,
+  'Project Deleted':      Trash2,
+  'Package Awarded':      Zap,
+  'Branding Updated':     Globe,
+  'Category Added':       Tag,
+  'Category Renamed':     Tag,
+  'Category Deleted':     Trash2,
+  'Data Exported':        Download,
+  'Data Wiped':           AlertTriangle,
+  'Sample Data Loaded':   RefreshCw,
+  'Cash Receipt Recorded':TrendingUp,
+  'Cash Receipt Deleted': Trash2,
+  'Payment Recorded':     TrendingDown,
+  'Payment Deleted':      Trash2,
+  'Remark Posted':        MessageSquare,
+  'Remark Edited':        Edit2,
+  'Remark Deleted':       Trash2,
+  'Task Added':           Plus,
+  'Task Updated':         ClipboardList,
+  'Task Deleted':         Trash2,
+  'Vendor Updated':       Edit2,
 };
 
 function fmtRelativeAudit(iso: string) {
@@ -879,7 +893,12 @@ function AuditLogSection() {
 
   useEffect(() => { load(); }, [load]);
 
-  const categories = ['all', 'user_mgmt', 'project', 'package', 'settings', 'admin'];
+  const categories = ['all', 'user_mgmt', 'project', 'package', 'cashflow', 'milestone', 'remark', 'settings', 'admin'];
+  const CAT_LABELS: Record<string, string> = {
+    all: 'All', user_mgmt: 'Users', project: 'Projects', package: 'Packages',
+    cashflow: 'Cash Flow', milestone: 'Milestones', remark: 'Remarks',
+    settings: 'Settings', admin: 'Admin',
+  };
 
   const filtered = entries.filter(e => {
     const matchCat = filter === 'all' || e.category === filter;
@@ -896,7 +915,7 @@ function AuditLogSection() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">Audit Log</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Admin and high-value actions across your organisation (last 200).</p>
+          <p className="text-sm text-slate-500 mt-0.5">Every add, edit and delete across your organisation — who did what, and when (last 500).</p>
         </div>
         <button onClick={load} className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-medium transition">
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
@@ -922,12 +941,20 @@ function AuditLogSection() {
               filter === cat ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            {cat === 'all' ? 'All' : cat === 'user_mgmt' ? 'Users' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+            {CAT_LABELS[cat] ?? cat}
           </button>
         ))}
       </div>
 
-      {/* Timeline */}
+      {/* Result count */}
+      {!loading && filtered.length > 0 && (
+        <p className="text-xs text-slate-400">
+          Showing {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
+          {filter !== 'all' || search ? ' (filtered)' : ''}
+        </p>
+      )}
+
+      {/* Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
@@ -937,48 +964,63 @@ function AuditLogSection() {
           <div className="text-center py-16 text-slate-400">
             <Clock className="w-8 h-8 mx-auto mb-2 opacity-40" />
             <p className="text-sm">No audit entries yet</p>
-            <p className="text-xs mt-1">Actions like inviting users, creating projects, and exporting data will appear here.</p>
+            <p className="text-xs mt-1">Adds, edits and deletes across the app will appear here.</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
-            {filtered.map(entry => {
-              const style = CATEGORY_STYLES[entry.category] || CATEGORY_STYLES.general;
-              const ActionIcon = ACTION_ICONS[entry.action] || Activity;
-              return (
-                <div key={entry.id} className="px-5 py-3.5 flex items-start gap-4 hover:bg-slate-50 transition">
-                  {/* Icon */}
-                  <div className={`w-8 h-8 rounded-lg border flex items-center justify-center flex-shrink-0 mt-0.5 ${style.color}`}>
-                    <ActionIcon className="w-3.5 h-3.5" />
-                  </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-left border-b border-slate-200">
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">When</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">User</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Action</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Item</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map(entry => {
+                  const style = CATEGORY_STYLES[entry.category] || CATEGORY_STYLES.general;
+                  const ActionIcon = ACTION_ICONS[entry.action] || Activity;
+                  return (
+                    <tr key={entry.id} className="hover:bg-slate-50 transition align-top">
+                      {/* When */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <p className="text-xs font-medium text-slate-600">{fmtRelativeAudit(entry.created_at)}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {new Date(entry.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </td>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-slate-900">{entry.action}</span>
-                      {entry.entity_name && (
-                        <span className="text-sm text-slate-500">— <span className="font-medium text-slate-700">{entry.entity_name}</span></span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-slate-500">by <span className="font-medium">{entry.user_name}</span></span>
-                      {entry.details && Object.keys(entry.details).length > 0 && (
-                        <span className="text-xs text-slate-400 truncate max-w-[300px]">
-                          · {Object.entries(entry.details).map(([k, v]) => `${k}: ${v}`).join(', ')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                      {/* User */}
+                      <td className="px-4 py-3 text-slate-700 font-medium whitespace-nowrap">{entry.user_name}</td>
 
-                  {/* Timestamp */}
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-xs text-slate-500">{fmtRelativeAudit(entry.created_at)}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {new Date(entry.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+                      {/* Action (icon chip + label) */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-6 h-6 rounded-md border flex items-center justify-center flex-shrink-0 ${style.color}`}>
+                            <ActionIcon className="w-3 h-3" />
+                          </span>
+                          <span className="text-sm font-medium text-slate-900 whitespace-nowrap">{entry.action}</span>
+                        </div>
+                      </td>
+
+                      {/* Item / entity */}
+                      <td className="px-4 py-3 text-slate-600">
+                        {entry.entity_name || <span className="text-slate-300">—</span>}
+                      </td>
+
+                      {/* Details */}
+                      <td className="px-4 py-3 text-xs text-slate-500 max-w-[320px]">
+                        {entry.details && Object.keys(entry.details).length > 0
+                          ? Object.entries(entry.details).map(([k, v]) => `${k}: ${v}`).join(' · ')
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

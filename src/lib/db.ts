@@ -51,6 +51,46 @@ export async function addAuditEntry(
   });
 }
 
+/**
+ * Convenience wrapper for package-scoped actions: resolves the package name
+ * (used as entity_name) and the owning org from the project, then writes one
+ * org_audit_log entry. Fire-and-forget — never blocks the primary operation.
+ * Resolving org from the project avoids the empty-auth.orgId edge case.
+ */
+export async function logPackageAudit(
+  admin: SupabaseClient,
+  auth: { orgId: string; id: string; fullName: string },
+  pkgId: string,
+  action: string,
+  category: string,
+  details?: Record<string, any>
+): Promise<void> {
+  try {
+    const { data: pkg } = await admin
+      .from('packages')
+      .select('name, project_id')
+      .eq('id', pkgId)
+      .maybeSingle();
+
+    let orgId = auth.orgId;
+    if (pkg?.project_id) {
+      const { data: proj } = await admin
+        .from('projects')
+        .select('org_id')
+        .eq('id', pkg.project_id)
+        .maybeSingle();
+      if (proj?.org_id) orgId = proj.org_id;
+    }
+
+    await addOrgAuditEntry(
+      admin, orgId, auth.id, auth.fullName,
+      action, category, pkg?.name ?? null, details
+    );
+  } catch (e) {
+    console.error('[logPackageAudit] failed:', e);
+  }
+}
+
 /** Maps a raw package row + pre-fetched relation buckets into the camelCase shape. */
 function mapPackageRow(
   row: any,
