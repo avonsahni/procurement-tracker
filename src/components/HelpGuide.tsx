@@ -26,7 +26,7 @@ const SECTIONS: Section[] = [
   { id: "stages",      label: "Procurement Stages",     icon: ArrowRight },
   { id: "vendors",     label: "Vendors",                icon: Users },
   { id: "billing",     label: "Billing & Invoices",     icon: Receipt },
-  { id: "analytics",   label: "Analytics",              icon: BarChart3 },
+  { id: "analytics",   label: "Director Dashboard",     icon: BarChart3 },
   { id: "editmode",    label: "Edit Mode",              icon: Lock },
   { id: "users",       label: "User Management",        icon: Shield },
   { id: "settings",    label: "Settings",               icon: Settings },
@@ -128,9 +128,9 @@ function SectionOverview() {
       <H3>Who can do what</H3>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
         {[
-          { role: "Owner / Admin", color: "bg-violet-50 border-violet-200 text-violet-700",   desc: "Full access: manage users, settings, all project data, and export." },
-          { role: "Editor",        color: "bg-emerald-50 border-emerald-200 text-emerald-700", desc: "Can edit packages, vendors, invoices, remarks, and milestones." },
-          { role: "Viewer",        color: "bg-slate-50 border-slate-200 text-slate-600",       desc: "Read-only access to all projects and packages." },
+          { role: "Admin",  color: "bg-violet-50 border-violet-200 text-violet-700",   desc: "Full control — create and delete projects, manage users, settings, billing, and all package data." },
+          { role: "User",   color: "bg-blue-50 border-blue-200 text-blue-700",         desc: "Edit, add, and delete packages, vendors, documents, and remarks. Cannot create or delete projects." },
+          { role: "Viewer", color: "bg-slate-50 border-slate-200 text-slate-600",      desc: "Read-only access throughout the entire app. Cannot make any changes." },
         ].map(r => (
           <div key={r.role} className={`rounded-xl border p-3 ${r.color}`}>
             <p className="text-xs font-semibold mb-1">{r.role}</p>
@@ -217,10 +217,11 @@ function SectionProjects() {
       </P>
 
       <H3>Creating a project</H3>
+      <Note>Only <strong>Admin</strong> users can create or delete projects.</Note>
       <ol className="space-y-2 mt-1">
         {[
-          "Enable Edit Mode using the button in the header.",
-          'Click the blue "+ New Project" button on the dashboard.',
+          "Enable Edit Mode using the button in the header (Admin only).",
+          'Click the blue "+ New Project" button that appears in the project portfolio area.',
           "Enter the project name, client, and total budget.",
           "Click Create. The new project card appears in the portfolio grid.",
         ].map((s, i) => (
@@ -254,7 +255,7 @@ function SectionProjects() {
 
       <Note>
         Deleting a project permanently removes it along with all its packages, vendors, invoices,
-        remarks, and documents. This action cannot be undone.
+        remarks, and documents. This action cannot be undone. Only <strong>Admins</strong> can delete projects.
       </Note>
     </div>
   );
@@ -351,7 +352,7 @@ function SectionPackages() {
 
       <Note>
         Deleting a package removes all its vendors, invoices, and history permanently. Only
-        admins or editors in Edit Mode can delete packages.
+        <strong> Admin</strong> and <strong>User</strong> roles in Edit Mode can delete packages.
       </Note>
     </div>
   );
@@ -665,42 +666,50 @@ function SectionBilling() {
 function SectionAnalytics() {
   return (
     <div>
-      <H2>Analytics</H2>
-      <p className="text-xs text-slate-400 mb-4">Portfolio-wide budget and billing insights</p>
+      <H2>Director Dashboard</H2>
+      <p className="text-xs text-slate-400 mb-4">Portfolio-wide budget, billing, and milestone insights for decision-makers</p>
       <P>
-        Click the <strong>Analytics</strong> button in the dashboard header to open the
-        Budget Analytics panel — a cross-project financial overview.
+        Click the amber <strong>Director Dashboard</strong> button in the dashboard header to open
+        a cross-project overview — budget utilisation, financial performance, and execution
+        milestone achievement, all on one screen.
       </P>
 
       <H3>Summary cards</H3>
       <ul className="space-y-2 mt-1">
-        <Li><strong>Total Budget</strong> — combined budget across all projects</Li>
-        <Li><strong>Committed (Awarded)</strong> — total awarded value</Li>
-        <Li><strong>Billed</strong> — total invoiced amount</Li>
-        <Li><strong>Remaining / Over-budget</strong> — budget minus committed; shown in red if over</Li>
+        <Li><strong>Total Portfolio Budget</strong> — combined budget across all projects</Li>
+        <Li><strong>Total Committed</strong> — total awarded value and % of budget used</Li>
+        <Li><strong>Total Billed</strong> — total invoiced amount and % of committed collected</Li>
+        <Li><strong>Remaining / Over-budget count</strong> — unallocated capital, or number of projects exceeding budget shown in red</Li>
       </ul>
 
-      <H3>Portfolio overview chart</H3>
+      <H3>Portfolio utilisation chart</H3>
       <P>
-        Three horizontal bars show Budget, Committed, and Billed side by side.
-        A dual-ring donut on the right visualises the same proportions.
+        Three horizontal bars (Budget, Committed, Billed) show the overall portfolio position
+        side by side. A dual-ring donut on the right visualises the same proportions at a glance.
       </P>
 
-      <H3>Per-project breakdown</H3>
+      <H3>Per-project budget breakdown</H3>
       <P>
-        Below the portfolio chart, each project is listed with its own three-bar row.
-        A sub-label shows "% of committed billed" to highlight collection efficiency.
+        Each project is listed with its own three-bar row (Budget / Committed / Billed).
+        Projects over budget are highlighted in red. A sub-label shows "% of committed billed"
+        to surface collection efficiency.
       </P>
 
-      <H3>Sortable table</H3>
+      <H3>Milestone Achievement Status</H3>
       <P>
-        The table at the bottom can be sorted by Budget, Committed, or Billed by clicking
-        the column headers. The bottom row shows portfolio totals.
+        Below the budget section, each project shows a grid of the six execution milestones
+        (Mobilisation → Handover). Each milestone tile displays:
       </P>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Average progress %</strong> — across all packages in the project</Li>
+        <Li><strong>Done / Total</strong> — how many packages have completed that milestone</Li>
+        <Li><strong>Colour indicator</strong> — green (100 %), amber (in progress), grey (not started)</Li>
+      </ul>
+      <P>An overall completion % for each project is shown in the project header row.</P>
 
       <Tip>
-        Analytics always reflects live data — any award or invoice added while the panel
-        is open will appear the next time you open it.
+        The Director Dashboard always reflects live data — awards, invoices, and milestone
+        updates appear the next time you open it.
       </Tip>
     </div>
   );
@@ -719,9 +728,9 @@ function SectionEditMode() {
 
       <H3>Who can enter Edit Mode</H3>
       <P>
-        Only users with the <strong>Can Edit</strong> permission (set by an admin) or the
-        <strong> Admin</strong> role can enable Edit Mode. Viewers see all data but the Edit
-        Mode button is not available to them.
+        <strong>Admin</strong> and <strong>User</strong> roles can enable Edit Mode.
+        <strong> Viewers</strong> see all data but the Edit Mode button is not shown to them.
+        The key difference: Admins can also create and delete projects; Users cannot.
       </P>
 
       <H3>Enabling Edit Mode</H3>
@@ -768,15 +777,30 @@ function SectionUsers() {
       <p className="text-xs text-slate-400 mb-4">Admin-only — control who can access and edit data</p>
       <P>
         ProcureTrack is multi-tenant. Every user belongs to exactly one <strong>Organisation</strong>.
-        Within an organisation, each user has a role that controls their access level.
+        Within an organisation, each user has one of three roles that controls their access level.
       </P>
 
-      <H3>Organisation roles</H3>
+      <H3>The three roles</H3>
       <div className="space-y-3 mt-2">
         {[
-          { role: "Owner",   color: "bg-orange-50 border-orange-200",  badge: "bg-orange-100 text-orange-700", desc: "Full access. Can manage all users, settings, billing, and all project data. Created automatically when the organisation is registered." },
-          { role: "Admin",   color: "bg-violet-50 border-violet-200",  badge: "bg-violet-100 text-violet-700", desc: "Full access to project data and user management. Same as Owner for day-to-day use." },
-          { role: "Viewer",  color: "bg-slate-50 border-slate-200",    badge: "bg-slate-100 text-slate-600",   desc: "Read-only access to all projects and packages. Cannot make any changes." },
+          {
+            role: "Admin",
+            color: "bg-violet-50 border-violet-200",
+            badge: "bg-violet-100 text-violet-700",
+            desc: "Full control throughout the app. Can create and delete projects, manage users and settings, billing, categories, and all package data.",
+          },
+          {
+            role: "User",
+            color: "bg-blue-50 border-blue-200",
+            badge: "bg-blue-100 text-blue-700",
+            desc: "Can edit, add, and delete packages, vendors, documents, remarks, invoices, and milestones. Cannot create or delete projects.",
+          },
+          {
+            role: "Viewer",
+            color: "bg-slate-50 border-slate-200",
+            badge: "bg-slate-100 text-slate-600",
+            desc: "Read-only access to all projects and packages throughout the entire app. Cannot make any changes.",
+          },
         ].map(r => (
           <div key={r.role} className={`rounded-xl border p-3.5 ${r.color}`}>
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${r.badge} mb-2 inline-block`}>{r.role}</span>
@@ -785,12 +809,13 @@ function SectionUsers() {
         ))}
       </div>
 
-      <H3>Inviting a new team member</H3>
+      <H3>Adding a new team member</H3>
       <ol className="space-y-2 mt-1">
         {[
           "Go to Admin Panel → Users tab.",
-          "Click '+ Add Member' and enter the new user's email address and choose their role.",
-          "Alternatively, share your organisation's registration link and have them sign up — ask your platform admin for the invite flow.",
+          "Click '+ New User' and enter the full name, email address, and a temporary password.",
+          "Select the role — Admin, User, or Viewer — from the dropdown. The description beneath updates to explain what that role can do.",
+          "Click Create User. The account is created immediately and the user can log in right away.",
         ].map((s, i) => (
           <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
             <StepBadge n={i + 1} />
@@ -801,18 +826,21 @@ function SectionUsers() {
 
       <H3>Changing a user's role</H3>
       <P>
-        In the Admin Panel → Users tab, use the role dropdown next to any user to change
-        their access level immediately. The change takes effect on their next page load.
+        In the Admin Panel → Users tab, use the inline role dropdown in the <strong>Permissions</strong>
+        column next to any user. The change takes effect immediately on their next page load.
+        Changing a role automatically adjusts both the org-level access and edit permissions —
+        no separate toggle needed.
       </P>
 
       <H3>Removing a user</H3>
       <P>
-        Click the remove button next to a user in the Users tab. This removes them from the
-        organisation but does not delete their account. They can be re-added later.
+        Click the bin icon next to a user in the Users tab. This permanently removes them from
+        the organisation and deletes their account. This action cannot be undone.
       </P>
 
       <Note>
-        You cannot remove the last Owner of an organisation. Assign another user as Owner first.
+        You cannot remove the last Admin/Owner of an organisation. Promote another user to
+        Admin first.
       </Note>
     </div>
   );
@@ -833,8 +861,8 @@ function SectionSettings() {
         and billing rate at a glance.</P>
 
       <H3>Users tab</H3>
-      <P>Manage team members — add users by email, change roles (Owner / Admin / Viewer), and
-        remove members from the organisation.</P>
+      <P>Manage team members — add users by email and password, change roles (Admin / User / Viewer)
+        via the inline dropdown, and remove members. Role changes take effect immediately.</P>
 
       <H3>Branding tab</H3>
       <ul className="space-y-2 mt-1">
