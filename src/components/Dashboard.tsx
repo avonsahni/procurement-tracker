@@ -4,9 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   fetchProjects,
-  deleteProject,
-  updateProject,
-  fetchCategories,
   getCompanyInfo,
   CompanyInfo,
 } from "@/lib/store";
@@ -15,50 +12,16 @@ import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import HelpGuide from "@/components/HelpGuide";
 import {
-  Trash2, Building2, FolderOpen, Activity, Settings, Lock, Unlock, Shield, Box, Layers, Search, Edit2, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown,
+  Building2, FolderOpen, Activity, Settings, Shield, Box, Layers, Search, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown,
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
-  Active: "bg-blue-50 text-blue-700 ring-blue-200",
+  Active:    "bg-blue-50 text-blue-700 ring-blue-200",
+  Paused:    "bg-orange-50 text-orange-700 ring-orange-200",
   "On Hold": "bg-amber-50 text-amber-700 ring-amber-200",
   Completed: "bg-slate-100 text-slate-600 ring-slate-200",
 };
 
-function ProjectBudgetCell({ project, onUpdate, editMode }: { project: any; onUpdate: (val: number) => void; editMode: boolean }) {
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(project.budget.toString());
-
-  useEffect(() => {
-    setVal(project.budget.toString());
-  }, [project.budget]);
-
-  if (editMode && editing) {
-    return (
-      <div onClick={e => e.stopPropagation()} className="flex items-center gap-1 w-full">
-        <input
-          type="number"
-          value={val}
-          onChange={e => setVal(e.target.value)}
-          onBlur={() => { onUpdate(parseFloat(val) || 0); setEditing(false); }}
-          onKeyDown={e => { if (e.key === "Enter") { onUpdate(parseFloat(val) || 0); setEditing(false); } }}
-          className="w-full bg-white border border-slate-300 rounded px-1.5 py-0.5 font-mono text-sm text-blue-700 outline-none focus:ring-1 focus:ring-blue-500"
-          autoFocus
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center justify-between gap-1 w-full">
-      <p className="text-sm font-mono font-semibold text-blue-700 leading-none">{formatCurrency(project.budget)}</p>
-      {editMode && (
-        <button onClick={(e) => { e.stopPropagation(); setEditing(true); }} className="p-1 text-slate-400 hover:text-blue-600 transition-colors">
-          <Edit2 className="w-3 h-3" />
-        </button>
-      )}
-    </div>
-  );
-}
 
 // ─── ExecTrackingSection ──────────────────────────────────────────────────────
 
@@ -272,18 +235,12 @@ function ProcurementPipelineSection({ projects }: { projects: any[] }) {
 // ─── ProjectCard ──────────────────────────────────────────────────────────────
 
 interface ProjectCardProps {
-  project: any; // ProjectSummary
-  editMode: boolean;
-  isAdmin: boolean;
+  project: any;
   onOpen: (id: string) => void;
-  onDelete: (id: string) => void;
-  onUpdateStatus: (id: string, status: string) => void;
-  onUpdateBudget: (id: string, budget: number) => void;
 }
-function ProjectCard({ project: p, editMode, isAdmin, onOpen, onDelete, onUpdateStatus, onUpdateBudget }: ProjectCardProps) {
-  const awarded = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
+function ProjectCard({ project: p, onOpen }: ProjectCardProps) {
   const billed = p.packages.reduce((s: any, pk: any) => s + (pk.billedAmount || 0), 0);
-  const awardedPct = p.budget > 0 ? Math.min(100, (awarded / p.budget) * 100) : 0;
+  const awarded = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
   const financialPct = awarded > 0 ? Math.min(100, (billed / awarded) * 100) : 0;
   const awardedCount = p.packages.filter((pk: any) => pk.currentStage === "Award").length;
   const milestonesProgressSum = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
@@ -292,7 +249,6 @@ function ProjectCard({ project: p, editMode, isAdmin, onOpen, onDelete, onUpdate
 
   return (
     <div
-      key={p.id}
       className="group bg-white rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col"
       onClick={() => onOpen(p.id)}
     >
@@ -301,36 +257,15 @@ function ProjectCard({ project: p, editMode, isAdmin, onOpen, onDelete, onUpdate
         <div className="flex justify-between items-start mb-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              {editMode ? (
-                <select
-                  value={p.status}
-                  onClick={e => e.stopPropagation()}
-                  onChange={async (e) => { e.stopPropagation(); await onUpdateStatus(p.id, e.target.value); }}
-                  className="bg-white border border-slate-200 rounded text-xs text-slate-700 px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="Active">Active</option>
-                  <option value="On Hold">On Hold</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              ) : (
-                <span className={`px-2 py-0.5 rounded text-xs font-medium ring-1 ring-inset ${statusColors[p.status]}`}>
-                  {p.status}
-                </span>
-              )}
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ring-1 ring-inset ${statusColors[p.status] || statusColors.Active}`}>
+                {p.status}
+              </span>
               <span className="text-xs text-slate-400">Modified {new Date(p.updatedAt).toLocaleDateString()}</span>
             </div>
             <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">{p.name}</h3>
             <p className="text-xs text-slate-500 mt-0.5">{p.client}</p>
           </div>
-          <div className="flex items-center gap-1.5 ml-3 flex-shrink-0">
-            {editMode && isAdmin && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
-                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
+          <div className="ml-3 flex-shrink-0">
             <div className="p-2 rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-300 group-hover:text-blue-600 transition">
               <ArrowRight className="w-4 h-4" />
             </div>
@@ -341,7 +276,7 @@ function ProjectCard({ project: p, editMode, isAdmin, onOpen, onDelete, onUpdate
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
             <p className="text-xs text-slate-500 mb-1">Budget</p>
-            <ProjectBudgetCell project={p} onUpdate={(val) => onUpdateBudget(p.id, val)} editMode={editMode} />
+            <p className="text-sm font-mono font-semibold text-slate-700 leading-none">{formatCurrency(p.budget)}</p>
           </div>
           <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
             <p className="text-xs text-slate-500 mb-1">Packages</p>
@@ -389,10 +324,9 @@ function ProjectCard({ project: p, editMode, isAdmin, onOpen, onDelete, onUpdate
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPlatform }: any) {
-  const { user, logout, editMode, setEditMode, isOrgBlocked } = useAuth();
+  const { user, isOrgBlocked } = useAuth();
   const router = useRouter();
   const [projects, setProjects] = useState<any[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [company, setCompany] = useState<CompanyInfo>({ name: "", tagline: "" });
@@ -403,9 +337,8 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [p, c, ci] = await Promise.all([fetchProjects(), fetchCategories(), getCompanyInfo()]);
+      const [p, ci] = await Promise.all([fetchProjects(), getCompanyInfo()]);
       setProjects(p);
-      setCategories(c);
       setCompany(ci);
     } catch (e) {
       console.error("Load failed", e);
@@ -420,31 +353,12 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
       if (document.visibilityState === "hidden") {
         hiddenAt.current = Date.now();
       } else if (document.visibilityState === "visible") {
-        // Only silently refresh if away for more than 5 minutes
         if (Date.now() - hiddenAt.current > 5 * 60 * 1000) loadData(true);
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
-
-  const handleDeleteProject = async (id: string) => {
-    if (!editMode) return;
-    if (confirm("Delete project and all its packages?")) {
-      await deleteProject(id);
-      loadData();
-    }
-  };
-
-  const handleUpdateProjectStatus = async (id: string, status: string) => {
-    await updateProject(id, { status: status as "Active" | "On Hold" | "Completed" });
-    loadData();
-  };
-
-  const handleUpdateProjectBudget = async (id: string, budget: number) => {
-    await updateProject(id, { budget });
-    loadData();
-  };
 
   const filteredProjects = projects.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -509,20 +423,6 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
             >
               <BarChart3 className="w-4 h-4" /> Director Dashboard
             </button>
-
-            {user?.canEdit && !isOrgBlocked && (
-              <button
-                onClick={() => setEditMode(!editMode)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border transition ${
-                  editMode
-                    ? "bg-blue-600 border-blue-600 text-white"
-                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                {editMode ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                {editMode ? "Edit Mode ON" : "Enter Edit Mode"}
-              </button>
-            )}
 
             {user?.role === 'admin' && (
               <button
@@ -708,12 +608,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
               <ProjectCard
                 key={p.id}
                 project={p}
-                editMode={editMode}
-                isAdmin={user?.role === 'admin'}
                 onOpen={(id) => router.push(`/projects/${id}`)}
-                onDelete={handleDeleteProject}
-                onUpdateStatus={handleUpdateProjectStatus}
-                onUpdateBudget={handleUpdateProjectBudget}
               />
             ))
           )}

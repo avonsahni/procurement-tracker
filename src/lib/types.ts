@@ -142,7 +142,7 @@ export interface Project {
   name: string;
   client: string;
   budget: number;
-  status: "Active" | "On Hold" | "Completed";
+  status: "Active" | "Paused" | "On Hold" | "Completed";
   isSample?: boolean;
   // extended project details
   address?: string;
@@ -200,7 +200,7 @@ export interface ProjectSummary {
   name: string;
   client: string;
   budget: number;
-  status: 'Active' | 'On Hold' | 'Completed';
+  status: 'Active' | 'Paused' | 'On Hold' | 'Completed';
   isSample?: boolean;
   // extended project details
   address?: string;

@@ -1219,6 +1219,7 @@ function projectClientById(projects: any[], projectId: string): string {
 
 const STATUS_BADGE: Record<string, string> = {
   Active:     'bg-blue-50 text-blue-700 ring-blue-200',
+  Paused:     'bg-orange-50 text-orange-700 ring-orange-200',
   'On Hold':  'bg-amber-50 text-amber-700 ring-amber-200',
   Completed:  'bg-slate-100 text-slate-600 ring-slate-200',
 };
@@ -1239,7 +1240,8 @@ function ProjectsSection() {
   const [projects, setProjects]   = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'Active' | 'On Hold' | 'Completed'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'Active' | 'Paused' | 'On Hold' | 'Completed'>('all');
+  const [detailProject, setDetailProject] = useState<any | null>(null);
 
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating]     = useState(false);
@@ -1346,7 +1348,7 @@ function ProjectsSection() {
             className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
           />
         </div>
-        {(['all', 'Active', 'On Hold', 'Completed'] as const).map(s => (
+        {(['all', 'Active', 'Paused', 'On Hold', 'Completed'] as const).map(s => (
           <button
             key={s}
             onClick={() => setFilterStatus(s)}
@@ -1406,6 +1408,7 @@ function ProjectsSection() {
                           className="text-xs px-2 py-1 border border-slate-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-500/30"
                         >
                           <option>Active</option>
+                          <option>Paused</option>
                           <option>On Hold</option>
                           <option>Completed</option>
                         </select>
@@ -1447,10 +1450,10 @@ function ProjectsSection() {
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-1.5 justify-end">
                         <button
-                          onClick={() => router.push(`/projects/${p.id}`)}
+                          onClick={() => setDetailProject(p)}
                           className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition whitespace-nowrap"
                         >
-                          Open
+                          Details
                         </button>
                         {!isOrgBlocked && (
                           <button
@@ -1614,6 +1617,129 @@ function ProjectsSection() {
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {creating ? <><Loader2 className="w-4 h-4 animate-spin" />Creating…</> : 'Initialize Project'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Project details modal */}
+      {detailProject && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6"
+          onClick={() => setDetailProject(null)}
+        >
+          <div
+            className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 flex-shrink-0">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">{detailProject.name}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ring-1 ring-inset ${STATUS_BADGE[detailProject.status] || STATUS_BADGE.Active}`}>{detailProject.status}</span>
+                  {detailProject.client && <span className="text-xs text-slate-500">{detailProject.client}</span>}
+                </div>
+              </div>
+              <button onClick={() => setDetailProject(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 px-8 py-6 space-y-6 text-sm">
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Project Information</p>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Project Type</p>
+                    <p className="font-medium text-slate-800">{detailProject.projectType || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Project Manager</p>
+                    <p className="font-medium text-slate-800">{detailProject.projectManager || '—'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs text-slate-400 mb-0.5">Address</p>
+                    <p className="font-medium text-slate-800">{detailProject.address || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Built-Up Area</p>
+                    <p className="font-medium text-slate-800">{detailProject.builtUpArea || '—'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Financial</p>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Procurement Budget</p>
+                    <p className="font-mono font-semibold text-blue-700">{formatCurrency(detailProject.budget)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Tendered Cost</p>
+                    <p className="font-mono font-semibold text-slate-700">{detailProject.tenderedCost != null ? formatCurrency(detailProject.tenderedCost) : '—'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Schedule</p>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Estimated Start</p>
+                    <p className="font-medium text-slate-800">
+                      {detailProject.estimatedStartDate
+                        ? new Date(detailProject.estimatedStartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Duration</p>
+                    <p className="font-medium text-slate-800">
+                      {detailProject.estimatedDurationMonths != null ? `${detailProject.estimatedDurationMonths} months` : '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Client Contact</p>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Name</p>
+                    <p className="font-medium text-slate-800">{detailProject.clientContactName || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Email</p>
+                    <p className="font-medium text-slate-800">{detailProject.clientContactEmail || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">Phone</p>
+                    <p className="font-medium text-slate-800">{detailProject.clientContactPhone || '—'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {detailProject.projectRemarks && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Remarks</p>
+                  <p className="text-slate-700 whitespace-pre-wrap bg-slate-50 border border-slate-100 rounded-lg p-4 text-sm">{detailProject.projectRemarks}</p>
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer */}
+            <div className="px-8 py-4 border-t border-slate-100 flex-shrink-0 flex justify-end">
+              <button
+                onClick={() => setDetailProject(null)}
+                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition"
+              >
+                Close
               </button>
             </div>
           </div>

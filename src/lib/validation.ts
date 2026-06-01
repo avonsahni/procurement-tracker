@@ -68,7 +68,7 @@ export const ProjectUpdateSchema = z
     name:   trimmedString('name').optional(),
     client: z.string().trim().max(200).optional(),
     budget: nonNegNumber('budget').optional(),
-    status: z.enum(['Active', 'On Hold', 'Completed']).optional(),
+    status: z.enum(['Active', 'Paused', 'On Hold', 'Completed']).optional(),
     ...projectDetailFields,
   })
   .refine(o => Object.keys(o).length > 0, { message: 'No valid fields' });

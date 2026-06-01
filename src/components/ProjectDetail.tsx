@@ -274,6 +274,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
               <div className="flex items-center gap-2 mb-1">
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ring-1 ring-inset ${
                   project.status === "Active" ? "bg-blue-50 text-blue-700 ring-blue-200"
+                  : project.status === "Paused" ? "bg-orange-50 text-orange-700 ring-orange-200"
                   : project.status === "On Hold" ? "bg-amber-50 text-amber-700 ring-amber-200"
                   : "bg-slate-100 text-slate-600 ring-slate-200"
                 }`}>{project.status}</span>
