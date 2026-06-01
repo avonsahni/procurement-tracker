@@ -113,6 +113,28 @@ export interface Invoice {
   createdAt: string;
 }
 
+export interface CashInflow {
+  id: string;
+  onAccount: string;
+  fromParty: string;
+  dateReceived: string;
+  amount: number;
+  remarks?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface CashOutflow {
+  id: string;
+  toWhom: string;
+  onAccountOf: string;
+  datePaid: string;
+  amount: number;
+  remarks?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface Package {
   id: string;
   name: string;
@@ -130,6 +152,8 @@ export interface Package {
   remarks: Remark[];
   documents: Document[];
   invoices: Invoice[];
+  cashInflow: CashInflow[];
+  cashOutflow: CashOutflow[];
   milestones: PackageMilestone[];
   startDate?: string;
   endDate?: string;
@@ -193,6 +217,8 @@ export interface PackageSummary {
   vendorCount: number;
   milestonesProgressSum: number;
   totalMilestones: number;
+  totalInflowAmount: number;
+  totalOutflowAmount: number;
 }
 
 export interface ProjectSummary {

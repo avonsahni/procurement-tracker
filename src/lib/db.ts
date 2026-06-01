@@ -61,6 +61,8 @@ function mapPackageRow(
   invoicesByPkg: Record<string, any[]>,
   milestonesByPkg: Record<string, any[]> = {},
   tasksByPkg: Record<string, any[]> = {},
+  cashInflowByPkg: Record<string, any[]> = {},
+  cashOutflowByPkg: Record<string, any[]> = {},
 ) {
   const id = row.id;
   const tasksByMilestone = groupBy(tasksByPkg[id] || [], 'milestone_name');
@@ -122,6 +124,26 @@ function mapPackageRow(
         createdAt: t.created_at,
       })),
     })),
+    cashInflow: (cashInflowByPkg[id] || []).map((r: any) => ({
+      id: r.id,
+      onAccount:    r.on_account,
+      fromParty:    r.from_party,
+      dateReceived: r.date_received,
+      amount:       Number(r.amount),
+      remarks:      r.remarks || undefined,
+      createdBy:    r.created_by,
+      createdAt:    r.created_at,
+    })),
+    cashOutflow: (cashOutflowByPkg[id] || []).map((r: any) => ({
+      id: r.id,
+      toWhom:       r.to_whom,
+      onAccountOf:  r.on_account_of,
+      datePaid:     r.date_paid,
+      amount:       Number(r.amount),
+      remarks:      r.remarks || undefined,
+      createdBy:    r.created_by,
+      createdAt:    r.created_at,
+    })),
   };
 }
 
@@ -160,7 +182,7 @@ function groupBy(rows: any[], key: string): Record<string, any[]> {
 export async function assemblePackage(supabase: SupabaseClient, row: any) {
   const id    = row.id;
   const admin = createAdminSupabase();
-  const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes, tasksRes] = await Promise.all([
+  const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes, tasksRes, cashInflowRes, cashOutflowRes] = await Promise.all([
     supabase.from('vendors').select('id, name, quoted_amount, revised_amount').eq('package_id', id),
     supabase.from('remarks').select('id, username, text, timestamp, user_id, image_urls').eq('package_id', id).order('timestamp'),
     supabase.from('documents').select('id, name, size, type, username, uploaded_at, storage_path').eq('package_id', id).order('uploaded_at'),
@@ -169,6 +191,8 @@ export async function assemblePackage(supabase: SupabaseClient, row: any) {
     supabase.from('package_milestones').select('id, milestone_name, display_order, progress, completed_at, completed_by').eq('package_id', id).order('display_order'),
     // admin client bypasses RLS on milestone_tasks (policy uses proj.owner_id which doesn't match org members)
     admin.from('milestone_tasks').select('id, milestone_name, name, description, progress, start_date, end_date, sort_order, created_by, created_at').eq('package_id', id).order('sort_order').order('created_at'),
+    supabase.from('cash_inflow').select('id, on_account, from_party, date_received, amount, remarks, created_by, created_at').eq('package_id', id).order('date_received'),
+    supabase.from('cash_outflow').select('id, to_whom, on_account_of, date_paid, amount, remarks, created_by, created_at').eq('package_id', id).order('date_paid'),
   ]);
 
   return mapPackageRow(
@@ -180,6 +204,8 @@ export async function assemblePackage(supabase: SupabaseClient, row: any) {
     { [id]: invoicesRes.data || [] },
     { [id]: milestonesRes.data || [] },
     { [id]: tasksRes.data || [] },
+    { [id]: cashInflowRes.data || [] },
+    { [id]: cashOutflowRes.data || [] },
   );
 }
 

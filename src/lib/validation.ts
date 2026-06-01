@@ -129,6 +129,22 @@ export const InvoiceCreateSchema = z.object({
   notes: z.string().trim().max(1000).optional().default(''),
 });
 
+export const CashInflowCreateSchema = z.object({
+  onAccount:    trimmedString('onAccount', 1, 500),
+  fromParty:    trimmedString('fromParty', 1, 200),
+  dateReceived: z.string().min(1, 'dateReceived required'),
+  amount:       nonNegNumber('amount'),
+  remarks:      z.string().trim().max(1000).optional().default(''),
+});
+
+export const CashOutflowCreateSchema = z.object({
+  toWhom:       trimmedString('toWhom', 1, 200),
+  onAccountOf:  trimmedString('onAccountOf', 1, 500),
+  datePaid:     z.string().min(1, 'datePaid required'),
+  amount:       nonNegNumber('amount'),
+  remarks:      z.string().trim().max(1000).optional().default(''),
+});
+
 export const CategoryCreateSchema = z.object({
   name: trimmedString('name', 1, 100),
 });
