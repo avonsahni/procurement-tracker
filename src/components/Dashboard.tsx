@@ -16,7 +16,7 @@ import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import HelpGuide from "@/components/HelpGuide";
 import {
-  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown
+  Plus, Trash2, Building2, X, FolderOpen, Activity, Settings, Tag, LogOut, Lock, Unlock, Users, Trash, Globe, Shield, Box, Layers, ChevronRight, Search, Edit2, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown, Loader2
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
@@ -400,6 +400,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
 
   const [company, setCompany] = useState<CompanyInfo>({ name: "", tagline: "" });
   const [newProj, setNewProj] = useState({ name: "", client: "", budget: "" });
+  const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
 
   const loadData = async () => {
@@ -427,9 +428,16 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
 
   const handleAddProject = async () => {
     if (!newProj.name || !newProj.client || !newProj.budget) return;
-    await addProject(newProj.name, newProj.client, parseFloat(newProj.budget));
-    setShowAddProject(false); setNewProj({ name: "", client: "", budget: "" });
-    loadData();
+    if (creating) return;
+    setCreating(true);
+    try {
+      await addProject(newProj.name, newProj.client, parseFloat(newProj.budget));
+      setShowAddProject(false);
+      setNewProj({ name: "", client: "", budget: "" });
+      loadData();
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleDeleteProject = async (id: string) => {
@@ -731,11 +739,11 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
 
       {/* NEW PROJECT MODAL */}
       {showAddProject && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={() => setShowAddProject(false)}>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={() => { if (!creating) setShowAddProject(false); }}>
           <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-lg p-8" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-slate-900">New Repository</h2>
-              <button onClick={() => setShowAddProject(false)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"><X className="w-4 h-4" /></button>
+              <button onClick={() => { if (!creating) setShowAddProject(false); }} disabled={creating} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 disabled:opacity-40 disabled:cursor-not-allowed"><X className="w-4 h-4" /></button>
             </div>
 
             <div className="space-y-4">
@@ -744,7 +752,8 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
                 <input
                   value={newProj.name}
                   onChange={e => setNewProj({ ...newProj, name: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400"
+                  disabled={creating}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
                   placeholder="e.g. SKYLINE RESIDENCY"
                 />
               </div>
@@ -753,7 +762,8 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
                 <input
                   value={newProj.client}
                   onChange={e => setNewProj({ ...newProj, client: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400"
+                  disabled={creating}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
                   placeholder="e.g. DLF INFRASTRUCTURE"
                 />
               </div>
@@ -763,7 +773,9 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
                   type="number"
                   value={newProj.budget}
                   onChange={e => setNewProj({ ...newProj, budget: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none font-mono text-sm text-slate-900 placeholder-slate-400"
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddProject(); }}
+                  disabled={creating}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none font-mono text-sm text-slate-900 placeholder-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
                   placeholder="50,00,000"
                 />
               </div>
@@ -771,9 +783,17 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
 
             <button
               onClick={handleAddProject}
-              className="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition"
+              disabled={creating || !newProj.name.trim() || !newProj.client.trim() || !newProj.budget}
+              className="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Initialize Project
+              {creating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Creating…
+                </>
+              ) : (
+                'Initialize Project'
+              )}
             </button>
           </div>
         </div>
