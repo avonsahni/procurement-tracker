@@ -37,7 +37,7 @@ import BillingSection from "@/components/BillingSection";
 import MilestoneTracker from "@/components/MilestoneTracker";
 import ProgressRemarksPanel from "@/components/ProgressRemarksPanel";
 import {
-  ArrowLeft, Package, ChevronRight, Lock, Unlock, CheckCircle2, Clock, AlertTriangle, Activity, CalendarDays,
+  ArrowLeft, Package, ChevronRight, ChevronDown, Lock, Unlock, CheckCircle2, Clock, AlertTriangle, Activity, CalendarDays,
   TrendingUp, TrendingDown, Plus, Trash2,
 } from "lucide-react";
 
@@ -76,12 +76,14 @@ export default function PackageDetail({
   const [inflowForm, setInflowForm] = useState({ onAccount: '', fromParty: '', dateReceived: '', amount: '', remarks: '' });
   const [inflowSaving, setInflowSaving] = useState(false);
   const [inflowError, setInflowError]   = useState<string | null>(null);
+  const [inflowExpanded, setInflowExpanded] = useState(true);
 
   // Cash Outflow state
   const [showOutflowForm, setShowOutflowForm] = useState(false);
   const [outflowForm, setOutflowForm] = useState({ toWhom: '', onAccountOf: '', datePaid: '', amount: '', remarks: '' });
   const [outflowSaving, setOutflowSaving] = useState(false);
   const [outflowError, setOutflowError]   = useState<string | null>(null);
+  const [outflowExpanded, setOutflowExpanded] = useState(true);
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -569,33 +571,59 @@ export default function PackageDetail({
               {/* List */}
               {(pkg.cashInflow || []).length === 0 && !showInflowForm ? (
                 <p className="text-xs text-slate-400 text-center py-4">No receipts recorded yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {(pkg.cashInflow || []).map((r: any) => (
-                    <div key={r.id} className="flex items-start gap-3 px-4 py-3 bg-emerald-50/60 border border-emerald-100 rounded-xl">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-semibold text-emerald-800">{formatCurrency(r.amount, pkg.currency)}</span>
-                          <span className="text-[10px] text-slate-400">·</span>
-                          <span className="text-xs text-slate-600">{r.onAccount}</span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 mt-0.5 text-[10px] text-slate-500">
-                          <span>From: <span className="font-medium text-slate-700">{r.fromParty}</span></span>
-                          <span>{new Date(r.dateReceived).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}</span>
-                          {r.remarks && <span className="text-slate-400 italic">&ldquo;{r.remarks}&rdquo;</span>}
-                        </div>
-                      </div>
-                      {effectiveEditMode && (
-                        <button onClick={async () => {
-                            setPkg((prev: any) => prev ? { ...prev, cashInflow: (prev.cashInflow || []).filter((x: any) => x.id !== r.id), totalInflowAmount: Math.max(0, (prev.totalInflowAmount || 0) - r.amount) } : prev);
-                            await deleteCashInflow(packageId, r.id);
-                          }}
-                          className="p-1 text-slate-300 hover:text-red-500 transition flex-shrink-0">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+              ) : (pkg.cashInflow || []).length > 0 && (
+                <div>
+                  <button
+                    onClick={() => setInflowExpanded(v => !v)}
+                    className="w-full flex items-center justify-between text-xs text-slate-500 hover:text-slate-700 py-1.5 mb-1 transition"
+                  >
+                    <span className="font-medium">{(pkg.cashInflow || []).length} {(pkg.cashInflow || []).length === 1 ? 'entry' : 'entries'}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${inflowExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                  {inflowExpanded && (
+                    <div className="overflow-x-auto rounded-xl border border-emerald-100">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-emerald-50 text-left">
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide w-8">#</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">On Account Of</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">From Party</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Date Received</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-right whitespace-nowrap">Amount</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Remarks</th>
+                            {effectiveEditMode && <th className="w-8" />}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-emerald-50">
+                          {(pkg.cashInflow || []).map((r: any, idx: number) => (
+                            <tr key={r.id} className="hover:bg-emerald-50/40 transition-colors">
+                              <td className="px-3 py-2.5 text-slate-400">{idx + 1}</td>
+                              <td className="px-3 py-2.5 text-slate-700 font-medium">{r.onAccount}</td>
+                              <td className="px-3 py-2.5 text-slate-600">{r.fromParty}</td>
+                              <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">
+                                {new Date(r.dateReceived).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </td>
+                              <td className="px-3 py-2.5 text-right font-mono font-semibold text-emerald-700 whitespace-nowrap">
+                                {formatCurrency(r.amount, pkg.currency)}
+                              </td>
+                              <td className="px-3 py-2.5 text-slate-400 italic">{r.remarks || '—'}</td>
+                              {effectiveEditMode && (
+                                <td className="px-2 py-2.5">
+                                  <button onClick={async () => {
+                                      setPkg((prev: any) => prev ? { ...prev, cashInflow: (prev.cashInflow || []).filter((x: any) => x.id !== r.id), totalInflowAmount: Math.max(0, (prev.totalInflowAmount || 0) - r.amount) } : prev);
+                                      await deleteCashInflow(packageId, r.id);
+                                    }}
+                                    className="p-1 text-slate-300 hover:text-red-500 transition">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
@@ -686,33 +714,59 @@ export default function PackageDetail({
               {/* List */}
               {(pkg.cashOutflow || []).length === 0 && !showOutflowForm ? (
                 <p className="text-xs text-slate-400 text-center py-4">No payments recorded yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {(pkg.cashOutflow || []).map((r: any) => (
-                    <div key={r.id} className="flex items-start gap-3 px-4 py-3 bg-red-50/60 border border-red-100 rounded-xl">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-semibold text-red-800">{formatCurrency(r.amount, pkg.currency)}</span>
-                          <span className="text-[10px] text-slate-400">·</span>
-                          <span className="text-xs text-slate-600">{r.onAccountOf}</span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 mt-0.5 text-[10px] text-slate-500">
-                          <span>To: <span className="font-medium text-slate-700">{r.toWhom}</span></span>
-                          <span>{new Date(r.datePaid).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}</span>
-                          {r.remarks && <span className="text-slate-400 italic">&ldquo;{r.remarks}&rdquo;</span>}
-                        </div>
-                      </div>
-                      {effectiveEditMode && (
-                        <button onClick={async () => {
-                            setPkg((prev: any) => prev ? { ...prev, cashOutflow: (prev.cashOutflow || []).filter((x: any) => x.id !== r.id), totalOutflowAmount: Math.max(0, (prev.totalOutflowAmount || 0) - r.amount) } : prev);
-                            await deleteCashOutflow(packageId, r.id);
-                          }}
-                          className="p-1 text-slate-300 hover:text-red-500 transition flex-shrink-0">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+              ) : (pkg.cashOutflow || []).length > 0 && (
+                <div>
+                  <button
+                    onClick={() => setOutflowExpanded(v => !v)}
+                    className="w-full flex items-center justify-between text-xs text-slate-500 hover:text-slate-700 py-1.5 mb-1 transition"
+                  >
+                    <span className="font-medium">{(pkg.cashOutflow || []).length} {(pkg.cashOutflow || []).length === 1 ? 'entry' : 'entries'}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${outflowExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                  {outflowExpanded && (
+                    <div className="overflow-x-auto rounded-xl border border-red-100">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-red-50 text-left">
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide w-8">#</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">To Whom</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">On Account Of</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Date Paid</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide text-right whitespace-nowrap">Amount</th>
+                            <th className="px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Remarks</th>
+                            {effectiveEditMode && <th className="w-8" />}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-red-50">
+                          {(pkg.cashOutflow || []).map((r: any, idx: number) => (
+                            <tr key={r.id} className="hover:bg-red-50/40 transition-colors">
+                              <td className="px-3 py-2.5 text-slate-400">{idx + 1}</td>
+                              <td className="px-3 py-2.5 text-slate-700 font-medium">{r.toWhom}</td>
+                              <td className="px-3 py-2.5 text-slate-600">{r.onAccountOf}</td>
+                              <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">
+                                {new Date(r.datePaid).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </td>
+                              <td className="px-3 py-2.5 text-right font-mono font-semibold text-red-700 whitespace-nowrap">
+                                {formatCurrency(r.amount, pkg.currency)}
+                              </td>
+                              <td className="px-3 py-2.5 text-slate-400 italic">{r.remarks || '—'}</td>
+                              {effectiveEditMode && (
+                                <td className="px-2 py-2.5">
+                                  <button onClick={async () => {
+                                      setPkg((prev: any) => prev ? { ...prev, cashOutflow: (prev.cashOutflow || []).filter((x: any) => x.id !== r.id), totalOutflowAmount: Math.max(0, (prev.totalOutflowAmount || 0) - r.amount) } : prev);
+                                      await deleteCashOutflow(packageId, r.id);
+                                    }}
+                                    className="p-1 text-slate-300 hover:text-red-500 transition">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
