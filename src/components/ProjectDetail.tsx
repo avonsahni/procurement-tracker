@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { fetchProject, addPackage, deletePackage, fetchCategories, getCompanyInfo } from "@/lib/store";
-import { STAGES, CURRENCY_SYMBOLS, CURRENCY_LABELS, formatCurrency, EXECUTION_MILESTONES, ProjectSummary, PackageSummary } from "@/lib/types";
+import { STAGES, CURRENCY_SYMBOLS, CURRENCY_LABELS, formatCurrency, EXECUTION_MILESTONES, MILESTONE_WEIGHTS, TOTAL_MILESTONE_WEIGHT, ProjectSummary, PackageSummary } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import {
@@ -134,14 +134,14 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
 
   // Purchasing stats (from project summary aggregates)
   const summaryMilestoneSum   = awardedPkgs.reduce((s, p) => s + (p.milestonesProgressSum || 0), 0);
-  const summaryMilestoneCount = awardedPkgs.length * EXECUTION_MILESTONES.length;
+  const summaryMilestoneCount = awardedPkgs.length * TOTAL_MILESTONE_WEIGHT;
   const summaryMilestonePct   = summaryMilestoneCount > 0 ? summaryMilestoneSum / summaryMilestoneCount : 0;
   const summaryFinancialPct   = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
 
-  // Execution stats — computed directly from pkg.milestones (read-only view)
-  const execMilestoneCount = awardedPkgs.length * EXECUTION_MILESTONES.length;
+  // Execution stats — weighted completion computed directly from pkg.milestones
+  const execMilestoneCount = awardedPkgs.length * TOTAL_MILESTONE_WEIGHT;
   const execProgressSum    = awardedPkgs.reduce(
-    (s, pkg) => s + EXECUTION_MILESTONES.reduce((ss, name) => ss + milestoneProgress(pkg, name), 0), 0
+    (s, pkg) => s + EXECUTION_MILESTONES.reduce((ss, name) => ss + (MILESTONE_WEIGHTS[name] ?? 0) * milestoneProgress(pkg, name), 0), 0
   );
   const exMilestonePct = execMilestoneCount > 0 ? execProgressSum / execMilestoneCount : 0;
   const exFinancialPct = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
@@ -913,7 +913,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                           <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${Math.min(100, exMilestonePct)}%` }} />
                         </div>
                         <p className="text-[10px] text-slate-400 mt-1">
-                          Average across {EXECUTION_MILESTONES.length} milestones × {awardedPkgs.length} package{awardedPkgs.length !== 1 ? "s" : ""}
+                          Weighted completion across {awardedPkgs.length} package{awardedPkgs.length !== 1 ? "s" : ""}
                         </p>
                       </div>
                       <div>
@@ -1001,8 +1001,8 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                 ) : (
                   <div className="space-y-3">
                     {filteredExecution.map((pkg: PackageSummary, idx: number) => {
-                      const pkgSum      = EXECUTION_MILESTONES.reduce((s, n) => s + milestoneProgress(pkg, n), 0);
-                      const pkgAvg      = pkgSum / EXECUTION_MILESTONES.length;
+                      const pkgSum      = EXECUTION_MILESTONES.reduce((s, n) => s + (MILESTONE_WEIGHTS[n] ?? 0) * milestoneProgress(pkg, n), 0);
+                      const pkgAvg      = TOTAL_MILESTONE_WEIGHT > 0 ? pkgSum / TOTAL_MILESTONE_WEIGHT : 0;
                       const award       = pkg.awardValue ?? 0;
                       const finPct      = award > 0 ? Math.min(100, ((pkg.billedAmount || 0) / award) * 100) : 0;
                       const inflowPct   = award > 0 ? Math.min(100, ((pkg.totalInflowAmount  || 0) / award) * 100) : 0;

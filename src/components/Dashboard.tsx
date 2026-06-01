@@ -7,7 +7,7 @@ import {
   getCompanyInfo,
   CompanyInfo,
 } from "@/lib/store";
-import { formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
+import { formatCurrency, EXECUTION_MILESTONES, MILESTONE_WEIGHTS, TOTAL_MILESTONE_WEIGHT } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import HelpGuide from "@/components/HelpGuide";
@@ -401,9 +401,8 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
     inflow:   projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.totalInflowAmount  || 0), 0), 0),
     outflow:  projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.totalOutflowAmount || 0), 0), 0),
     milestonesProgressSum: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.milestonesProgressSum || 0), 0), 0),
-    // Denominator is always awardedPkgs × 6 — DB row count undercounts when
-    // packages have never been visited (missing rows default to 0%).
-    milestonesCount: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').length, 0) * EXECUTION_MILESTONES.length,
+    // Denominator is awardedPkgs × TOTAL_MILESTONE_WEIGHT so the division gives weighted %.
+    milestonesCount: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').length, 0) * TOTAL_MILESTONE_WEIGHT,
   };
 
   if (loading) {

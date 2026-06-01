@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { EXECUTION_MILESTONES } from '@/lib/types';
+import { EXECUTION_MILESTONES, MILESTONE_WEIGHTS, TOTAL_MILESTONE_WEIGHT } from '@/lib/types';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 
 // Helpers that turn raw Postgres rows into the camelCase shape the client expects.
@@ -288,7 +288,6 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
   let billedByPkg: Record<string, number> = {};
   let vendorCountByPkg: Record<string, number> = {};
   let milestonesCompletedByPkg: Record<string, number> = {};
-  let milestonesTotalByPkg: Record<string, number> = {};
   let milestonesByPkg: Record<string, any[]> = {};
   let inflowByPkg:  Record<string, number> = {};
   let outflowByPkg: Record<string, number> = {};
@@ -314,8 +313,8 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
       console.error('[assembleProjectSummary] milestone query failed:', milestoneRes.error.message);
     }
     for (const m of milestoneRes.data || []) {
-      milestonesTotalByPkg[m.package_id] = (milestonesTotalByPkg[m.package_id] || 0) + 1;
-      milestonesCompletedByPkg[m.package_id] = (milestonesCompletedByPkg[m.package_id] || 0) + Number(m.progress || 0);
+      const w = MILESTONE_WEIGHTS[m.milestone_name as keyof typeof MILESTONE_WEIGHTS] ?? 0;
+      milestonesCompletedByPkg[m.package_id] = (milestonesCompletedByPkg[m.package_id] || 0) + w * Number(m.progress || 0);
     }
     milestonesByPkg = groupBy(milestoneRes.data || [], 'package_id');
     for (const r of inflowRes.data || []) {
@@ -345,7 +344,7 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     billedAmount: billedByPkg[p.id] || 0,
     vendorCount: vendorCountByPkg[p.id] || 0,
     milestonesProgressSum: milestonesCompletedByPkg[p.id] || 0,
-    totalMilestones: milestonesTotalByPkg[p.id] || 0,
+    totalMilestones: TOTAL_MILESTONE_WEIGHT,
     totalInflowAmount:  inflowByPkg[p.id]  || 0,
     totalOutflowAmount: outflowByPkg[p.id] || 0,
     vendors: [],
@@ -476,7 +475,6 @@ export async function assembleBatchProjectSummaries(supabase: SupabaseClient, ro
   let vendorCountByPkg: Record<string, number> = {};
   let milestonesByPkg: Record<string, any[]> = {};
   let milestonesProgressSumByPkg: Record<string, number> = {};
-  let milestonesTotalByPkg: Record<string, number> = {};
   let inflowByPkg:  Record<string, number> = {};
   let outflowByPkg: Record<string, number> = {};
 
@@ -500,8 +498,8 @@ export async function assembleBatchProjectSummaries(supabase: SupabaseClient, ro
       vendorCountByPkg[v.package_id] = (vendorCountByPkg[v.package_id] || 0) + 1;
     }
     for (const m of milestoneRes.data || []) {
-      milestonesTotalByPkg[m.package_id] = (milestonesTotalByPkg[m.package_id] || 0) + 1;
-      milestonesProgressSumByPkg[m.package_id] = (milestonesProgressSumByPkg[m.package_id] || 0) + Number(m.progress || 0);
+      const w = MILESTONE_WEIGHTS[m.milestone_name as keyof typeof MILESTONE_WEIGHTS] ?? 0;
+      milestonesProgressSumByPkg[m.package_id] = (milestonesProgressSumByPkg[m.package_id] || 0) + w * Number(m.progress || 0);
     }
     milestonesByPkg = groupBy(milestoneRes.data || [], 'package_id');
     for (const r of inflowRes.data || []) {
@@ -536,7 +534,7 @@ export async function assembleBatchProjectSummaries(supabase: SupabaseClient, ro
       billedAmount: billedByPkg[p.id] || 0,
       vendorCount: vendorCountByPkg[p.id] || 0,
       milestonesProgressSum: milestonesProgressSumByPkg[p.id] || 0,
-      totalMilestones: milestonesTotalByPkg[p.id] || 0,
+      totalMilestones: TOTAL_MILESTONE_WEIGHT,
       totalInflowAmount:  inflowByPkg[p.id]  || 0,
       totalOutflowAmount: outflowByPkg[p.id] || 0,
       vendors: [], remarks: [], documents: [], auditTrail: [], invoices: [],

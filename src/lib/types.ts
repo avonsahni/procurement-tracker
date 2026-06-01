@@ -7,6 +7,20 @@ export const EXECUTION_MILESTONES = [
   "Handover",
 ] as const;
 
+export type ExecutionMilestoneName = typeof EXECUTION_MILESTONES[number];
+
+export const MILESTONE_WEIGHTS: Record<ExecutionMilestoneName, number> = {
+  "Mobilisation":             5,
+  "Preliminaries":            5,
+  "Procurement":             30,
+  "Installation":            40,
+  "Testing and Commissioning": 5,
+  "Handover":                 5,
+};
+
+/** Sum of all weights — used as the denominator for weighted completion %. */
+export const TOTAL_MILESTONE_WEIGHT = (Object.values(MILESTONE_WEIGHTS) as number[]).reduce((a, b) => a + b, 0);
+
 export interface MilestoneTask {
   id: string;
   milestoneName: string;
