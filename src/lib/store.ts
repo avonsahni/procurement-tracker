@@ -168,6 +168,36 @@ export async function deleteInvoice(pkgId: string, iid: string): Promise<void> {
   await api(`/api/packages/${pkgId}/invoices/${iid}`, { method: 'DELETE' });
 }
 
+// Cash Inflow
+export async function addCashInflow(
+  pkgId: string,
+  data: { onAccount: string; fromParty: string; dateReceived: string; amount: number; remarks?: string }
+): Promise<void> {
+  await api(`/api/packages/${pkgId}/cash-inflow`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+export async function deleteCashInflow(pkgId: string, eid: string): Promise<void> {
+  await api(`/api/packages/${pkgId}/cash-inflow/${eid}`, { method: 'DELETE' });
+}
+
+// Cash Outflow
+export async function addCashOutflow(
+  pkgId: string,
+  data: { toWhom: string; onAccountOf: string; datePaid: string; amount: number; remarks?: string }
+): Promise<void> {
+  await api(`/api/packages/${pkgId}/cash-outflow`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+export async function deleteCashOutflow(pkgId: string, eid: string): Promise<void> {
+  await api(`/api/packages/${pkgId}/cash-outflow/${eid}`, { method: 'DELETE' });
+}
+
 // Milestones
 export async function updateMilestoneProgress(pkgId: string, milestoneName: string, progress: number, user?: string): Promise<void> {
   await api(`/api/packages/${pkgId}/milestones`, {

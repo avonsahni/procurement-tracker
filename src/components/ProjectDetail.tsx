@@ -128,6 +128,10 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
   const awardedNotBill = Math.max(0, totalAwarded - totalBilled);
   const awardPct     = project.budget > 0 ? Math.min(100, (totalAwarded / project.budget) * 100) : 0;
 
+  const totalInflow  = awardedPkgs.reduce((s, p) => s + (p.totalInflowAmount  || 0), 0);
+  const totalOutflow = awardedPkgs.reduce((s, p) => s + (p.totalOutflowAmount || 0), 0);
+  const netCashflow  = totalInflow - totalOutflow;
+
   // Purchasing stats (from project summary aggregates)
   const summaryMilestoneSum   = awardedPkgs.reduce((s, p) => s + (p.milestonesProgressSum || 0), 0);
   const summaryMilestoneCount = awardedPkgs.length * EXECUTION_MILESTONES.length;
@@ -844,6 +848,45 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                 </>
               )}
             </div>
+
+            {/* ── Cashflow Dashboard card ──────────────────────────────────── */}
+            {awardedPkgs.length > 0 && (totalInflow > 0 || totalOutflow > 0) && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Cashflow Dashboard</p>
+                  <span className="text-xs text-slate-400">· across all awarded packages</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-center">
+                    <p className="text-[10px] text-emerald-600 mb-1">Total Inflow</p>
+                    <p className="text-lg font-mono font-bold text-emerald-700">{formatCurrency(totalInflow)}</p>
+                    <p className="text-[10px] text-emerald-500">payments received</p>
+                  </div>
+                  <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-center">
+                    <p className="text-[10px] text-red-600 mb-1">Total Outflow</p>
+                    <p className="text-lg font-mono font-bold text-red-700">{formatCurrency(totalOutflow)}</p>
+                    <p className="text-[10px] text-red-500">payments made</p>
+                  </div>
+                  <div className={`${netCashflow >= 0 ? "bg-blue-50 border-blue-100" : "bg-amber-50 border-amber-100"} border rounded-xl p-4 text-center`}>
+                    <p className={`text-[10px] mb-1 ${netCashflow >= 0 ? "text-blue-600" : "text-amber-600"}`}>Net Position</p>
+                    <p className={`text-lg font-mono font-bold ${netCashflow >= 0 ? "text-blue-700" : "text-amber-700"}`}>{formatCurrency(Math.abs(netCashflow))}</p>
+                    <p className={`text-[10px] ${netCashflow >= 0 ? "text-blue-500" : "text-amber-500"}`}>{netCashflow >= 0 ? "surplus" : "deficit"}</p>
+                  </div>
+                </div>
+                {totalInflow > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between text-xs mb-2">
+                      <span className="text-slate-500">Outflow as % of Inflow</span>
+                      <span className="font-mono font-semibold text-slate-700">{((totalOutflow / totalInflow) * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-red-500 transition-all duration-500" style={{ width: `${Math.min(100, (totalOutflow / totalInflow) * 100)}%` }} />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">{formatCurrency(totalOutflow)} paid out of {formatCurrency(totalInflow)} received</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ── Package execution cards ───────────────────────────────────── */}
             {awardedPkgs.length > 0 && (

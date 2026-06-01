@@ -16,6 +16,10 @@ import {
   deleteDocument,
   addInvoice,
   deleteInvoice,
+  addCashInflow,
+  deleteCashInflow,
+  addCashOutflow,
+  deleteCashOutflow,
   updateMilestoneProgress,
   addMilestoneTask,
   updateMilestoneTask,
@@ -34,6 +38,7 @@ import MilestoneTracker from "@/components/MilestoneTracker";
 import ProgressRemarksPanel from "@/components/ProgressRemarksPanel";
 import {
   ArrowLeft, Package, ChevronRight, Lock, Unlock, CheckCircle2, Clock, AlertTriangle, Activity, CalendarDays,
+  TrendingUp, TrendingDown, Plus, Trash2,
 } from "lucide-react";
 
 export default function PackageDetail({
@@ -65,6 +70,18 @@ export default function PackageDetail({
   const [awardVendor, setAwardVendor]     = useState("");
   const [awardError, setAwardError]       = useState<string | null>(null);
   const [awarding, setAwarding]           = useState(false);
+
+  // Cash Inflow state
+  const [showInflowForm, setShowInflowForm] = useState(false);
+  const [inflowForm, setInflowForm] = useState({ onAccount: '', fromParty: '', dateReceived: '', amount: '', remarks: '' });
+  const [inflowSaving, setInflowSaving] = useState(false);
+  const [inflowError, setInflowError]   = useState<string | null>(null);
+
+  // Cash Outflow state
+  const [showOutflowForm, setShowOutflowForm] = useState(false);
+  const [outflowForm, setOutflowForm] = useState({ toWhom: '', onAccountOf: '', datePaid: '', amount: '', remarks: '' });
+  const [outflowSaving, setOutflowSaving] = useState(false);
+  const [outflowError, setOutflowError]   = useState<string | null>(null);
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -171,6 +188,48 @@ export default function PackageDetail({
       setAwardError(e.message || "Award failed");
     } finally {
       setAwarding(false);
+    }
+  };
+
+  const handleAddInflow = async () => {
+    if (!inflowForm.onAccount || !inflowForm.fromParty || !inflowForm.dateReceived || !inflowForm.amount) return;
+    setInflowSaving(true); setInflowError(null);
+    try {
+      await addCashInflow(packageId, {
+        onAccount: inflowForm.onAccount,
+        fromParty: inflowForm.fromParty,
+        dateReceived: inflowForm.dateReceived,
+        amount: parseFloat(inflowForm.amount),
+        remarks: inflowForm.remarks || undefined,
+      });
+      setInflowForm({ onAccount: '', fromParty: '', dateReceived: '', amount: '', remarks: '' });
+      setShowInflowForm(false);
+      await reloadPackage();
+    } catch (e: any) {
+      setInflowError(e.message || 'Failed to save');
+    } finally {
+      setInflowSaving(false);
+    }
+  };
+
+  const handleAddOutflow = async () => {
+    if (!outflowForm.toWhom || !outflowForm.onAccountOf || !outflowForm.datePaid || !outflowForm.amount) return;
+    setOutflowSaving(true); setOutflowError(null);
+    try {
+      await addCashOutflow(packageId, {
+        toWhom: outflowForm.toWhom,
+        onAccountOf: outflowForm.onAccountOf,
+        datePaid: outflowForm.datePaid,
+        amount: parseFloat(outflowForm.amount),
+        remarks: outflowForm.remarks || undefined,
+      });
+      setOutflowForm({ toWhom: '', onAccountOf: '', datePaid: '', amount: '', remarks: '' });
+      setShowOutflowForm(false);
+      await reloadPackage();
+    } catch (e: any) {
+      setOutflowError(e.message || 'Failed to save');
+    } finally {
+      setOutflowSaving(false);
     }
   };
 
@@ -398,6 +457,235 @@ export default function PackageDetail({
               onAddInvoice={async (inv) => { await addInvoice(packageId, inv); await reloadPackage(); }}
               onDeleteInvoice={async (iid) => { await deleteInvoice(packageId, iid); await reloadPackage(); }}
             />
+
+            {/* ── CASH INFLOW ─────────────────────────────────────────────── */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  <h3 className="text-sm font-semibold text-slate-900">Cash Inflow</h3>
+                  <span className="text-xs text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">{(pkg.cashInflow || []).length}</span>
+                </div>
+                {effectiveEditMode && (
+                  <button
+                    onClick={() => setShowInflowForm(v => !v)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-800 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Record Receipt
+                  </button>
+                )}
+              </div>
+
+              {/* Summary bar */}
+              {(pkg.cashInflow || []).length > 0 && (() => {
+                const total = (pkg.cashInflow || []).reduce((s: number, r: any) => s + r.amount, 0);
+                const award = pkg.awardValue || 0;
+                const pct   = award > 0 ? Math.min(100, (total / award) * 100) : 0;
+                return (
+                  <div className="mb-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span className="text-emerald-700 font-medium">Total Received</span>
+                      <span className="font-mono font-semibold text-emerald-800">{formatCurrency(total, pkg.currency)}</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-emerald-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className="text-[10px] text-emerald-600 mt-1">{pct.toFixed(1)}% of award value</p>
+                  </div>
+                );
+              })()}
+
+              {/* Form */}
+              {showInflowForm && (
+                <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">On Account Of</label>
+                      <input value={inflowForm.onAccount} onChange={e => setInflowForm(f => ({ ...f, onAccount: e.target.value }))}
+                        placeholder="e.g. Milestone 1 payment"
+                        className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">From Party</label>
+                      <input value={inflowForm.fromParty} onChange={e => setInflowForm(f => ({ ...f, fromParty: e.target.value }))}
+                        placeholder="e.g. Client Name"
+                        className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Date Received</label>
+                      <input type="date" value={inflowForm.dateReceived} onChange={e => setInflowForm(f => ({ ...f, dateReceived: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Amount ({pkg.currency})</label>
+                      <input type="number" min="0" value={inflowForm.amount} onChange={e => setInflowForm(f => ({ ...f, amount: e.target.value }))}
+                        placeholder="0"
+                        className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Remarks (optional)</label>
+                    <input value={inflowForm.remarks} onChange={e => setInflowForm(f => ({ ...f, remarks: e.target.value }))}
+                      placeholder="Any notes…"
+                      className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white" />
+                  </div>
+                  {inflowError && <p className="text-xs text-red-600">{inflowError}</p>}
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setShowInflowForm(false); setInflowError(null); }}
+                      className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">Cancel</button>
+                    <button onClick={handleAddInflow} disabled={inflowSaving}
+                      className="px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition disabled:opacity-50">
+                      {inflowSaving ? 'Saving…' : 'Save Receipt'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* List */}
+              {(pkg.cashInflow || []).length === 0 && !showInflowForm ? (
+                <p className="text-xs text-slate-400 text-center py-4">No receipts recorded yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {(pkg.cashInflow || []).map((r: any) => (
+                    <div key={r.id} className="flex items-start gap-3 px-4 py-3 bg-emerald-50/60 border border-emerald-100 rounded-xl">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-emerald-800">{formatCurrency(r.amount, pkg.currency)}</span>
+                          <span className="text-[10px] text-slate-400">·</span>
+                          <span className="text-xs text-slate-600">{r.onAccount}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 mt-0.5 text-[10px] text-slate-500">
+                          <span>From: <span className="font-medium text-slate-700">{r.fromParty}</span></span>
+                          <span>{new Date(r.dateReceived).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}</span>
+                          {r.remarks && <span className="text-slate-400 italic">&ldquo;{r.remarks}&rdquo;</span>}
+                        </div>
+                      </div>
+                      {effectiveEditMode && (
+                        <button onClick={async () => { await deleteCashInflow(packageId, r.id); await reloadPackage(); }}
+                          className="p-1 text-slate-300 hover:text-red-500 transition flex-shrink-0">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── CASH OUTFLOW ─────────────────────────────────────────────── */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingDown className="w-4 h-4 text-red-500" />
+                  <h3 className="text-sm font-semibold text-slate-900">Cash Outflow</h3>
+                  <span className="text-xs text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">{(pkg.cashOutflow || []).length}</span>
+                </div>
+                {effectiveEditMode && (
+                  <button
+                    onClick={() => setShowOutflowForm(v => !v)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Record Payment
+                  </button>
+                )}
+              </div>
+
+              {/* Summary bar */}
+              {(pkg.cashOutflow || []).length > 0 && (() => {
+                const total = (pkg.cashOutflow || []).reduce((s: number, r: any) => s + r.amount, 0);
+                const award = pkg.awardValue || 0;
+                const pct   = award > 0 ? Math.min(100, (total / award) * 100) : 0;
+                return (
+                  <div className="mb-4 p-3 bg-red-50 rounded-xl border border-red-100">
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span className="text-red-700 font-medium">Total Paid Out</span>
+                      <span className="font-mono font-semibold text-red-800">{formatCurrency(total, pkg.currency)}</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-red-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-red-500 transition-all duration-500" style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className="text-[10px] text-red-600 mt-1">{pct.toFixed(1)}% of award value</p>
+                  </div>
+                );
+              })()}
+
+              {/* Form */}
+              {showOutflowForm && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">To Whom</label>
+                      <input value={outflowForm.toWhom} onChange={e => setOutflowForm(f => ({ ...f, toWhom: e.target.value }))}
+                        placeholder="e.g. Vendor / Contractor"
+                        className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">On Account Of</label>
+                      <input value={outflowForm.onAccountOf} onChange={e => setOutflowForm(f => ({ ...f, onAccountOf: e.target.value }))}
+                        placeholder="e.g. Mobilisation advance"
+                        className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Date Paid</label>
+                      <input type="date" value={outflowForm.datePaid} onChange={e => setOutflowForm(f => ({ ...f, datePaid: e.target.value }))}
+                        className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Amount ({pkg.currency})</label>
+                      <input type="number" min="0" value={outflowForm.amount} onChange={e => setOutflowForm(f => ({ ...f, amount: e.target.value }))}
+                        placeholder="0"
+                        className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 bg-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Remarks (optional)</label>
+                    <input value={outflowForm.remarks} onChange={e => setOutflowForm(f => ({ ...f, remarks: e.target.value }))}
+                      placeholder="Any notes…"
+                      className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 bg-white" />
+                  </div>
+                  {outflowError && <p className="text-xs text-red-600">{outflowError}</p>}
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setShowOutflowForm(false); setOutflowError(null); }}
+                      className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">Cancel</button>
+                    <button onClick={handleAddOutflow} disabled={outflowSaving}
+                      className="px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-50">
+                      {outflowSaving ? 'Saving…' : 'Save Payment'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* List */}
+              {(pkg.cashOutflow || []).length === 0 && !showOutflowForm ? (
+                <p className="text-xs text-slate-400 text-center py-4">No payments recorded yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {(pkg.cashOutflow || []).map((r: any) => (
+                    <div key={r.id} className="flex items-start gap-3 px-4 py-3 bg-red-50/60 border border-red-100 rounded-xl">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-red-800">{formatCurrency(r.amount, pkg.currency)}</span>
+                          <span className="text-[10px] text-slate-400">·</span>
+                          <span className="text-xs text-slate-600">{r.onAccountOf}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 mt-0.5 text-[10px] text-slate-500">
+                          <span>To: <span className="font-medium text-slate-700">{r.toWhom}</span></span>
+                          <span>{new Date(r.datePaid).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}</span>
+                          {r.remarks && <span className="text-slate-400 italic">&ldquo;{r.remarks}&rdquo;</span>}
+                        </div>
+                      </div>
+                      {effectiveEditMode && (
+                        <button onClick={async () => { await deleteCashOutflow(packageId, r.id); await reloadPackage(); }}
+                          className="p-1 text-slate-300 hover:text-red-500 transition flex-shrink-0">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {milestoneError && (
               <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-xs text-red-700 flex items-center justify-between">
                 <span>Milestone save failed: {milestoneError}</span>

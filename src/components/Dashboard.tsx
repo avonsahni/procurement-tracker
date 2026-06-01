@@ -246,6 +246,8 @@ function ProjectCard({ project: p, onOpen }: ProjectCardProps) {
   const milestonesProgressSum = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
   const milestonesCount = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.totalMilestones || 0), 0);
   const taskPct = milestonesCount > 0 ? milestonesProgressSum / milestonesCount : 0;
+  const totalInflow  = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.totalInflowAmount  || 0), 0);
+  const totalOutflow = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.totalOutflowAmount || 0), 0);
 
   return (
     <div
@@ -308,6 +310,18 @@ function ProjectCard({ project: p, onOpen }: ProjectCardProps) {
               <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${taskPct}%` }} />
             </div>
           </div>
+          {(totalInflow > 0 || totalOutflow > 0) && (
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <p className="text-xs text-slate-400">Cash Inflow / Outflow</p>
+                <p className="text-xs font-mono text-slate-500">{totalInflow > 0 ? ((totalOutflow / totalInflow) * 100).toFixed(0) : 0}% spent</p>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden relative">
+                <div className="h-full rounded-full bg-emerald-400 absolute left-0" style={{ width: `${Math.min(100, totalInflow / (Math.max(totalInflow, totalOutflow) || 1) * 100)}%` }} />
+                <div className="h-full rounded-full bg-red-400 opacity-70" style={{ width: `${Math.min(100, totalOutflow / (Math.max(totalInflow, totalOutflow) || 1) * 100)}%` }} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

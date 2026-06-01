@@ -290,15 +290,19 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
   let milestonesCompletedByPkg: Record<string, number> = {};
   let milestonesTotalByPkg: Record<string, number> = {};
   let milestonesByPkg: Record<string, any[]> = {};
+  let inflowByPkg:  Record<string, number> = {};
+  let outflowByPkg: Record<string, number> = {};
   if (pkgs.length > 0) {
     const ids = pkgs.map((p: any) => p.id);
-    const [invRes, vendorRes, milestoneRes] = await Promise.all([
+    const [invRes, vendorRes, milestoneRes, inflowRes, outflowRes] = await Promise.all([
       supabase.from('invoices').select('package_id, amount').in('package_id', ids),
       supabase.from('vendors').select('package_id').in('package_id', ids),
       supabase.from('package_milestones')
         .select('id, package_id, milestone_name, display_order, progress, completed_at, completed_by')
         .in('package_id', ids)
         .order('display_order'),
+      supabase.from('cash_inflow').select('package_id, amount').in('package_id', ids),
+      supabase.from('cash_outflow').select('package_id, amount').in('package_id', ids),
     ]);
     for (const inv of invRes.data || []) {
       billedByPkg[inv.package_id] = (billedByPkg[inv.package_id] || 0) + Number(inv.amount);
@@ -314,6 +318,12 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
       milestonesCompletedByPkg[m.package_id] = (milestonesCompletedByPkg[m.package_id] || 0) + Number(m.progress || 0);
     }
     milestonesByPkg = groupBy(milestoneRes.data || [], 'package_id');
+    for (const r of inflowRes.data || []) {
+      inflowByPkg[r.package_id]  = (inflowByPkg[r.package_id]  || 0) + Number(r.amount);
+    }
+    for (const r of outflowRes.data || []) {
+      outflowByPkg[r.package_id] = (outflowByPkg[r.package_id] || 0) + Number(r.amount);
+    }
   }
 
   const packages = pkgs.map((p: any) => ({
@@ -336,6 +346,8 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     vendorCount: vendorCountByPkg[p.id] || 0,
     milestonesProgressSum: milestonesCompletedByPkg[p.id] || 0,
     totalMilestones: milestonesTotalByPkg[p.id] || 0,
+    totalInflowAmount:  inflowByPkg[p.id]  || 0,
+    totalOutflowAmount: outflowByPkg[p.id] || 0,
     vendors: [],
     remarks: [],
     documents: [],
@@ -392,12 +404,14 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
   let invoicesByPkg: Record<string, any[]> = {};
   let milestonesByPkg: Record<string, any[]> = {};
   let tasksByPkg: Record<string, any[]> = {};
+  let cashInflowByPkg: Record<string, any[]> = {};
+  let cashOutflowByPkg: Record<string, any[]> = {};
 
   if (pkgs.length > 0) {
     const ids = pkgs.map((p: any) => p.id);
 
     const admin = createAdminSupabase();
-    const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes, tasksRes] = await Promise.all([
+    const [vendorsRes, remarksRes, docsRes, auditRes, invoicesRes, milestonesRes, tasksRes, cashInflowRes, cashOutflowRes] = await Promise.all([
       supabase.from('vendors').select('id, package_id, name, quoted_amount, revised_amount').in('package_id', ids),
       supabase.from('remarks').select('id, package_id, username, text, timestamp, user_id, image_urls').in('package_id', ids).order('timestamp'),
       supabase.from('documents').select('id, package_id, name, size, type, username, uploaded_at, storage_path').in('package_id', ids).order('uploaded_at'),
@@ -405,19 +419,23 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
       supabase.from('invoices').select('id, package_id, amount, invoice_number, invoice_date, notes, username, created_at').in('package_id', ids).order('invoice_date'),
       supabase.from('package_milestones').select('id, package_id, milestone_name, display_order, progress, completed_at, completed_by').in('package_id', ids).order('display_order'),
       admin.from('milestone_tasks').select('id, package_id, milestone_name, name, description, progress, start_date, end_date, sort_order, created_by, created_at').in('package_id', ids).order('sort_order').order('created_at'),
+      supabase.from('cash_inflow').select('id, package_id, on_account, from_party, date_received, amount, remarks, created_by, created_at').in('package_id', ids).order('date_received'),
+      supabase.from('cash_outflow').select('id, package_id, to_whom, on_account_of, date_paid, amount, remarks, created_by, created_at').in('package_id', ids).order('date_paid'),
     ]);
 
-    vendorsByPkg    = groupBy(vendorsRes.data    || [], 'package_id');
-    remarksByPkg    = groupBy(remarksRes.data    || [], 'package_id');
-    docsByPkg       = groupBy(docsRes.data       || [], 'package_id');
-    auditByPkg      = groupBy(auditRes.data      || [], 'package_id');
-    invoicesByPkg   = groupBy(invoicesRes.data   || [], 'package_id');
-    milestonesByPkg = groupBy(milestonesRes.data || [], 'package_id');
-    tasksByPkg      = groupBy(tasksRes.data      || [], 'package_id');
+    vendorsByPkg     = groupBy(vendorsRes.data      || [], 'package_id');
+    remarksByPkg     = groupBy(remarksRes.data      || [], 'package_id');
+    docsByPkg        = groupBy(docsRes.data         || [], 'package_id');
+    auditByPkg       = groupBy(auditRes.data        || [], 'package_id');
+    invoicesByPkg    = groupBy(invoicesRes.data     || [], 'package_id');
+    milestonesByPkg  = groupBy(milestonesRes.data   || [], 'package_id');
+    tasksByPkg       = groupBy(tasksRes.data        || [], 'package_id');
+    cashInflowByPkg  = groupBy(cashInflowRes.data   || [], 'package_id');
+    cashOutflowByPkg = groupBy(cashOutflowRes.data  || [], 'package_id');
   }
 
   const packages = pkgs.map((p: any) =>
-    mapPackageRow(p, vendorsByPkg, remarksByPkg, docsByPkg, auditByPkg, invoicesByPkg, milestonesByPkg, tasksByPkg)
+    mapPackageRow(p, vendorsByPkg, remarksByPkg, docsByPkg, auditByPkg, invoicesByPkg, milestonesByPkg, tasksByPkg, cashInflowByPkg, cashOutflowByPkg)
   );
 
   return {
@@ -459,16 +477,20 @@ export async function assembleBatchProjectSummaries(supabase: SupabaseClient, ro
   let milestonesByPkg: Record<string, any[]> = {};
   let milestonesProgressSumByPkg: Record<string, number> = {};
   let milestonesTotalByPkg: Record<string, number> = {};
+  let inflowByPkg:  Record<string, number> = {};
+  let outflowByPkg: Record<string, number> = {};
 
   if (pkgIds.length > 0) {
-    // 2–4. Invoices, vendors, milestones — all in parallel
-    const [invRes, vendorRes, milestoneRes] = await Promise.all([
+    // 2–6. Invoices, vendors, milestones, cash_inflow, cash_outflow — all in parallel
+    const [invRes, vendorRes, milestoneRes, inflowRes, outflowRes] = await Promise.all([
       supabase.from('invoices').select('package_id, amount').in('package_id', pkgIds),
       supabase.from('vendors').select('package_id').in('package_id', pkgIds),
       supabase.from('package_milestones')
         .select('id, package_id, milestone_name, display_order, progress, completed_at, completed_by')
         .in('package_id', pkgIds)
         .order('display_order'),
+      supabase.from('cash_inflow').select('package_id, amount').in('package_id', pkgIds),
+      supabase.from('cash_outflow').select('package_id, amount').in('package_id', pkgIds),
     ]);
 
     for (const inv of invRes.data || []) {
@@ -482,6 +504,12 @@ export async function assembleBatchProjectSummaries(supabase: SupabaseClient, ro
       milestonesProgressSumByPkg[m.package_id] = (milestonesProgressSumByPkg[m.package_id] || 0) + Number(m.progress || 0);
     }
     milestonesByPkg = groupBy(milestoneRes.data || [], 'package_id');
+    for (const r of inflowRes.data || []) {
+      inflowByPkg[r.package_id]  = (inflowByPkg[r.package_id]  || 0) + Number(r.amount);
+    }
+    for (const r of outflowRes.data || []) {
+      outflowByPkg[r.package_id] = (outflowByPkg[r.package_id] || 0) + Number(r.amount);
+    }
   }
 
   const pkgsByProject = groupBy(pkgs, 'project_id');
@@ -509,6 +537,8 @@ export async function assembleBatchProjectSummaries(supabase: SupabaseClient, ro
       vendorCount: vendorCountByPkg[p.id] || 0,
       milestonesProgressSum: milestonesProgressSumByPkg[p.id] || 0,
       totalMilestones: milestonesTotalByPkg[p.id] || 0,
+      totalInflowAmount:  inflowByPkg[p.id]  || 0,
+      totalOutflowAmount: outflowByPkg[p.id] || 0,
       vendors: [], remarks: [], documents: [], auditTrail: [], invoices: [],
       milestones: (milestonesByPkg[p.id] || []).map((m: any) => ({
         id: m.id,
