@@ -195,13 +195,15 @@ export default function PackageDetail({
 
   const handleAddInflow = async () => {
     if (!inflowForm.onAccount || !inflowForm.fromParty || !inflowForm.dateReceived || !inflowForm.amount) return;
+    const inflowAmt = parseFloat(inflowForm.amount);
+    if (isNaN(inflowAmt) || inflowAmt <= 0) { setInflowError('Amount must be a positive number.'); return; }
     setInflowSaving(true); setInflowError(null);
     try {
       const record = await addCashInflow(packageId, {
         onAccount: inflowForm.onAccount,
         fromParty: inflowForm.fromParty,
         dateReceived: inflowForm.dateReceived,
-        amount: parseFloat(inflowForm.amount),
+        amount: inflowAmt,
         remarks: inflowForm.remarks || undefined,
       });
       // Instant optimistic update — no full reload needed
@@ -221,13 +223,15 @@ export default function PackageDetail({
 
   const handleAddOutflow = async () => {
     if (!outflowForm.toWhom || !outflowForm.onAccountOf || !outflowForm.datePaid || !outflowForm.amount) return;
+    const outflowAmt = parseFloat(outflowForm.amount);
+    if (isNaN(outflowAmt) || outflowAmt <= 0) { setOutflowError('Amount must be a positive number.'); return; }
     setOutflowSaving(true); setOutflowError(null);
     try {
       const record = await addCashOutflow(packageId, {
         toWhom: outflowForm.toWhom,
         onAccountOf: outflowForm.onAccountOf,
         datePaid: outflowForm.datePaid,
-        amount: parseFloat(outflowForm.amount),
+        amount: outflowAmt,
         remarks: outflowForm.remarks || undefined,
       });
       // Instant optimistic update — no full reload needed
@@ -545,7 +549,7 @@ export default function PackageDetail({
                     </div>
                     <div>
                       <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Amount ({pkg.currency})</label>
-                      <input type="number" min="0" value={inflowForm.amount} onChange={e => setInflowForm(f => ({ ...f, amount: e.target.value }))}
+                      <input type="number" min="0.01" step="any" value={inflowForm.amount} onChange={e => setInflowForm(f => ({ ...f, amount: e.target.value }))}
                         placeholder="0"
                         className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white" />
                     </div>
@@ -688,7 +692,7 @@ export default function PackageDetail({
                     </div>
                     <div>
                       <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Amount ({pkg.currency})</label>
-                      <input type="number" min="0" value={outflowForm.amount} onChange={e => setOutflowForm(f => ({ ...f, amount: e.target.value }))}
+                      <input type="number" min="0.01" step="any" value={outflowForm.amount} onChange={e => setOutflowForm(f => ({ ...f, amount: e.target.value }))}
                         placeholder="0"
                         className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 bg-white" />
                     </div>
