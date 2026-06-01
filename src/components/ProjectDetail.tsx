@@ -916,8 +916,10 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                     {filteredExecution.map((pkg: PackageSummary, idx: number) => {
                       const pkgSum      = EXECUTION_MILESTONES.reduce((s, n) => s + milestoneProgress(pkg, n), 0);
                       const pkgAvg      = pkgSum / EXECUTION_MILESTONES.length;
-                      const finPct      = (pkg.awardValue ?? 0) > 0
-                        ? Math.min(100, ((pkg.billedAmount || 0) / pkg.awardValue!) * 100) : 0;
+                      const award       = pkg.awardValue ?? 0;
+                      const finPct      = award > 0 ? Math.min(100, ((pkg.billedAmount || 0) / award) * 100) : 0;
+                      const inflowPct   = award > 0 ? Math.min(100, ((pkg.totalInflowAmount  || 0) / award) * 100) : 0;
+                      const outflowPct  = award > 0 ? Math.min(100, ((pkg.totalOutflowAmount || 0) / award) * 100) : 0;
                       const doneCount   = EXECUTION_MILESTONES.filter(n => milestoneProgress(pkg, n) === 100).length;
 
                       return (
@@ -963,8 +965,9 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                             </div>
                           </div>
 
-                          {/* Roll-up summary — 2 bars only */}
+                          {/* Roll-up summary bars */}
                           <div className="px-5 py-4 space-y-3">
+                            {/* Milestone Progress */}
                             <div className="flex items-center gap-3">
                               <span className="text-xs text-slate-500 w-32 flex-shrink-0">
                                 Milestone Progress
@@ -980,17 +983,41 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                                 pkgAvg >= 100 ? "text-emerald-600" : pkgAvg > 0 ? "text-blue-600" : "text-slate-400"
                               }`}>{pkgAvg.toFixed(1)}%</span>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-slate-500 w-32 flex-shrink-0">Financial Progress</span>
-                              <div className="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all duration-300 ${finPct >= 100 ? "bg-emerald-500" : finPct > 0 ? "bg-violet-500" : "bg-slate-200"}`}
-                                  style={{ width: `${Math.min(100, finPct)}%` }}
-                                />
+
+                            {/* Financial Progress — grouped label + 3 indented bars */}
+                            <div>
+                              <p className="text-xs font-medium text-slate-500 mb-2 flex items-center gap-1.5">
+                                <Receipt className="w-3 h-3 text-violet-400" />Financial Progress
+                              </p>
+                              <div className="pl-4 space-y-2 border-l-2 border-slate-100">
+                                {/* Billing */}
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] text-slate-400 w-24 flex-shrink-0">Billing</span>
+                                  <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-300 ${finPct >= 100 ? "bg-emerald-500" : finPct > 0 ? "bg-violet-500" : "bg-slate-200"}`}
+                                      style={{ width: `${Math.min(100, finPct)}%` }} />
+                                  </div>
+                                  <span className={`text-[10px] font-mono font-semibold w-10 text-right flex-shrink-0 ${finPct >= 100 ? "text-emerald-600" : finPct > 0 ? "text-violet-600" : "text-slate-400"}`}>{finPct.toFixed(1)}%</span>
+                                </div>
+                                {/* Cash Inflow */}
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] text-slate-400 w-24 flex-shrink-0">Cash Inflow</span>
+                                  <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-300 ${inflowPct >= 100 ? "bg-emerald-500" : inflowPct > 0 ? "bg-emerald-400" : "bg-slate-200"}`}
+                                      style={{ width: `${Math.min(100, inflowPct)}%` }} />
+                                  </div>
+                                  <span className={`text-[10px] font-mono font-semibold w-10 text-right flex-shrink-0 ${inflowPct > 0 ? "text-emerald-600" : "text-slate-400"}`}>{inflowPct.toFixed(1)}%</span>
+                                </div>
+                                {/* Cash Outflow */}
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] text-slate-400 w-24 flex-shrink-0">Cash Outflow</span>
+                                  <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-300 ${outflowPct >= 100 ? "bg-rose-600" : outflowPct > 0 ? "bg-red-400" : "bg-slate-200"}`}
+                                      style={{ width: `${Math.min(100, outflowPct)}%` }} />
+                                  </div>
+                                  <span className={`text-[10px] font-mono font-semibold w-10 text-right flex-shrink-0 ${outflowPct > 0 ? "text-red-600" : "text-slate-400"}`}>{outflowPct.toFixed(1)}%</span>
+                                </div>
                               </div>
-                              <span className={`text-xs font-mono font-semibold w-10 text-right flex-shrink-0 ${
-                                finPct >= 100 ? "text-emerald-600" : finPct > 0 ? "text-violet-600" : "text-slate-400"
-                              }`}>{finPct.toFixed(1)}%</span>
                             </div>
                           </div>
                         </div>

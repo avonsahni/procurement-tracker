@@ -290,17 +290,42 @@ function ProjectCard({ project: p, onOpen }: ProjectCardProps) {
           </div>
         </div>
 
-        {/* Dual progress bars */}
+        {/* Progress bars */}
         <div className="space-y-2.5">
+          {/* Financial Progress — grouped with 3 indented sub-bars */}
           <div>
-            <div className="flex justify-between items-center mb-1">
-              <p className="text-xs text-slate-400">Financial Progress</p>
-              <p className="text-xs font-mono text-slate-500">{financialPct.toFixed(0)}%</p>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full rounded-full bg-violet-500 transition-all duration-500" style={{ width: `${financialPct}%` }} />
+            <p className="text-xs text-slate-400 mb-1.5">Financial Progress</p>
+            <div className="pl-3 space-y-1.5 border-l-2 border-slate-100">
+              <div>
+                <div className="flex justify-between items-center mb-0.5">
+                  <p className="text-[10px] text-slate-400">Billing</p>
+                  <p className="text-[10px] font-mono text-slate-400">{financialPct.toFixed(0)}%</p>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-violet-500 transition-all duration-500" style={{ width: `${financialPct}%` }} />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-0.5">
+                  <p className="text-[10px] text-slate-400">Cash Inflow</p>
+                  <p className="text-[10px] font-mono text-slate-400">{awarded > 0 ? ((totalInflow / awarded) * 100).toFixed(0) : 0}%</p>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-emerald-400 transition-all duration-500" style={{ width: `${awarded > 0 ? Math.min(100, (totalInflow / awarded) * 100) : 0}%` }} />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-0.5">
+                  <p className="text-[10px] text-slate-400">Cash Outflow</p>
+                  <p className="text-[10px] font-mono text-slate-400">{awarded > 0 ? ((totalOutflow / awarded) * 100).toFixed(0) : 0}%</p>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-red-400 transition-all duration-500" style={{ width: `${awarded > 0 ? Math.min(100, (totalOutflow / awarded) * 100) : 0}%` }} />
+                </div>
+              </div>
             </div>
           </div>
+          {/* Milestone Progress */}
           <div>
             <div className="flex justify-between items-center mb-1">
               <p className="text-xs text-slate-400">Milestone Progress</p>
@@ -310,18 +335,6 @@ function ProjectCard({ project: p, onOpen }: ProjectCardProps) {
               <div className="h-full rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${taskPct}%` }} />
             </div>
           </div>
-          {(totalInflow > 0 || totalOutflow > 0) && (
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <p className="text-xs text-slate-400">Cash Inflow / Outflow</p>
-                <p className="text-xs font-mono text-slate-500">{totalInflow > 0 ? ((totalOutflow / totalInflow) * 100).toFixed(0) : 0}% spent</p>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden relative">
-                <div className="h-full rounded-full bg-emerald-400 absolute left-0" style={{ width: `${Math.min(100, totalInflow / (Math.max(totalInflow, totalOutflow) || 1) * 100)}%` }} />
-                <div className="h-full rounded-full bg-red-400 opacity-70" style={{ width: `${Math.min(100, totalOutflow / (Math.max(totalInflow, totalOutflow) || 1) * 100)}%` }} />
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
