@@ -240,7 +240,7 @@ interface ProjectCardProps {
 }
 function ProjectCard({ project: p, onOpen }: ProjectCardProps) {
   const billed = p.packages.reduce((s: any, pk: any) => s + (pk.billedAmount || 0), 0);
-  const awarded = p.packages.reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
+  const awarded = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.awardValue || 0), 0);
   const financialPct = awarded > 0 ? Math.min(100, (billed / awarded) * 100) : 0;
   const awardedCount = p.packages.filter((pk: any) => pk.currentStage === "Award").length;
   const milestonesProgressSum = p.packages.filter((pk: any) => pk.currentStage === "Award").reduce((s: any, pk: any) => s + (pk.milestonesProgressSum || 0), 0);
@@ -369,7 +369,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
     total: projects.length,
     packages: projects.reduce((s, p) => s + p.packages.length, 0),
     budget: projects.reduce((s, p) => s + p.budget, 0),
-    awarded: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.awardValue || 0), 0), 0),
+    awarded: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.awardValue || 0), 0), 0),
     billed: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.billedAmount || 0), 0), 0),
     milestonesProgressSum: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.milestonesProgressSum || 0), 0), 0),
     // Denominator is always awardedPkgs × 6 — DB row count undercounts when

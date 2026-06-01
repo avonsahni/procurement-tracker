@@ -130,7 +130,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
 
   // Purchasing stats (from project summary aggregates)
   const summaryMilestoneSum   = awardedPkgs.reduce((s, p) => s + (p.milestonesProgressSum || 0), 0);
-  const summaryMilestoneCount = awardedPkgs.reduce((s, p) => s + (p.totalMilestones || 0), 0);
+  const summaryMilestoneCount = awardedPkgs.length * EXECUTION_MILESTONES.length;
   const summaryMilestonePct   = summaryMilestoneCount > 0 ? summaryMilestoneSum / summaryMilestoneCount : 0;
   const summaryFinancialPct   = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
 
