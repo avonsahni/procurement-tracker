@@ -144,6 +144,18 @@ export interface Project {
   budget: number;
   status: "Active" | "On Hold" | "Completed";
   isSample?: boolean;
+  // extended project details
+  address?: string;
+  projectType?: string;
+  builtUpArea?: string;
+  estimatedStartDate?: string;
+  estimatedDurationMonths?: number;
+  tenderedCost?: number;
+  projectManager?: string;
+  clientContactName?: string;
+  clientContactEmail?: string;
+  clientContactPhone?: string;
+  projectRemarks?: string;
   packages: Package[];
   startDate?: string;
   endDate?: string;
@@ -190,6 +202,18 @@ export interface ProjectSummary {
   budget: number;
   status: 'Active' | 'On Hold' | 'Completed';
   isSample?: boolean;
+  // extended project details
+  address?: string;
+  projectType?: string;
+  builtUpArea?: string;
+  estimatedStartDate?: string;
+  estimatedDurationMonths?: number;
+  tenderedCost?: number;
+  projectManager?: string;
+  clientContactName?: string;
+  clientContactEmail?: string;
+  clientContactPhone?: string;
+  projectRemarks?: string;
   packages: PackageSummary[];
   startDate?: string;
   endDate?: string;

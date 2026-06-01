@@ -125,6 +125,23 @@ function mapPackageRow(
   };
 }
 
+/** Extracts the extended project detail fields from a raw DB row. */
+function projectDetailFields(row: any) {
+  return {
+    address:                 row.address                   || undefined,
+    projectType:             row.project_type              || undefined,
+    builtUpArea:             row.built_up_area             || undefined,
+    estimatedStartDate:      row.estimated_start_date      || undefined,
+    estimatedDurationMonths: row.estimated_duration_months ?? undefined,
+    tenderedCost:            row.tendered_cost             != null ? Number(row.tendered_cost) : undefined,
+    projectManager:          row.project_manager           || undefined,
+    clientContactName:       row.client_contact_name       || undefined,
+    clientContactEmail:      row.client_contact_email      || undefined,
+    clientContactPhone:      row.client_contact_phone      || undefined,
+    projectRemarks:          row.project_remarks           || undefined,
+  };
+}
+
 /** Groups an array of rows by a string key field into a Record<key, row[]>. */
 function groupBy(rows: any[], key: string): Record<string, any[]> {
   const out: Record<string, any[]> = {};
@@ -318,6 +335,7 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     budget: Number(row.budget) || 0,
     status: row.status,
     isSample: row.is_sample ?? false,
+    ...projectDetailFields(row),
     startDate: projStarts.length ? projStarts[0] : undefined,
     endDate:   projEnds.length ? projEnds[projEnds.length - 1] : undefined,
     packages,
@@ -383,6 +401,7 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
     budget: Number(row.budget) || 0,
     status: row.status,
     isSample: row.is_sample ?? false,
+    ...projectDetailFields(row),
     packages,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -485,6 +504,7 @@ export async function assembleBatchProjectSummaries(supabase: SupabaseClient, ro
       budget: Number(row.budget) || 0,
       status: row.status,
       isSample: row.is_sample ?? false,
+      ...projectDetailFields(row),
       startDate: projStarts.length ? projStarts[0] : undefined,
       endDate:   projEnds.length ? projEnds[projEnds.length - 1] : undefined,
       packages,

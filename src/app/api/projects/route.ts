@@ -28,12 +28,30 @@ export const POST = withRoute(async (req: NextRequest) => {
   if (auth instanceof NextResponse) return auth;
   const parsed = await parseBody(req, ProjectCreateSchema);
   if (!parsed.ok) return parsed.response;
-  const { name, client, budget } = parsed.data;
+  const {
+    name, client, budget,
+    address, projectType, builtUpArea, estimatedStartDate, estimatedDurationMonths,
+    tenderedCost, projectManager, clientContactName, clientContactEmail,
+    clientContactPhone, projectRemarks,
+  } = parsed.data;
 
   const supabase = await createServerSupabase();
   const { data: row, error } = await supabase
     .from('projects')
-    .insert({ owner_id: auth.id, org_id: auth.orgId, name, client, budget, status: 'Active' })
+    .insert({
+      owner_id: auth.id, org_id: auth.orgId, name, client, budget, status: 'Active',
+      address:                  address                  || '',
+      project_type:             projectType              || '',
+      built_up_area:            builtUpArea              || '',
+      estimated_start_date:     estimatedStartDate       || null,
+      estimated_duration_months: estimatedDurationMonths ?? null,
+      tendered_cost:            tenderedCost             ?? null,
+      project_manager:          projectManager           || '',
+      client_contact_name:      clientContactName        || '',
+      client_contact_email:     clientContactEmail       || '',
+      client_contact_phone:     clientContactPhone       || '',
+      project_remarks:          projectRemarks           || '',
+    })
     .select()
     .single();
 
@@ -42,7 +60,7 @@ export const POST = withRoute(async (req: NextRequest) => {
   const adminClient = createAdminSupabase();
   await addOrgAuditEntry(adminClient, auth.orgId, auth.id, auth.fullName,
     'Project Created', 'project', name,
-    { client, budget });
+    { client, budget, projectType });
 
   return NextResponse.json(await assembleProjectSummary(supabase, row), { status: 201 });
 }, { route: '/api/projects' });

@@ -42,18 +42,34 @@ export const SignupSchema = z.object({
   seedData:     z.boolean().optional().default(false),
 });
 
+const projectDetailFields = {
+  address:                  z.string().trim().max(500).optional().default(''),
+  projectType:              z.string().trim().max(100).optional().default(''),
+  builtUpArea:              z.string().trim().max(200).optional().default(''),
+  estimatedStartDate:       z.string().nullable().optional(),
+  estimatedDurationMonths:  z.number().int().min(0).nullable().optional(),
+  tenderedCost:             nonNegNumber('tenderedCost').nullable().optional(),
+  projectManager:           z.string().trim().max(200).optional().default(''),
+  clientContactName:        z.string().trim().max(200).optional().default(''),
+  clientContactEmail:       z.string().trim().max(300).optional().default(''),
+  clientContactPhone:       z.string().trim().max(50).optional().default(''),
+  projectRemarks:           z.string().trim().max(2000).optional().default(''),
+};
+
 export const ProjectCreateSchema = z.object({
-  name: trimmedString('name'),
+  name:   trimmedString('name'),
   client: z.string().trim().max(200).optional().default(''),
   budget: nonNegNumber('budget').optional().default(0),
+  ...projectDetailFields,
 });
 
 export const ProjectUpdateSchema = z
   .object({
-    name: trimmedString('name').optional(),
+    name:   trimmedString('name').optional(),
     client: z.string().trim().max(200).optional(),
     budget: nonNegNumber('budget').optional(),
     status: z.enum(['Active', 'On Hold', 'Completed']).optional(),
+    ...projectDetailFields,
   })
   .refine(o => Object.keys(o).length > 0, { message: 'No valid fields' });
 
