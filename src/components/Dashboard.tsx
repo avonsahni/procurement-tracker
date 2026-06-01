@@ -12,7 +12,7 @@ import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import HelpGuide from "@/components/HelpGuide";
 import {
-  Building2, FolderOpen, Activity, Settings, Shield, Box, Layers, Search, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown,
+  Building2, FolderOpen, Activity, Settings, Shield, Box, Layers, Search, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown, TrendingUp, TrendingDown,
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
@@ -397,7 +397,9 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
     packages: projects.reduce((s, p) => s + p.packages.length, 0),
     budget: projects.reduce((s, p) => s + p.budget, 0),
     awarded: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.awardValue || 0), 0), 0),
-    billed: projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.billedAmount || 0), 0), 0),
+    billed:   projects.reduce((s, p) => s + p.packages.reduce((ss: any, pk: any) => ss + (pk.billedAmount || 0), 0), 0),
+    inflow:   projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.totalInflowAmount  || 0), 0), 0),
+    outflow:  projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.totalOutflowAmount || 0), 0), 0),
     milestonesProgressSum: projects.reduce((s, p) => s + p.packages.filter((pk: any) => pk.currentStage === 'Award').reduce((ss: any, pk: any) => ss + (pk.milestonesProgressSum || 0), 0), 0),
     // Denominator is always awardedPkgs × 6 — DB row count undercounts when
     // packages have never been visited (missing rows default to 0%).
@@ -592,13 +594,15 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
         <ExecTrackingSection projects={projects} totalAwarded={stats.awarded} totalBilled={stats.billed} />
 
         {/* STAT CARDS — portfolio rollups; drill into Project Portfolio below for detail */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
           {([
-            { label: "Active Projects",  icon: FolderOpen, accent: "text-blue-600",   val: stats.total },
-            { label: "Total Packages",   icon: Box,        accent: "text-slate-900",  val: stats.packages },
-            { label: "Total Budget",     icon: Activity,   accent: "text-slate-900",  val: formatCurrency(stats.budget) },
-            { label: "Awarded Pipeline", icon: Shield,     accent: "text-blue-700",   val: formatCurrency(stats.awarded) },
-            { label: "Total Billed",     icon: Receipt,    accent: "text-violet-700", val: formatCurrency(stats.billed) },
+            { label: "Active Projects",  icon: FolderOpen,    accent: "text-blue-600",    val: stats.total },
+            { label: "Total Packages",   icon: Box,           accent: "text-slate-900",   val: stats.packages },
+            { label: "Total Budget",     icon: Activity,      accent: "text-slate-900",   val: formatCurrency(stats.budget) },
+            { label: "Awarded Pipeline", icon: Shield,        accent: "text-blue-700",    val: formatCurrency(stats.awarded) },
+            { label: "Total Billed",     icon: Receipt,       accent: "text-violet-700",  val: formatCurrency(stats.billed) },
+            { label: "Total Cash In",    icon: TrendingUp,    accent: "text-emerald-600", val: formatCurrency(stats.inflow) },
+            { label: "Total Cash Out",   icon: TrendingDown,  accent: "text-red-600",     val: formatCurrency(stats.outflow) },
           ] as any[]).map((s, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-xl p-5">
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 w-fit mb-3">
