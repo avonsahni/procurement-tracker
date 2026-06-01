@@ -6,6 +6,7 @@ import {
   Users, Receipt, BarChart3, Settings, Lock, ChevronRight,
   CheckCircle2, AlertCircle, Info, Lightbulb, ArrowRight,
   Shield, Building2, Tag, Zap, ClipboardList, Crown, CalendarDays,
+  TrendingUp, TrendingDown,
 } from "lucide-react";
 
 // ─── Section types ────────────────────────────────────────────────────────────
@@ -23,6 +24,7 @@ const SECTIONS: Section[] = [
   { id: "categories",  label: "Categories",             icon: Layers },
   { id: "packages",    label: "Packages",               icon: Package },
   { id: "execution",   label: "Execution & Milestones", icon: ClipboardList },
+  { id: "cashflow",    label: "Cash Flow",              icon: TrendingUp },
   { id: "stages",      label: "Procurement Stages",     icon: ArrowRight },
   { id: "vendors",     label: "Vendors",                icon: Users },
   { id: "billing",     label: "Billing & Invoices",     icon: Receipt },
@@ -95,29 +97,37 @@ function SectionOverview() {
       <P>
         ProcureTrack is a full-lifecycle procurement management system for engineering and
         infrastructure projects. It gives your team a single source of truth — from initial
-        specification through award, billing, and on-site execution.
+        specification through award, billing, on-site execution, and cash flow.
       </P>
 
-      <H3>Two flows in one app</H3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+      <H3>Three flows in one app</H3>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <p className="text-xs font-semibold text-blue-800 mb-1">Purchasing Flow</p>
           <p className="text-[12px] text-blue-700 leading-relaxed">
-            Track each package through the five procurement stages (Spec → RFQ → Negotiation → Award),
+            Track each package through five procurement stages (Spec → RFQ → Negotiation → Award),
             manage vendor bids, and record invoices.
           </p>
         </div>
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
           <p className="text-xs font-semibold text-emerald-800 mb-1">Execution Flow</p>
           <p className="text-[12px] text-emerald-700 leading-relaxed">
-            Once awarded, track on-site progress across six milestones — Mobilisation to Handover.
-            Break each milestone into dated subtasks; milestone progress auto-computes from subtask averages
-            and rolls up to a package and project timeline.
+            Once awarded, track on-site progress across six weighted milestones — Mobilisation
+            to Handover. Break each milestone into dated subtasks; progress auto-computes
+            and rolls up to package and project level.
+          </p>
+        </div>
+        <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
+          <p className="text-xs font-semibold text-teal-800 mb-1">Cash Flow</p>
+          <p className="text-[12px] text-teal-700 leading-relaxed">
+            Record payments received (Cash Inflow) and payments made (Cash Outflow) per
+            package. Totals roll up to a project Cashflow Dashboard and portfolio-level
+            stat cards on the main dashboard.
           </p>
         </div>
       </div>
 
-      <H3>Organisation & plans</H3>
+      <H3>Organisation &amp; plans</H3>
       <P>
         ProcureTrack is multi-tenant. Each company registers as its own <strong>Organisation</strong>.
         Organisations run on a subscription plan (Trial / Starter / Pro / Enterprise). If a plan
@@ -171,13 +181,15 @@ function SectionDashboard() {
         the awarded value has been billed.
       </P>
 
-      <H3>Stat cards</H3>
+      <H3>Stat cards (7 total)</H3>
       <ul className="space-y-2 mt-1">
         <Li><strong>Active Projects</strong> — count of your projects; expand to see status per project</Li>
         <Li><strong>Total Packages</strong> — all packages across every project</Li>
         <Li><strong>Total Budget</strong> — sum of budgets; expand for per-project breakdown</Li>
         <Li><strong>Awarded Pipeline</strong> — total value of all awarded packages</Li>
         <Li><strong>Total Billed</strong> — sum of all invoices; expand for per-project billing rate</Li>
+        <Li><strong>Total Cash In</strong> — sum of all cash receipts recorded across awarded packages</Li>
+        <Li><strong>Total Cash Out</strong> — sum of all cash payments made across awarded packages</Li>
       </ul>
       <Tip>Click any stat card to expand it and see a per-project breakdown.</Tip>
 
@@ -189,15 +201,20 @@ function SectionDashboard() {
 
       <H3>Execution Tracking card</H3>
       <P>
-        Below the pipeline bar, the Execution Tracking section shows milestone completion across
-        all packages — a summary of how much physical work is done on site.
+        Below the pipeline bar, the Execution Tracking section shows weighted milestone completion
+        across all packages — a summary of how much physical work is done on site.
       </P>
 
       <H3>Project Portfolio grid</H3>
       <P>
-        Each project card shows its budget, package count, awarded value, budget utilisation
-        bar, and last-modified date. Click <strong>Open Project →</strong> to drill into it.
+        Each project card shows its budget, package count, awarded value, and a
+        <strong> Financial Progress group</strong> with three indented sub-bars:
       </P>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Billing</strong> (violet) — invoiced amount as % of awarded value</Li>
+        <Li><strong>Cash Inflow</strong> (emerald) — receipts received as % of awarded value</Li>
+        <Li><strong>Cash Outflow</strong> (red) — payments made as % of awarded value</Li>
+      </ul>
       <Tip>
         Use the search bar in the header to filter projects by name or client in real time.
       </Tip>
@@ -232,30 +249,42 @@ function SectionProjects() {
         ))}
       </ol>
 
-      <H3>Editing project budget</H3>
-      <P>
-        While in Edit Mode, open the project, then click the pencil icon next to the budget
-        figure to type a new value. Press Enter or click away to save.
-      </P>
-
-      <H3>Changing project status</H3>
-      <P>
-        Three statuses are available: <strong>Active</strong>, <strong>On Hold</strong>, and{" "}
-        <strong>Completed</strong>. In Edit Mode, use the status dropdown on the project card
-        in the dashboard portfolio grid.
-      </P>
-
       <H3>Project page layout</H3>
       <P>
-        Inside a project you'll see the <strong>Project Analytics</strong> card (package status,
-        budget breakdown), followed by the <strong>Categories grid</strong>. Click any category
-        card to open its package list, or click the stat cards (Total / Awarded / In Progress) to
-        see a cross-category filtered list.
+        Inside a project you'll see three summary cards stacked on the right:
+      </P>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Purchasing Dashboard</strong> — package stage distribution, budget vs awarded</Li>
+        <Li><strong>Execution Dashboard</strong> — weighted milestone completion across awarded packages</Li>
+        <Li><strong>Cashflow Dashboard</strong> — total cash in and out with per-package breakdown (read-only)</Li>
+      </ul>
+      <P>
+        The main area shows the <strong>Categories grid</strong>. Click any category card to open
+        its package list, or click the stat chips to see cross-category filtered lists.
       </P>
 
+      <H3>Deleting a project (two-step confirmation)</H3>
+      <P>
+        In the Admin Panel → Projects tab, click the delete (bin) icon next to a project.
+        A two-step confirmation modal opens:
+      </P>
+      <ol className="space-y-2 mt-1">
+        {[
+          "Step 1 — a warning lists everything that will be permanently deleted (packages, vendors, invoices, milestones, cash records, remarks, documents, audit trail). Click 'Yes, proceed' to continue.",
+          "Step 2 — type the word DELETE exactly in the input field. The confirm button enables only when the word matches.",
+          "Click 'Permanently Delete' to complete the deletion. This cannot be undone.",
+        ].map((s, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
+            <StepBadge n={i + 1} />
+            <span>{s}</span>
+          </li>
+        ))}
+      </ol>
+
       <Note>
-        Deleting a project permanently removes it along with all its packages, vendors, invoices,
-        remarks, and documents. This action cannot be undone. Only <strong>Admins</strong> can delete projects.
+        Deleting a project permanently removes all its packages, vendors, invoices, cash records,
+        milestones, remarks, documents, and audit trail. This action cannot be undone.
+        Only <strong>Admins</strong> can delete projects.
       </Note>
     </div>
   );
@@ -302,7 +331,7 @@ function SectionPackages() {
         A <strong>Package</strong> is a single procurement work scope — for example
         "Centrifugal Pumps" or "SCADA System". Every package belongs to one project and one
         category, has its own procurement stage, and tracks vendors, documents, remarks,
-        invoices, and execution milestones.
+        invoices, cash flow, and execution milestones.
       </P>
 
       <H3>Creating a package</H3>
@@ -332,9 +361,8 @@ function SectionPackages() {
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5">
           <p className="text-xs font-semibold text-emerald-800 mb-1">Execution view</p>
           <p className="text-[12px] text-emerald-700 leading-relaxed">
-            Six milestones (Mobilisation → Handover), each broken into dated subtasks.
-            Milestone progress auto-computes from subtask averages. Dates roll up to the
-            package header and the project execution dashboard.
+            Six milestones (Mobilisation → Handover) with weighted completion, Cash Inflow
+            and Cash Outflow cards, plus the milestone subtask tracker with date roll-up.
           </p>
         </div>
       </div>
@@ -350,9 +378,17 @@ function SectionPackages() {
         <Li><strong>Audit Trail</strong> — full change history</Li>
       </ul>
 
+      <H3>Package detail sections (Execution view)</H3>
+      <ul className="space-y-2 mt-2">
+        <Li><strong>Billing</strong> — invoices raised against the award value</Li>
+        <Li><strong>Cash Inflow</strong> — receipts received by your organisation for this package</Li>
+        <Li><strong>Cash Outflow</strong> — payments made by your organisation for this package</Li>
+        <Li><strong>Execution Milestones</strong> — six weighted milestone phases with subtasks</Li>
+      </ul>
+
       <Note>
-        Deleting a package removes all its vendors, invoices, and history permanently. Only
-        <strong> Admin</strong> and <strong>User</strong> roles in Edit Mode can delete packages.
+        Deleting a package removes all its vendors, invoices, cash records, and history permanently.
+        Only <strong>Admin</strong> and <strong>User</strong> roles in Edit Mode can delete packages.
       </Note>
     </div>
   );
@@ -360,44 +396,58 @@ function SectionPackages() {
 
 function SectionExecution() {
   const milestones = [
-    { name: "Mobilisation",            desc: "Team, equipment, and site access are being established." },
-    { name: "Preliminaries",           desc: "Temporary works, site offices, and enabling work." },
-    { name: "Procurement",             desc: "Materials and sub-contractor orders are placed and in delivery." },
-    { name: "Installation",            desc: "Physical installation of the scope is underway." },
-    { name: "Testing & Commissioning", desc: "System tests, punch list clearance, and sign-off." },
-    { name: "Handover",                desc: "Scope delivered; final documentation and handover complete." },
+    { name: "Mobilisation",            weight: 5,  desc: "Team, equipment, and site access are being established." },
+    { name: "Preliminaries",           weight: 5,  desc: "Temporary works, site offices, and enabling work." },
+    { name: "Procurement",             weight: 30, desc: "Materials and sub-contractor orders are placed and in delivery." },
+    { name: "Installation",            weight: 50, desc: "Physical installation of the scope is underway." },
+    { name: "Testing & Commissioning", weight: 5,  desc: "System tests, punch list clearance, and sign-off." },
+    { name: "Handover",                weight: 5,  desc: "Scope delivered; final documentation and handover complete." },
   ];
 
   return (
     <div>
       <H2>Execution &amp; Milestones</H2>
-      <p className="text-xs text-slate-400 mb-4">Subtask-driven delivery tracking with date roll-up</p>
+      <p className="text-xs text-slate-400 mb-4">Weighted, subtask-driven delivery tracking with date roll-up</p>
       <P>
-        The <strong>Execution view</strong> on each package shows six milestone phases. Each
-        milestone is driven by its own <strong>subtasks</strong> — the milestone progress bar
+        The <strong>Execution view</strong> on each awarded package shows six milestone phases.
+        Each milestone is driven by its own <strong>subtasks</strong> — the milestone progress bar
         auto-computes as the average of its subtask completion percentages. You cannot drag
         milestone bars directly; they update automatically as you progress the tasks.
       </P>
 
-      <H3>The six milestones</H3>
+      <H3>The six milestones and their weights</H3>
+      <P>
+        The <strong>Overall completion</strong> bar uses a weighted average — not a simple mean —
+        so that high-effort phases have proportionally greater impact on the overall figure.
+      </P>
       <div className="mt-3 space-y-2">
         {milestones.map((m, i) => (
-          <div key={m.name} className="flex gap-3 items-start text-sm">
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex-shrink-0 mt-0.5">
+          <div key={m.name} className="flex gap-3 items-center text-sm">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex-shrink-0">
               {i + 1}
             </span>
-            <div>
+            <div className="flex-1">
               <span className="font-medium text-slate-800">{m.name}</span>
               <span className="text-slate-500"> — {m.desc}</span>
             </div>
+            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+              m.weight >= 30 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+            }`}>
+              {m.weight}%
+            </span>
           </div>
         ))}
       </div>
+      <Tip>
+        Installation carries the highest weight (50 %) because it represents the bulk of
+        physical on-site effort. Procurement (30 %) follows as the second major phase.
+        Together they account for 80 % of the overall completion score.
+      </Tip>
 
       <H3>Opening the Execution view</H3>
       <ol className="space-y-2 mt-1">
         {[
-          "Open any package detail page.",
+          "Open any awarded package detail page.",
           "Click the 'Execution' tab near the top of the page.",
           "Edit Mode enables automatically in this view.",
           "Expand a milestone by clicking its row arrow (▶), then click '+ tasks' to add subtasks.",
@@ -474,28 +524,133 @@ function SectionExecution() {
         </div>
       </div>
 
-      <H3>Overall completion</H3>
+      <H3>Overall completion bar</H3>
       <P>
         The <strong>Overall completion</strong> bar at the top of the milestone tracker shows
-        the simple average of all six milestone percentages (each of which is the average of
-        its subtasks). When all milestones reach 100 %, the count shows "6/6 complete".
+        the <strong>weighted</strong> completion across all six milestones. Each milestone's
+        progress is multiplied by its weight percentage and divided by 100 — so a package
+        where only Installation (50 %) is complete at 100 % will show 50 % overall.
+        When all milestones reach 100 %, the count shows "6/6 complete".
       </P>
 
       <H3>Execution Tracking on the dashboard</H3>
       <P>
-        The dashboard's <strong>Execution Tracking</strong> card aggregates milestone data across
-        all packages, giving you a portfolio-wide view of physical delivery progress.
+        The dashboard's <strong>Execution Tracking</strong> card aggregates weighted milestone
+        data across all packages, giving a portfolio-wide view of physical delivery progress.
       </P>
-
-      <Tip>
-        Milestones with no subtasks show 0 % until at least one task is added. Adding and
-        completing even a single task immediately moves the milestone off zero.
-      </Tip>
 
       <Note>
         Milestone bars are always read-only — they reflect subtask averages only. If your
         organisation plan has lapsed, task creation and editing are disabled.
       </Note>
+    </div>
+  );
+}
+
+function SectionCashFlow() {
+  return (
+    <div>
+      <H2>Cash Flow</H2>
+      <p className="text-xs text-slate-400 mb-4">Record receipts and payments per package, rolled up to project and portfolio level</p>
+      <P>
+        Cash Flow tracking is available on every <strong>awarded package</strong> in Execution
+        view. It gives you a real-time picture of money moving in and out of the project —
+        separate from invoice billing.
+      </P>
+
+      <H3>Cash Inflow vs Cash Outflow</H3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-emerald-600" />
+            <p className="text-xs font-semibold text-emerald-800">Cash Inflow</p>
+          </div>
+          <p className="text-[12px] text-emerald-700 leading-relaxed">
+            Payments <strong>received</strong> by your organisation for this package — e.g. client
+            progress payments or advance receipts. Record the on-account description, the party
+            paying, date received, and amount.
+          </p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingDown className="w-4 h-4 text-red-600" />
+            <p className="text-xs font-semibold text-red-800">Cash Outflow</p>
+          </div>
+          <p className="text-[12px] text-red-700 leading-relaxed">
+            Payments <strong>made</strong> by your organisation for this package — e.g. payments
+            to sub-contractors or suppliers. Record who was paid, what it was for, date paid,
+            and amount.
+          </p>
+        </div>
+      </div>
+
+      <H3>Recording a cash receipt (Inflow)</H3>
+      <ol className="space-y-2 mt-1">
+        {[
+          "Open an awarded package and switch to Execution view.",
+          "Enable Edit Mode.",
+          "Scroll to the Cash Inflow card.",
+          "Click '+ Record Receipt' to expand the form.",
+          "Fill in On Account (description), From Party (payer name), Date Received, and Amount.",
+          "Optionally add a Remarks note.",
+          "Click 'Save Receipt'. The record appears immediately — no page refresh needed.",
+        ].map((s, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
+            <StepBadge n={i + 1} />
+            <span>{s}</span>
+          </li>
+        ))}
+      </ol>
+
+      <H3>Recording a payment (Outflow)</H3>
+      <ol className="space-y-2 mt-1">
+        {[
+          "Open an awarded package and switch to Execution view.",
+          "Scroll to the Cash Outflow card.",
+          "Click '+ Record Payment' to expand the form.",
+          "Fill in To Whom (payee), On Account Of (purpose), Date Paid, and Amount.",
+          "Optionally add a Remarks note.",
+          "Click 'Save Payment'. The record appears and totals update instantly.",
+        ].map((s, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
+            <StepBadge n={i + 1} />
+            <span>{s}</span>
+          </li>
+        ))}
+      </ol>
+
+      <H3>Summary bars</H3>
+      <P>
+        Each cash flow card shows a coloured summary bar: the filled portion represents the
+        recorded total as a percentage of the package award value, giving a quick visual of
+        how much of the contract value has moved as cash.
+      </P>
+
+      <H3>Cashflow Dashboard (project landing page)</H3>
+      <P>
+        On the project landing page, a third summary card — <strong>Cashflow Dashboard</strong> —
+        sits below the Execution Dashboard. It shows:
+      </P>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Total Cash In / Total Cash Out</strong> — portfolio totals for the project</Li>
+        <Li><strong>Net Cashflow</strong> — inflow minus outflow</Li>
+        <Li><strong>Per-package breakdown</strong> — inflow and outflow for each awarded package individually</Li>
+      </ul>
+      <Note>The Cashflow Dashboard card is read-only — it summarises records entered in the package Execution view.</Note>
+
+      <H3>Dashboard rollup</H3>
+      <P>
+        On the main Dashboard, two stat cards — <strong>Total Cash In</strong> and{" "}
+        <strong>Total Cash Out</strong> — aggregate cash flow across all projects and all
+        awarded packages. Each project card also shows Cash Inflow and Cash Outflow as
+        indented sub-bars under the Financial Progress group.
+      </P>
+
+      <Tip>
+        Cash Inflow and Cash Outflow are independent of Billing (invoices). A package can
+        have invoices raised but no cash yet received, or cash received before a formal invoice
+        is logged. Use whichever matches your organisation's accounting workflow.
+      </Tip>
     </div>
   );
 }
@@ -506,7 +661,7 @@ function SectionStages() {
     { name: "RFQ Float",               color: "bg-blue-50 text-blue-700",        desc: "Request for Quotation issued to shortlisted vendors. Awaiting bids." },
     { name: "Technical Negotiation",   color: "bg-blue-100 text-blue-800",       desc: "Vendor bids under technical review. Clarifications and exceptions being resolved." },
     { name: "Commercial Negotiation",  color: "bg-blue-200 text-blue-900",       desc: "Technical scope aligned. Price and commercial terms being negotiated." },
-    { name: "Award",                   color: "bg-emerald-100 text-emerald-800", desc: "Package awarded to a vendor. Award value and vendor recorded; billing unlocked." },
+    { name: "Award",                   color: "bg-emerald-100 text-emerald-800", desc: "Package awarded to a vendor. Award value and vendor recorded; billing and cash flow unlocked." },
   ];
 
   return (
@@ -551,7 +706,7 @@ function SectionStages() {
           "Open the package detail page.",
           "Click the 'Award' node (circle or label) in the Procurement Timeline.",
           "In the award modal, enter the final award value and select or type the vendor name.",
-          "Click Confirm Award. The stage locks, award value is recorded, and the Billing section becomes available.",
+          "Click Confirm Award. The stage locks, award value is recorded, and the Billing and Cash Flow sections become available.",
         ].map((s, i) => (
           <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
             <StepBadge n={i + 1} />
@@ -632,7 +787,7 @@ function SectionBilling() {
           "Scroll to the Billing section on the package detail page.",
           "Click '+ Add Invoice'.",
           "Enter the invoice amount, invoice number, invoice date, and optional notes.",
-          "Click Add Invoice. The billed total updates immediately.",
+          "Click Add Invoice. The billed total updates immediately — no page refresh needed.",
         ].map((s, i) => (
           <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
             <StepBadge n={i + 1} />
@@ -655,6 +810,13 @@ function SectionBilling() {
         donut chart shows billed as a % of awarded.
       </P>
 
+      <H3>Billing vs Cash Flow</H3>
+      <P>
+        Billing (invoices) and Cash Flow are tracked separately. An invoice records an obligation;
+        Cash Inflow records the actual receipt of funds. Use the Cash Flow section (Execution view)
+        to record when money actually moves, independent of whether an invoice has been raised.
+      </P>
+
       <Note>
         Deleting an invoice is permanent. The invoice number field is for reference only
         and is not validated for uniqueness.
@@ -667,10 +829,10 @@ function SectionAnalytics() {
   return (
     <div>
       <H2>Director Dashboard</H2>
-      <p className="text-xs text-slate-400 mb-4">Portfolio-wide budget, billing, and milestone insights for decision-makers</p>
+      <p className="text-xs text-slate-400 mb-4">Portfolio-wide budget, billing, cash flow, and milestone insights for decision-makers</p>
       <P>
         Click the amber <strong>Director Dashboard</strong> button in the dashboard header to open
-        a cross-project overview — budget utilisation, financial performance, and execution
+        a cross-project overview — budget utilisation, financial performance, cash flow, and execution
         milestone achievement, all on one screen.
       </P>
 
@@ -688,12 +850,18 @@ function SectionAnalytics() {
         side by side. A dual-ring donut on the right visualises the same proportions at a glance.
       </P>
 
-      <H3>Per-project budget breakdown</H3>
+      <H3>Per-project budget breakdown (5 bars)</H3>
       <P>
-        Each project is listed with its own three-bar row (Budget / Committed / Billed).
-        Projects over budget are highlighted in red. A sub-label shows "% of committed billed"
-        to surface collection efficiency.
+        Each project is listed with five horizontal bars, all scaled to the project budget:
       </P>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Budget</strong> (slate) — the project's total approved budget</Li>
+        <Li><strong>Committed</strong> (green / amber / red) — awarded value; turns amber above 80 %, red if over budget</Li>
+        <Li><strong>Billed</strong> (blue) — total invoiced against this project</Li>
+        <Li><strong>Cash In</strong> (teal) — cash receipts received for this project</Li>
+        <Li><strong>Cash Out</strong> (red) — cash payments made for this project</Li>
+      </ul>
+      <P>A sub-label shows "% of committed billed" to surface collection efficiency.</P>
 
       <H3>Milestone Achievement Status</H3>
       <P>
@@ -705,11 +873,11 @@ function SectionAnalytics() {
         <Li><strong>Done / Total</strong> — how many packages have completed that milestone</Li>
         <Li><strong>Colour indicator</strong> — green (100 %), amber (in progress), grey (not started)</Li>
       </ul>
-      <P>An overall completion % for each project is shown in the project header row.</P>
+      <P>An overall weighted completion % for each project is shown in the project header row.</P>
 
       <Tip>
-        The Director Dashboard always reflects live data — awards, invoices, and milestone
-        updates appear the next time you open it.
+        The Director Dashboard always reflects live data — awards, invoices, cash records, and
+        milestone updates appear the next time you open it.
       </Tip>
     </div>
   );
@@ -751,7 +919,7 @@ function SectionEditMode() {
       <H3>Auto-enabled in Execution view</H3>
       <P>
         When you open a package in <strong>Execution view</strong>, Edit Mode is turned on
-        automatically so you can drag milestone bars straight away.
+        automatically so you can manage milestones, cash inflow, and cash outflow straight away.
       </P>
 
       <H3>Read-only mode (plan lapsed)</H3>
@@ -793,7 +961,7 @@ function SectionUsers() {
             role: "User",
             color: "bg-blue-50 border-blue-200",
             badge: "bg-blue-100 text-blue-700",
-            desc: "Can edit, add, and delete packages, vendors, documents, remarks, invoices, and milestones. Cannot create or delete projects.",
+            desc: "Can edit, add, and delete packages, vendors, documents, remarks, invoices, cash records, and milestones. Cannot create or delete projects.",
           },
           {
             role: "Viewer",
@@ -814,7 +982,7 @@ function SectionUsers() {
         {[
           "Go to Admin Panel → Users tab.",
           "Click '+ New User' and enter the full name, email address, and a temporary password.",
-          "Select the role — Admin, User, or Viewer — from the dropdown. The description beneath updates to explain what that role can do.",
+          "Select the role — Admin, User, or Viewer — from the dropdown.",
           "Click Create User. The account is created immediately and the user can log in right away.",
         ].map((s, i) => (
           <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
@@ -828,8 +996,6 @@ function SectionUsers() {
       <P>
         In the Admin Panel → Users tab, use the inline role dropdown in the <strong>Permissions</strong>
         column next to any user. The change takes effect immediately on their next page load.
-        Changing a role automatically adjusts both the org-level access and edit permissions —
-        no separate toggle needed.
       </P>
 
       <H3>Removing a user</H3>
@@ -859,6 +1025,14 @@ function SectionSettings() {
       <H3>Overview tab</H3>
       <P>Shows a summary of your organisation's usage — project count, package count, member count,
         and billing rate at a glance.</P>
+
+      <H3>Projects tab</H3>
+      <P>
+        Lists all projects with their status, package count, and budget. From here you can delete
+        a project using the bin icon — the action requires a <strong>two-step confirmation</strong>:
+        first a warning screen listing everything that will be deleted, then typing the word{" "}
+        <strong>DELETE</strong> exactly before the button enables.
+      </P>
 
       <H3>Users tab</H3>
       <P>Manage team members — add users by email and password, change roles (Admin / User / Viewer)
@@ -891,13 +1065,13 @@ function SectionSettings() {
 
       <H3>Danger Zone tab</H3>
       <ul className="space-y-2 mt-1">
-        <Li><strong>Load Sample Data</strong> — loads 5 demonstration projects with 21 packages each. Skipped automatically if your organisation already has projects.</Li>
+        <Li><strong>Load Sample Data</strong> — loads demonstration projects. Skipped automatically if your organisation already has projects.</Li>
         <Li><strong>Wipe All Data</strong> — permanently deletes all projects, packages, and related data. Type "WIPE" to confirm.</Li>
       </ul>
 
       <Note>
-        Wipe All Data is irreversible. All projects, packages, vendors, invoices, remarks,
-        documents, and audit trail entries will be permanently deleted.
+        Wipe All Data is irreversible. All projects, packages, vendors, invoices, cash records,
+        remarks, documents, and audit trail entries will be permanently deleted.
       </Note>
     </div>
   );
@@ -910,6 +1084,7 @@ const SECTION_CONTENT: Record<string, React.ReactNode> = {
   categories: <SectionCategories />,
   packages:   <SectionPackages />,
   execution:  <SectionExecution />,
+  cashflow:   <SectionCashFlow />,
   stages:     <SectionStages />,
   vendors:    <SectionVendors />,
   billing:    <SectionBilling />,
