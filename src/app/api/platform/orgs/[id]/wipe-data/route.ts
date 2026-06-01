@@ -10,40 +10,74 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const { id: orgId } = await params;
   const admin = createAdminSupabase();
 
-  // 1. Collect document storage paths for this org
-  const { data: docs } = await admin
-    .from('documents')
-    .select('storage_path')
-    .filter('storage_path', 'ilike', `${orgId}/%`);
+  // 1. Get all project IDs for this org
+  const { data: projects, error: projErr } = await admin
+    .from('projects')
+    .select('id')
+    .eq('org_id', orgId);
 
-  const docPaths = (docs ?? []).map((d: any) => d.storage_path).filter(Boolean);
+  if (projErr) return NextResponse.json({ error: projErr.message }, { status: 500 });
 
-  // 2. Collect remark image paths via package → project → org join
-  const { data: pkgs } = await admin
-    .from('packages')
-    .select('id, projects!inner(org_id)')
-    .eq('projects.org_id', orgId);
+  const projectIds = (projects ?? []).map((p: any) => p.id);
 
-  const pkgIds = (pkgs ?? []).map((p: any) => p.id);
-  let imagePaths: string[] = [];
+  let filesDeleted = 0;
 
-  if (pkgIds.length > 0) {
-    const { data: remarks } = await admin
-      .from('remarks')
-      .select('image_urls')
-      .in('package_id', pkgIds);
-    imagePaths = (remarks ?? []).flatMap((r: any) => r.image_urls ?? []).filter(Boolean);
+  if (projectIds.length > 0) {
+    // 2. Get all package IDs for those projects
+    const { data: packages } = await admin
+      .from('packages')
+      .select('id')
+      .in('project_id', projectIds);
+
+    const pkgIds = (packages ?? []).map((p: any) => p.id);
+
+    // 3. Collect storage file paths to clean up from the bucket
+    const storagePaths: string[] = [];
+
+    if (pkgIds.length > 0) {
+      // Document storage paths
+      const { data: docs } = await admin
+        .from('documents')
+        .select('storage_path')
+        .in('package_id', pkgIds)
+        .not('storage_path', 'is', null);
+
+      for (const d of docs ?? []) {
+        if (d.storage_path) storagePaths.push(d.storage_path);
+      }
+
+      // Remark image paths (image_urls column — added in migration 021)
+      const { data: remarks } = await admin
+        .from('remarks')
+        .select('image_urls')
+        .in('package_id', pkgIds);
+
+      for (const r of remarks ?? []) {
+        for (const url of (r as any).image_urls ?? []) {
+          if (url) storagePaths.push(url);
+        }
+      }
+    }
+
+    // 4. Delete storage files in batches (non-fatal)
+    if (storagePaths.length > 0) {
+      const BATCH = 100;
+      for (let i = 0; i < storagePaths.length; i += BATCH) {
+        const batch = storagePaths.slice(i, i + BATCH);
+        const { data: removed } = await admin.storage.from('package-documents').remove(batch);
+        filesDeleted += (removed ?? []).length;
+      }
+    }
   }
 
-  // 3. Delete storage files (non-fatal if partial error)
-  const allPaths = [...docPaths, ...imagePaths];
-  if (allPaths.length > 0) {
-    await admin.storage.from('package-documents').remove(allPaths);
-  }
+  // 5. Delete all projects — cascade removes packages, vendors, remarks, documents,
+  //    audit_trail, package_milestones, milestone_tasks, invoices
+  const { error: deleteErr } = await admin
+    .from('projects')
+    .delete()
+    .eq('org_id', orgId);
 
-  // 4. Delete all projects — cascades to packages, vendors, audits, remarks, documents
-  const { error } = await admin.from('projects').delete().eq('org_id', orgId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (deleteErr) return NextResponse.json({ error: deleteErr.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, filesDeleted: allPaths.length });
+  return NextResponse.json({ ok: true, projectsWiped: projectIds.length, filesDeleted });
 }

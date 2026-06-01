@@ -1239,7 +1239,9 @@ function OrgDetailView({
       const res = await apiFetch(`/api/platform/orgs/${orgId}/wipe-data`, { method: 'POST' });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Wipe failed');
-      showDataMsg('ok', `All project data wiped (${d.filesDeleted ?? 0} storage file${d.filesDeleted !== 1 ? 's' : ''} removed).`);
+      const proj = d.projectsWiped ?? 0;
+      const files = d.filesDeleted ?? 0;
+      showDataMsg('ok', `Wiped ${proj} project${proj !== 1 ? 's' : ''} and ${files} storage file${files !== 1 ? 's' : ''}.`);
       onOrgUpdated();
     } catch (e: any) {
       showDataMsg('err', e.message || 'Wipe failed');
