@@ -16,11 +16,15 @@ export async function addOrgAuditEntry(
   userName: string,
   action: string,
   category: string,
-  entityName?: string,
+  entityName?: string | null,
   details?: Record<string, any>
 ): Promise<void> {
+  if (!orgId) {
+    console.error('[addOrgAuditEntry] skipped — orgId is empty (action:', action, ')');
+    return;
+  }
   try {
-    await admin.from('org_audit_log').insert({
+    const { error } = await admin.from('org_audit_log').insert({
       org_id: orgId,
       user_id: userId || null,
       user_name: userName,
@@ -29,8 +33,11 @@ export async function addOrgAuditEntry(
       entity_name: entityName ?? null,
       details: details ?? null,
     });
+    if (error) {
+      console.error('[addOrgAuditEntry] insert failed:', error.message, '| action:', action, '| orgId:', orgId);
+    }
   } catch (e) {
-    console.error('[addOrgAuditEntry] failed:', e);
+    console.error('[addOrgAuditEntry] exception:', e);
   }
 }
 
