@@ -5,6 +5,7 @@ import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { AwardSchema, parseBody } from '@/lib/validation';
 import { formatCurrency, EXECUTION_MILESTONES } from '@/lib/types';
+import { assertProjectActive } from '@/lib/projectGuard';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
@@ -23,6 +24,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .eq('id', pkgId)
     .single();
   if (!pkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+
+  const g = await assertProjectActive(supabase, pkg.project_id, auth);
+  if (g) return g;
 
   // ── HARD CONSTRAINT: total awarded across project ≤ project budget ──────
   const [{ data: project }, { data: otherAwarded }] = await Promise.all([

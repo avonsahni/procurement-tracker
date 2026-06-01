@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { guard } from '@/lib/auth';
+import { assertPackageProjectActive } from '@/lib/projectGuard';
 
 type RouteParams = { params: Promise<{ id: string; rid: string }> };
 
@@ -9,13 +10,15 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
   const auth = await guard('editor');
   if (auth instanceof NextResponse) return auth;
 
-  const { rid } = await params;
+  const { id: pkgId, rid } = await params;
   const { text } = await req.json();
   if (!text?.trim()) {
     return NextResponse.json({ error: 'Text is required' }, { status: 400 });
   }
 
   const admin = createAdminSupabase();
+  const g = await assertPackageProjectActive(admin, pkgId, auth);
+  if (g) return g;
 
   // Fetch the remark to verify ownership
   const { data: remark } = await admin
@@ -68,12 +71,19 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
   const { data: proj } = await admin
     .from('projects')
-    .select('org_id')
+    .select('org_id, status')
     .eq('id', pkg.project_id)
     .maybeSingle();
 
   if (!proj || proj.org_id !== auth.orgId) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  }
+
+  if (proj.status !== 'Active' && auth.orgRole !== 'owner' && auth.orgRole !== 'admin') {
+    return NextResponse.json(
+      { error: `Project is ${proj.status} — only Active projects can be modified.` },
+      { status: 403 },
+    );
   }
 
   // Fetch the remark to verify ownership

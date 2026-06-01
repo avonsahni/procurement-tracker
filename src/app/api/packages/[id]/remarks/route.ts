@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { guard } from '@/lib/auth';
 import { RemarkCreateSchema, parseBody } from '@/lib/validation';
+import { assertProjectActive } from '@/lib/projectGuard';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('user');
@@ -12,8 +13,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { text, imageUrls, imageBytes } = parsed.data;
 
   const supabase = await createServerSupabase();
-  const { data: pkg } = await supabase.from('packages').select('id').eq('id', pkgId).single();
+  const { data: pkg } = await supabase.from('packages').select('id, project_id').eq('id', pkgId).single();
   if (!pkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+
+  const g = await assertProjectActive(supabase, pkg.project_id, auth);
+  if (g) return g;
 
   const { data: row, error } = await supabase
     .from('remarks')

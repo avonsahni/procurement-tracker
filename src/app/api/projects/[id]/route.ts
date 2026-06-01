@@ -4,6 +4,7 @@ import { assembleProject, assembleProjectSummary, addOrgAuditEntry } from '@/lib
 import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { ProjectUpdateSchema, parseBody } from '@/lib/validation';
+import { assertProjectActive } from '@/lib/projectGuard';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('user');
@@ -24,6 +25,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!parsed.ok) return parsed.response;
 
   const supabase = await createServerSupabase();
+
+  // Admins bypass — they need to be able to change status itself
+  const g = await assertProjectActive(supabase, id, auth);
+  if (g) return g;
+
   const { data: row, error } = await supabase
     .from('projects')
     .update({ ...parsed.data, updated_at: new Date().toISOString() })

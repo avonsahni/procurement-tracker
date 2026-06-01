@@ -1242,6 +1242,10 @@ function ProjectsSection() {
   const [search, setSearch]       = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'Active' | 'Paused' | 'On Hold' | 'Completed'>('all');
   const [detailProject, setDetailProject] = useState<any | null>(null);
+  const [editingDetail, setEditingDetail] = useState(false);
+  const [detailForm, setDetailForm]       = useState(EMPTY_PROJ_FORM);
+  const [detailSaving, setDetailSaving]   = useState(false);
+  const [detailError, setDetailError]     = useState('');
 
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating]     = useState(false);
@@ -1304,6 +1308,58 @@ function ProjectsSection() {
   const handleStatusChange = async (id: string, status: string) => {
     try { await updateProject(id, { status: status as any }); load(); }
     catch (e: any) { alert(e.message || 'Update failed'); }
+  };
+
+  const openDetailEdit = (p: any) => {
+    setDetailForm({
+      name:                    p.name || '',
+      client:                  p.client || '',
+      budget:                  p.budget != null ? String(p.budget) : '',
+      address:                 p.address || '',
+      projectType:             p.projectType || '',
+      builtUpArea:             p.builtUpArea || '',
+      estimatedStartDate:      p.estimatedStartDate || '',
+      estimatedDurationMonths: p.estimatedDurationMonths != null ? String(p.estimatedDurationMonths) : '',
+      tenderedCost:            p.tenderedCost != null ? String(p.tenderedCost) : '',
+      projectManager:          p.projectManager || '',
+      clientContactName:       p.clientContactName || '',
+      clientContactEmail:      p.clientContactEmail || '',
+      clientContactPhone:      p.clientContactPhone || '',
+      projectRemarks:          p.projectRemarks || '',
+    });
+    setDetailError('');
+    setEditingDetail(true);
+  };
+
+  const handleSaveDetail = async () => {
+    if (!detailProject || !detailForm.name.trim()) return;
+    setDetailSaving(true);
+    setDetailError('');
+    try {
+      await updateProject(detailProject.id, {
+        name:                    detailForm.name.trim(),
+        client:                  detailForm.client.trim()             || undefined,
+        budget:                  detailForm.budget ? parseFloat(detailForm.budget) : 0,
+        address:                 detailForm.address.trim()            || undefined,
+        projectType:             detailForm.projectType               || undefined,
+        builtUpArea:             detailForm.builtUpArea.trim()        || undefined,
+        estimatedStartDate:      detailForm.estimatedStartDate        || undefined,
+        estimatedDurationMonths: detailForm.estimatedDurationMonths ? parseInt(detailForm.estimatedDurationMonths) : undefined,
+        tenderedCost:            detailForm.tenderedCost ? parseFloat(detailForm.tenderedCost) : undefined,
+        projectManager:          detailForm.projectManager.trim()     || undefined,
+        clientContactName:       detailForm.clientContactName.trim()  || undefined,
+        clientContactEmail:      detailForm.clientContactEmail.trim() || undefined,
+        clientContactPhone:      detailForm.clientContactPhone.trim() || undefined,
+        projectRemarks:          detailForm.projectRemarks.trim()     || undefined,
+      });
+      setEditingDetail(false);
+      setDetailProject(null);
+      load();
+    } catch (e: any) {
+      setDetailError(e.message || 'Save failed');
+    } finally {
+      setDetailSaving(false);
+    }
   };
 
   const filtered = projects.filter(p => {
@@ -1627,7 +1683,7 @@ function ProjectsSection() {
       {detailProject && (
         <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6"
-          onClick={() => setDetailProject(null)}
+          onClick={() => { if (!detailSaving) { setDetailProject(null); setEditingDetail(false); } }}
         >
           <div
             className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]"
@@ -1636,18 +1692,37 @@ function ProjectsSection() {
             {/* Header */}
             <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 flex-shrink-0">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">{detailProject.name}</h2>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ring-1 ring-inset ${STATUS_BADGE[detailProject.status] || STATUS_BADGE.Active}`}>{detailProject.status}</span>
-                  {detailProject.client && <span className="text-xs text-slate-500">{detailProject.client}</span>}
-                </div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {editingDetail ? 'Edit Project Details' : detailProject.name}
+                </h2>
+                {!editingDetail && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ring-1 ring-inset ${STATUS_BADGE[detailProject.status] || STATUS_BADGE.Active}`}>{detailProject.status}</span>
+                    {detailProject.client && <span className="text-xs text-slate-500">{detailProject.client}</span>}
+                  </div>
+                )}
               </div>
-              <button onClick={() => setDetailProject(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500">
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                {!editingDetail && !isOrgBlocked && (
+                  <button
+                    onClick={() => openDetailEdit(detailProject)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" /> Edit
+                  </button>
+                )}
+                <button
+                  onClick={() => { if (!detailSaving) { setDetailProject(null); setEditingDetail(false); } }}
+                  disabled={detailSaving}
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 disabled:opacity-40"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            {/* Body */}
+            {/* Body — view mode */}
+            {!editingDetail && (
             <div className="overflow-y-auto flex-1 px-8 py-6 space-y-6 text-sm">
 
               <div>
@@ -1732,15 +1807,141 @@ function ProjectsSection() {
               )}
 
             </div>
+            )}
+
+            {/* Body — edit mode */}
+            {editingDetail && (
+            <div className="overflow-y-auto flex-1 px-8 py-6 space-y-6">
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Project Information</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Name <span className="text-red-500">*</span></label>
+                    <input value={detailForm.name} onChange={e => { setDetailForm({ ...detailForm, name: e.target.value }); setDetailError(''); }} disabled={detailSaving} autoFocus className={`${fieldCls} ${detailError ? 'border-red-400' : ''}`} placeholder="Project name" />
+                    {detailError && <p className="mt-1.5 text-xs text-red-600">{detailError}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Client</label>
+                    <input value={detailForm.client} onChange={e => setDetailForm({ ...detailForm, client: e.target.value })} disabled={detailSaving} className={fieldCls} placeholder="e.g. DLF INFRASTRUCTURE" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Type</label>
+                    <select value={detailForm.projectType} onChange={e => setDetailForm({ ...detailForm, projectType: e.target.value })} disabled={detailSaving} className={fieldCls}>
+                      <option value="">Select type…</option>
+                      <option>Building</option>
+                      <option>Infrastructure</option>
+                      <option>Roads and Highways</option>
+                      <option>Hospitals</option>
+                      <option>Hotel</option>
+                      <option>Commercial</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Location &amp; Scope</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Address</label>
+                    <input value={detailForm.address} onChange={e => setDetailForm({ ...detailForm, address: e.target.value })} disabled={detailSaving} className={fieldCls} placeholder="Site / plot address" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Built-Up Area</label>
+                    <input value={detailForm.builtUpArea} onChange={e => setDetailForm({ ...detailForm, builtUpArea: e.target.value })} disabled={detailSaving} className={fieldCls} placeholder="e.g. 12,500 sqft" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Financial</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Procurement Budget</label>
+                    <input type="number" value={detailForm.budget} onChange={e => setDetailForm({ ...detailForm, budget: e.target.value })} disabled={detailSaving} className={`${fieldCls} font-mono`} placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Tendered Cost</label>
+                    <input type="number" value={detailForm.tenderedCost} onChange={e => setDetailForm({ ...detailForm, tenderedCost: e.target.value })} disabled={detailSaving} className={`${fieldCls} font-mono`} placeholder="0" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Schedule</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Estimated Start Date</label>
+                    <input type="date" value={detailForm.estimatedStartDate} onChange={e => setDetailForm({ ...detailForm, estimatedStartDate: e.target.value })} disabled={detailSaving} className={fieldCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Estimated Duration (months)</label>
+                    <input type="number" min="0" value={detailForm.estimatedDurationMonths} onChange={e => setDetailForm({ ...detailForm, estimatedDurationMonths: e.target.value })} disabled={detailSaving} className={`${fieldCls} font-mono`} placeholder="e.g. 18" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Team</p>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Manager</label>
+                  <input value={detailForm.projectManager} onChange={e => setDetailForm({ ...detailForm, projectManager: e.target.value })} disabled={detailSaving} className={fieldCls} placeholder="Assigned PM name" />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Client Contact</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Contact Name</label>
+                    <input value={detailForm.clientContactName} onChange={e => setDetailForm({ ...detailForm, clientContactName: e.target.value })} disabled={detailSaving} className={fieldCls} placeholder="Point of contact at client" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Email</label>
+                    <input type="email" value={detailForm.clientContactEmail} onChange={e => setDetailForm({ ...detailForm, clientContactEmail: e.target.value })} disabled={detailSaving} className={fieldCls} placeholder="contact@client.com" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Phone</label>
+                    <input value={detailForm.clientContactPhone} onChange={e => setDetailForm({ ...detailForm, clientContactPhone: e.target.value })} disabled={detailSaving} className={fieldCls} placeholder="+91 98765 43210" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Notes</p>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">Project Remarks</label>
+                  <textarea value={detailForm.projectRemarks} onChange={e => setDetailForm({ ...detailForm, projectRemarks: e.target.value })} disabled={detailSaving} rows={3} className={`${fieldCls} resize-none`} placeholder="Any relevant notes or context…" />
+                </div>
+              </div>
+
+            </div>
+            )}
 
             {/* Footer */}
-            <div className="px-8 py-4 border-t border-slate-100 flex-shrink-0 flex justify-end">
+            <div className="px-8 py-4 border-t border-slate-100 flex-shrink-0 flex justify-end gap-3">
+              {editingDetail ? (
+                <>
+                  <button onClick={() => setEditingDetail(false)} disabled={detailSaving} className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition disabled:opacity-40">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveDetail}
+                    disabled={detailSaving || !detailForm.name.trim()}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {detailSaving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : 'Save Changes'}
+                  </button>
+                </>
+              ) : (
               <button
-                onClick={() => setDetailProject(null)}
+                onClick={() => { setDetailProject(null); setEditingDetail(false); }}
                 className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition"
               >
                 Close
               </button>
+              )}
             </div>
           </div>
         </div>

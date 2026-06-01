@@ -5,6 +5,7 @@ import { assemblePackage, addAuditEntry, addOrgAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { PackageUpdateSchema, parseBody } from '@/lib/validation';
 import { EXECUTION_MILESTONES } from '@/lib/types';
+import { assertProjectActive } from '@/lib/projectGuard';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('user');
@@ -46,6 +47,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { data: pkg } = await supabase.from('packages').select('*').eq('id', id).single();
   if (!pkg) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  const g = await assertProjectActive(supabase, pkg.project_id, auth);
+  if (g) return g;
+
   const now = new Date().toISOString();
   const setFields: Record<string, any> = { updated_at: now };
 
@@ -78,6 +82,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const supabase = await createServerSupabase();
 
   const { data: pkg } = await supabase.from('packages').select('name, project_id').eq('id', id).maybeSingle();
+
+  if (pkg) {
+    const g = await assertProjectActive(supabase, pkg.project_id, auth);
+    if (g) return g;
+  }
 
   await supabase.from('packages').delete().eq('id', id);
 

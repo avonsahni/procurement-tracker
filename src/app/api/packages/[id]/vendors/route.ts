@@ -3,6 +3,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { addAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { VendorCreateSchema, parseBody } from '@/lib/validation';
+import { assertProjectActive } from '@/lib/projectGuard';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
@@ -13,8 +14,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { name, quoted, revised } = parsed.data;
 
   const supabase = await createServerSupabase();
-  const { data: pkg } = await supabase.from('packages').select('id').eq('id', pkgId).single();
+  const { data: pkg } = await supabase.from('packages').select('id, project_id').eq('id', pkgId).single();
   if (!pkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+
+  const g = await assertProjectActive(supabase, pkg.project_id, auth);
+  if (g) return g;
 
   const { data: row, error } = await supabase
     .from('vendors')

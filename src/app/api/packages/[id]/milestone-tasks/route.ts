@@ -4,6 +4,7 @@ import { guard } from '@/lib/auth';
 import { rollUpMilestoneTasks } from '@/lib/db';
 import { withRoute } from '@/lib/withRoute';
 import { z } from 'zod';
+import { assertProjectActive } from '@/lib/projectGuard';
 
 const CreateSchema = z.object({
   milestoneName: z.string().min(1),
@@ -59,9 +60,11 @@ export const POST = withRoute(async (req: NextRequest, ctx) => {
 
   const admin = createAdminSupabase();
 
-  if (!await getOwnedPackage(admin, pkgId, auth.orgId)) {
-    return NextResponse.json({ error: 'Package not found' }, { status: 404 });
-  }
+  const ownedPkg = await getOwnedPackage(admin, pkgId, auth.orgId);
+  if (!ownedPkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+
+  const g = await assertProjectActive(admin, ownedPkg.project_id, auth);
+  if (g) return g;
 
   const { data: task, error } = await admin
     .from('milestone_tasks')

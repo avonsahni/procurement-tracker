@@ -93,10 +93,14 @@ export default function PackageDetail({
     })();
   }, [packageId, projectId]);
 
+  // Non-admin users cannot edit a project that is not Active.
+  const isProjectLocked = project?.status !== 'Active' && user?.role !== 'admin';
+  const effectiveEditMode = editMode && !isProjectLocked;
+
   // Auto-enable Edit Mode in execution flow so milestone bars are immediately draggable.
   useEffect(() => {
-    if (mode === "execution") setEditMode(true);
-  }, [mode]);
+    if (mode === "execution" && !isProjectLocked) setEditMode(true);
+  }, [mode, isProjectLocked]);
 
   // ── Derived values ────────────────────────────────────────────────────────
 
@@ -125,7 +129,7 @@ export default function PackageDetail({
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleStageChange = async (stage: string) => {
-    if (!editMode || stageSaving) return;
+    if (!effectiveEditMode || stageSaving) return;
     if (stage === "Award") {
       setAwardVal(pkg?.awardValue?.toString() || "");
       setAwardVendor("");
@@ -217,7 +221,7 @@ export default function PackageDetail({
           </div>
 
           <div className="flex items-center gap-3 flex-shrink-0">
-            {user?.canEdit && (
+            {user?.canEdit && !isProjectLocked && (
               <button
                 onClick={() => setEditMode(!editMode)}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border transition ${
@@ -236,6 +240,16 @@ export default function PackageDetail({
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+
+        {/* Project-locked banner */}
+        {isProjectLocked && project && (
+          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 text-sm text-amber-800">
+            <Lock className="w-4 h-4 flex-shrink-0 text-amber-600" />
+            <span>
+              This project is <strong>{project.status}</strong>. All editing is disabled. Contact an admin to reactivate it.
+            </span>
+          </div>
+        )}
 
         {/* ── EXECUTION MODE BANNER ───────────────────────────────────────── */}
         {mode === "execution" && (
@@ -318,7 +332,7 @@ export default function PackageDetail({
               )}
               <StageStepper
                 currentStage={displayStage ?? pkg.currentStage}
-                readonly={!editMode || isAwarded || stageSaving}
+                readonly={!effectiveEditMode || isAwarded || stageSaving}
                 onStageChange={handleStageChange}
               />
             </div>
@@ -328,7 +342,7 @@ export default function PackageDetail({
               currency={pkg.currency}
               awardedVendorId={pkg.awardedVendorId}
               awardValue={pkg.awardValue}
-              readonly={!editMode || isAwarded}
+              readonly={!effectiveEditMode || isAwarded}
               onUpdate={async (vid: any, updates: any) => { await updateVendor(packageId, vid, updates); await reloadPackage(); }}
               onAdd={async (v: any) => { await addVendor(packageId, v, user?.fullName); await reloadPackage(); }}
               onDelete={async (vid: any) => { await deleteVendor(packageId, vid, user?.fullName); await reloadPackage(); }}
@@ -342,7 +356,7 @@ export default function PackageDetail({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <RemarksSection
                 remarks={pkg.remarks}
-                readonly={!editMode || isAwarded}
+                readonly={!effectiveEditMode || isAwarded}
                 currentUserId={user?.id}
                 isAdmin={user?.role === 'admin'}
                 onAddRemark={async (t: any) => { await addRemark(packageId, t, user?.fullName); await reloadPackage(); }}
@@ -365,7 +379,7 @@ export default function PackageDetail({
                 packageId={packageId}
                 userId={user?.id ?? ""}
                 orgId={user?.orgId}
-                readonly={!editMode || isAwarded}
+                readonly={!effectiveEditMode || isAwarded}
                 onAddDocument={async (d) => { await addDocument(packageId, d, user?.fullName); await reloadPackage(); }}
                 onDeleteDocument={async (did: string) => { await deleteDocument(packageId, did, user?.fullName); await reloadPackage(); }}
               />
@@ -380,7 +394,7 @@ export default function PackageDetail({
               invoices={pkg.invoices || []}
               awardValue={pkg.awardValue || 0}
               currency={pkg.currency}
-              readonly={!editMode}
+              readonly={!effectiveEditMode}
               onAddInvoice={async (inv) => { await addInvoice(packageId, inv); await reloadPackage(); }}
               onDeleteInvoice={async (iid) => { await deleteInvoice(packageId, iid); await reloadPackage(); }}
             />
@@ -392,7 +406,7 @@ export default function PackageDetail({
             )}
             <MilestoneTracker
               milestones={pkg.milestones || []}
-              readonly={!editMode}
+              readonly={!effectiveEditMode}
               onUpdate={async (name, progress) => {
                 setMilestoneError(null);
                 try {
@@ -439,7 +453,7 @@ export default function PackageDetail({
               remarks={pkg.remarks || []}
               packageId={packageId}
               orgId={user?.orgId}
-              readonly={!editMode}
+              readonly={!effectiveEditMode}
               onAddRemark={async (t, imageUrls, imageBytes) => { await addRemark(packageId, t, user?.fullName, imageUrls, imageBytes); await reloadPackage(); }}
             />
           </div>

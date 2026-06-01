@@ -3,6 +3,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { addAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { VendorUpdateSchema, parseBody } from '@/lib/validation';
+import { assertPackageProjectActive } from '@/lib/projectGuard';
 
 const COLUMN_MAP: Record<string, string> = {
   name: 'name',
@@ -13,7 +14,7 @@ const COLUMN_MAP: Record<string, string> = {
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string; vid: string }> }) {
   const auth = await guard('editor');
   if (auth instanceof NextResponse) return auth;
-  const { vid } = await params;
+  const { id: pkgId, vid } = await params;
   const parsed = await parseBody(req, VendorUpdateSchema);
   if (!parsed.ok) return parsed.response;
   const updates = parsed.data;
@@ -24,6 +25,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const supabase = await createServerSupabase();
+  const g = await assertPackageProjectActive(supabase, pkgId, auth);
+  if (g) return g;
   const { data: row, error } = await supabase
     .from('vendors')
     .update(setObj)
@@ -44,6 +47,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (auth instanceof NextResponse) return auth;
   const { id: pkgId, vid } = await params;
   const supabase = await createServerSupabase();
+  const g = await assertPackageProjectActive(supabase, pkgId, auth);
+  if (g) return g;
   const { data: v } = await supabase.from('vendors').select('name').eq('id', vid).single();
   if (v) await addAuditEntry(supabase, pkgId, auth.fullName, 'Vendor Removed', v.name, '');
   await supabase.from('vendors').delete().eq('id', vid);

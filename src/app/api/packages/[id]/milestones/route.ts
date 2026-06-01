@@ -3,6 +3,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { guard } from '@/lib/auth';
 import { EXECUTION_MILESTONES } from '@/lib/types';
 import { withRoute } from '@/lib/withRoute';
+import { assertPackageProjectActive } from '@/lib/projectGuard';
 
 export const PATCH = withRoute(async (req: NextRequest, ctx) => {
   const auth = await guard('editor');
@@ -17,6 +18,8 @@ export const PATCH = withRoute(async (req: NextRequest, ctx) => {
   }
 
   const supabase = await createServerSupabase();
+  const g = await assertPackageProjectActive(supabase, pkgId, auth);
+  if (g) return g;
 
   const { data: existing } = await supabase
     .from('package_milestones')

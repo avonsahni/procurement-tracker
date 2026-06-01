@@ -108,6 +108,10 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
     <div className="min-h-screen flex items-center justify-center text-sm text-slate-500 bg-slate-50">Project not found.</div>
   );
 
+  // Non-admin users cannot edit a project that is not Active.
+  const isProjectLocked = project.status !== 'Active' && user?.role !== 'admin';
+  const effectiveEditMode = editMode && !isProjectLocked;
+
   // ── pure helper ─────────────────────────────────────────────────────────────
   const milestoneProgress = (pkg: PackageSummary, name: string): number =>
     pkg.milestones.find(m => m.milestoneName === name)?.progress ?? 0;
@@ -183,7 +187,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
 
   const handleDeletePkg = async (pkgId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!editMode || !confirm("Delete package?")) return;
+    if (!effectiveEditMode || !confirm("Delete package?")) return;
     await deletePackage(pkgId);
     loadData();
   };
@@ -247,7 +251,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
             </nav>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
-            {user?.canEdit && (
+            {user?.canEdit && !isProjectLocked && (
               <button
                 onClick={() => setEditMode(!editMode)}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border transition ${
@@ -264,6 +268,16 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+
+        {/* Project-locked banner — shown to non-admins when project is not Active */}
+        {isProjectLocked && (
+          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 mb-6 text-sm text-amber-800">
+            <Lock className="w-4 h-4 flex-shrink-0 text-amber-600" />
+            <span>
+              This project is <strong>{project.status}</strong>. All editing is disabled. Contact an admin to reactivate it.
+            </span>
+          </div>
+        )}
 
         {/* ══════════════════════════════════════════════════════════════════════
             LANDING — two dashboard entry cards
@@ -621,7 +635,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                 <option value="All">All Stages</option>
                 {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              {editMode && (
+              {effectiveEditMode && (
                 <button onClick={() => setShowAddPkg(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition">
                   <Plus className="w-3.5 h-3.5" /> Add Package
                 </button>
@@ -697,7 +711,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                           </td>
                           <td className="px-4 py-3.5">
                             <div className="flex items-center justify-end gap-1">
-                              {editMode && (
+                              {effectiveEditMode && (
                                 <button onClick={e => handleDeletePkg(pkg.id, e)}
                                   className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100">
                                   <Trash2 className="w-3.5 h-3.5" />

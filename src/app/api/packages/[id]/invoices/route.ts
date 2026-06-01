@@ -4,6 +4,7 @@ import { addAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { InvoiceCreateSchema, parseBody } from '@/lib/validation';
 import { formatCurrency } from '@/lib/types';
+import { assertProjectActive } from '@/lib/projectGuard';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
@@ -22,6 +23,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .eq('id', pkgId)
     .single();
   if (!pkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+
+  const g = await assertProjectActive(supabase, pkg.project_id, auth);
+  if (g) return g;
 
   // Stage gate — billing only after award
   if (pkg.current_stage !== 'Award') {

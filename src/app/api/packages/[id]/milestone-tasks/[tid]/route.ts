@@ -4,6 +4,7 @@ import { guard } from '@/lib/auth';
 import { rollUpMilestoneTasks } from '@/lib/db';
 import { withRoute } from '@/lib/withRoute';
 import { z } from 'zod';
+import { assertProjectActive } from '@/lib/projectGuard';
 
 const UpdateSchema = z.object({
   name:        z.string().min(1).max(200).optional(),
@@ -37,9 +38,11 @@ export const PATCH = withRoute(async (req: NextRequest, ctx) => {
 
   const admin = createAdminSupabase();
 
-  if (!await getOwnedPackage(admin, pkgId, auth.orgId)) {
-    return NextResponse.json({ error: 'Package not found' }, { status: 404 });
-  }
+  const ownedPkg = await getOwnedPackage(admin, pkgId, auth.orgId);
+  if (!ownedPkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+
+  const g = await assertProjectActive(admin, ownedPkg.project_id, auth);
+  if (g) return g;
 
   const updates: Record<string, any> = { updated_at: new Date().toISOString() };
   if (parsed.data.name        !== undefined) updates.name        = parsed.data.name;
@@ -69,9 +72,11 @@ export const DELETE = withRoute(async (_req: NextRequest, ctx) => {
   const { id: pkgId, tid } = await ctx!.params as { id: string; tid: string };
   const admin = createAdminSupabase();
 
-  if (!await getOwnedPackage(admin, pkgId, auth.orgId)) {
-    return NextResponse.json({ error: 'Package not found' }, { status: 404 });
-  }
+  const ownedPkgD = await getOwnedPackage(admin, pkgId, auth.orgId);
+  if (!ownedPkgD) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+
+  const gd = await assertProjectActive(admin, ownedPkgD.project_id, auth);
+  if (gd) return gd;
 
   const { error } = await admin
     .from('milestone_tasks')
