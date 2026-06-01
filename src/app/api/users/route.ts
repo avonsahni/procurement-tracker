@@ -3,6 +3,7 @@ import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { addOrgAuditEntry } from '@/lib/db';
 import { withRoute } from '@/lib/withRoute';
+import { UserCreateSchema, parseBody } from '@/lib/validation';
 
 export const GET = withRoute(async () => {
   const auth = await guard('user');
@@ -25,7 +26,7 @@ export const GET = withRoute(async () => {
   for (const m of members || []) roleByUserId[m.user_id] = m.role;
 
   // Fetch auth users + profiles in parallel
-  const { data: { users }, error: usersErr } = await admin.auth.admin.listUsers();
+  const { data: { users }, error: usersErr } = await admin.auth.admin.listUsers({ perPage: 1000 });
   if (usersErr) return NextResponse.json({ error: usersErr.message }, { status: 500 });
 
   const { data: profiles } = await admin.from('profiles').select('id, full_name, can_edit').in('id', ids);
@@ -58,16 +59,15 @@ export const POST = withRoute(async (req: NextRequest) => {
   const auth = await guard('admin');
   if (auth instanceof NextResponse) return auth;
 
-  const { fullName, username, password, role, canEdit } = await req.json();
-  if (!username || !password) {
-    return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
-  }
+  const parsed = await parseBody(req, UserCreateSchema);
+  if (!parsed.ok) return parsed.response;
+  const { username, password, fullName, role } = parsed.data;
 
   // admin → orgRole:'admin', canEdit:true
   // user  → orgRole:'viewer', canEdit:true
   // viewer → orgRole:'viewer', canEdit:false
   const orgRole  = role === 'admin' ? 'admin' : 'viewer';
-  const editFlag = role !== 'viewer';
+  const canEdit  = role !== 'viewer';
 
   const admin = createAdminSupabase();
 
@@ -84,18 +84,18 @@ export const POST = withRoute(async (req: NextRequest) => {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  await admin.from('profiles').update({ can_edit: editFlag }).eq('id', data.user.id);
+  await admin.from('profiles').update({ can_edit: canEdit }).eq('id', data.user.id);
 
   await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,
     'User Invited', 'user_mgmt', fullName || username,
-    { email: username, role: role || 'user' });
+    { email: username, role });
 
   return NextResponse.json({
     id: data.user.id,
     username: data.user.email ?? '',
     fullName: fullName || username,
-    role: role || 'user',
-    canEdit: editFlag,
+    role,
+    canEdit,
     orgRole,
   });
 }, { route: '/api/users' });

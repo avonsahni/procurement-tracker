@@ -42,13 +42,17 @@ export async function GET(req: NextRequest) {
 
       const docPaths = (docs ?? []).map(d => d.storage_path).filter(Boolean);
 
-      // 2. Collect remark image storage paths for packages in this org
-      const { data: pkgs } = await admin
-        .from('packages')
-        .select('id, projects(org_id)')
-        .filter('projects.org_id', 'eq', orgId);
+      // 2. Collect remark image storage paths for packages in this org (two-step)
+      const { data: orgProjects } = await admin
+        .from('projects').select('id').eq('org_id', orgId);
+      const orgProjectIds = (orgProjects ?? []).map((p: any) => p.id);
 
-      const pkgIds = (pkgs ?? []).map((p: any) => p.id);
+      const pkgIds: string[] = [];
+      if (orgProjectIds.length > 0) {
+        const { data: pkgs } = await admin
+          .from('packages').select('id').in('project_id', orgProjectIds);
+        pkgIds.push(...(pkgs ?? []).map((p: any) => p.id));
+      }
       let imagePaths: string[] = [];
 
       if (pkgIds.length > 0) {

@@ -13,18 +13,12 @@ export async function GET(
   const { id: orgId } = await params;
   const admin = createAdminSupabase();
 
-  const [membersRes, authRes, profilesRes] = await Promise.all([
+  const [membersRes, authRes] = await Promise.all([
     admin.from('organization_members')
       .select('user_id, role, created_at')
       .eq('org_id', orgId)
       .order('created_at', { ascending: true }),
     admin.auth.admin.listUsers({ perPage: 1000 }),
-    admin.from('profiles').select('id, full_name').in(
-      'id',
-      // We'll re-filter after we get members — pass a placeholder to avoid a second round-trip
-      // We'll compute intersection client-side below
-      [] as string[]
-    ),
   ]);
 
   if (membersRes.error) return NextResponse.json({ error: membersRes.error.message }, { status: 500 });

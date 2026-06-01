@@ -283,6 +283,75 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
               <p className="text-sm text-slate-500 mt-1">Budget {formatCurrency(project.budget)} · {allPkgs.length} packages</p>
             </div>
 
+            {/* ── Project Details info card ─────────────────────────────── */}
+            {(project.address || project.projectType || project.builtUpArea ||
+              project.estimatedStartDate || project.estimatedDurationMonths != null ||
+              project.tenderedCost != null || project.projectManager ||
+              project.clientContactName || project.clientContactEmail ||
+              project.clientContactPhone || project.projectRemarks) && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Project Details</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 text-sm">
+                  {project.projectType && (
+                    <div>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mb-0.5">Type</p>
+                      <p className="text-slate-800 font-medium">{project.projectType}</p>
+                    </div>
+                  )}
+                  {project.address && (
+                    <div className="sm:col-span-2 lg:col-span-1">
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mb-0.5">Address</p>
+                      <p className="text-slate-800">{project.address}</p>
+                    </div>
+                  )}
+                  {project.builtUpArea && (
+                    <div>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mb-0.5">Built-Up Area</p>
+                      <p className="text-slate-800">{project.builtUpArea}</p>
+                    </div>
+                  )}
+                  {project.estimatedStartDate && (
+                    <div>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mb-0.5">Est. Start</p>
+                      <p className="text-slate-800">{new Date(project.estimatedStartDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    </div>
+                  )}
+                  {project.estimatedDurationMonths != null && (
+                    <div>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mb-0.5">Est. Duration</p>
+                      <p className="text-slate-800">{project.estimatedDurationMonths} month{project.estimatedDurationMonths !== 1 ? 's' : ''}</p>
+                    </div>
+                  )}
+                  {project.tenderedCost != null && (
+                    <div>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mb-0.5">Tendered Cost</p>
+                      <p className="text-slate-800 font-mono font-semibold">{formatCurrency(project.tenderedCost)}</p>
+                    </div>
+                  )}
+                  {project.projectManager && (
+                    <div>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mb-0.5">Project Manager</p>
+                      <p className="text-slate-800">{project.projectManager}</p>
+                    </div>
+                  )}
+                  {(project.clientContactName || project.clientContactEmail || project.clientContactPhone) && (
+                    <div>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mb-0.5">Client Contact</p>
+                      {project.clientContactName && <p className="text-slate-800">{project.clientContactName}</p>}
+                      {project.clientContactEmail && <p className="text-slate-500 text-xs">{project.clientContactEmail}</p>}
+                      {project.clientContactPhone && <p className="text-slate-500 text-xs">{project.clientContactPhone}</p>}
+                    </div>
+                  )}
+                  {project.projectRemarks && (
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mb-0.5">Remarks</p>
+                      <p className="text-slate-700 text-xs leading-relaxed">{project.projectRemarks}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {/* ── Purchasing Dashboard card ─────────────────────────────── */}

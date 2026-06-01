@@ -14,14 +14,27 @@ const CreateSchema = z.object({
   sortOrder:     z.number().int().min(0).optional(),
 });
 
+/** Verifies that pkgId belongs to orgId. Returns the package row or null. */
+async function getOwnedPackage(admin: ReturnType<typeof createAdminSupabase>, pkgId: string, orgId: string) {
+  const { data: pkg } = await admin.from('packages').select('id, project_id').eq('id', pkgId).maybeSingle();
+  if (!pkg) return null;
+  const { data: proj } = await admin.from('projects').select('org_id').eq('id', pkg.project_id).maybeSingle();
+  if (!proj || proj.org_id !== orgId) return null;
+  return pkg;
+}
+
 export const GET = withRoute(async (_req: NextRequest, ctx) => {
   const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
 
   const { id: pkgId } = await ctx!.params as { id: string };
-  const supabase = createAdminSupabase();
+  const admin = createAdminSupabase();
 
-  const { data, error } = await supabase
+  if (!await getOwnedPackage(admin, pkgId, auth.orgId)) {
+    return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+  }
+
+  const { data, error } = await admin
     .from('milestone_tasks')
     .select('*')
     .eq('package_id', pkgId)
@@ -44,9 +57,13 @@ export const POST = withRoute(async (req: NextRequest, ctx) => {
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
 
-  const supabase = createAdminSupabase();
+  const admin = createAdminSupabase();
 
-  const { data: task, error } = await supabase
+  if (!await getOwnedPackage(admin, pkgId, auth.orgId)) {
+    return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+  }
+
+  const { data: task, error } = await admin
     .from('milestone_tasks')
     .insert({
       package_id:     pkgId,
@@ -65,7 +82,7 @@ export const POST = withRoute(async (req: NextRequest, ctx) => {
 
   if (error || !task) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
 
-  await rollUpMilestoneTasks(supabase, pkgId);
+  await rollUpMilestoneTasks(admin, pkgId);
 
   return NextResponse.json(task, { status: 201 });
 }, { route: '/api/packages/[id]/milestone-tasks' });

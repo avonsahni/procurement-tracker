@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { assemblePackage, addAuditEntry } from '@/lib/db';
+import { createAdminSupabase } from '@/lib/supabase/admin';
+import { assemblePackage, addAuditEntry, addOrgAuditEntry } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { PackageUpdateSchema, parseBody } from '@/lib/validation';
 import { EXECUTION_MILESTONES } from '@/lib/types';
@@ -75,6 +76,17 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (auth instanceof NextResponse) return auth;
   const { id } = await params;
   const supabase = await createServerSupabase();
+
+  const { data: pkg } = await supabase.from('packages').select('name, project_id').eq('id', id).maybeSingle();
+
   await supabase.from('packages').delete().eq('id', id);
+
+  if (pkg) {
+    await addAuditEntry(supabase, id, auth.fullName, 'Package Deleted', pkg.name, '');
+    const admin = createAdminSupabase();
+    await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,
+      'Package Deleted', 'package', pkg.name);
+  }
+
   return NextResponse.json({ ok: true });
 }

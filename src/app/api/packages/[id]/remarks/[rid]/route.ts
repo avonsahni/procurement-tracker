@@ -54,8 +54,27 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   const auth = await guard('user');
   if (auth instanceof NextResponse) return auth;
 
-  const { rid } = await params;
+  const { id: pkgId, rid } = await params;
   const admin = createAdminSupabase();
+
+  // Verify the package belongs to the caller's org before acting
+  const { data: pkg } = await admin
+    .from('packages')
+    .select('project_id')
+    .eq('id', pkgId)
+    .maybeSingle();
+
+  if (!pkg) return NextResponse.json({ error: 'Package not found' }, { status: 404 });
+
+  const { data: proj } = await admin
+    .from('projects')
+    .select('org_id')
+    .eq('id', pkg.project_id)
+    .maybeSingle();
+
+  if (!proj || proj.org_id !== auth.orgId) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  }
 
   // Fetch the remark to verify ownership
   const { data: remark } = await admin

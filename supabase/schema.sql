@@ -46,6 +46,17 @@ create table if not exists public.projects (
   budget numeric default 0,
   status text default 'Active' check (status in ('Active', 'On Hold', 'Completed')),
   is_sample boolean not null default false,
+  address text not null default '',
+  project_type text not null default '',
+  built_up_area text not null default '',
+  estimated_start_date date,
+  estimated_duration_months int,
+  tendered_cost numeric,
+  project_manager text not null default '',
+  client_contact_name text not null default '',
+  client_contact_email text not null default '',
+  client_contact_phone text not null default '',
+  project_remarks text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

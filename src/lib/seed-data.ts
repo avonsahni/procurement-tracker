@@ -146,7 +146,6 @@ export async function seedSampleData(supabase: SupabaseClient, userId: string, o
   const now = new Date().toISOString();
 
   // We do this in waves so we can collect IDs for downstream batch inserts
-  const allPackages: Record<string, unknown>[] = [];
   const allVendors: Record<string, unknown>[] = [];
   const allAudits: Record<string, unknown>[] = [];
   const allRemarks: Record<string, unknown>[] = [];
@@ -283,7 +282,6 @@ export async function seedSampleData(supabase: SupabaseClient, userId: string, o
         });
       }
     }
-    allPackages.push({}); // just a counter for stats
   }
 
   // Bulk-insert the child rows in chunks of 100 to stay below Supabase's row limit
@@ -298,7 +296,7 @@ export async function seedSampleData(supabase: SupabaseClient, userId: string, o
   return {
     seeded: true,
     projects: SEED_PROJECTS.length,
-    packages: allPackages.length,
+    packages: allVendors.length > 0 ? Math.round(allVendors.length / 3) : 0, // 3 vendors per package
     vendors: allVendors.length,
     audits: allAudits.length,
     remarks: allRemarks.length,

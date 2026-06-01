@@ -11,7 +11,8 @@ export async function POST() {
   if (auth instanceof NextResponse) return auth;
 
   const supabase = await createServerSupabase();
-  await supabase.from('projects').delete().eq('org_id', auth.orgId);
+  const { error: deleteErr } = await supabase.from('projects').delete().eq('org_id', auth.orgId);
+  if (deleteErr) return NextResponse.json({ error: deleteErr.message }, { status: 500 });
 
   const admin = createAdminSupabase();
   await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,

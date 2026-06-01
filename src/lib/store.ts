@@ -72,8 +72,24 @@ export async function fetchProjects(): Promise<Project[]> {
 export async function fetchProject(id: string): Promise<ProjectSummary | undefined> {
   try { return await api(`/api/projects/${id}`); } catch { return undefined; }
 }
-export async function addProject(name: string, client: string, budget: number): Promise<void> {
-  await api('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, client, budget }) });
+export interface NewProjectInput {
+  name: string;
+  client?: string;
+  budget?: number;
+  address?: string;
+  projectType?: string;
+  builtUpArea?: string;
+  estimatedStartDate?: string | null;
+  estimatedDurationMonths?: number | null;
+  tenderedCost?: number | null;
+  projectManager?: string;
+  clientContactName?: string;
+  clientContactEmail?: string;
+  clientContactPhone?: string;
+  projectRemarks?: string;
+}
+export async function addProject(data: NewProjectInput): Promise<void> {
+  await api('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
 }
 export async function updateProject(id: string, updates: Partial<Project>): Promise<void> {
   await api(`/api/projects/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
