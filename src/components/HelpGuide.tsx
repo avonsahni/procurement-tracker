@@ -449,7 +449,7 @@ function SectionExecution() {
         {[
           "Open any awarded package detail page.",
           "Click the 'Execution' tab near the top of the page.",
-          "Edit Mode enables automatically in this view.",
+          "Turn on Edit Mode using the toggle in the header to add or edit subtasks (it is off by default).",
           "Expand a milestone by clicking its row arrow (▶), then click '+ tasks' to add subtasks.",
         ].map((s, i) => (
           <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">

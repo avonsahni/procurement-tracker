@@ -125,11 +125,6 @@ export default function PackageDetail({
   const isProjectLocked = project?.status !== 'Active' && user?.role !== 'admin';
   const effectiveEditMode = editMode && !isProjectLocked;
 
-  // Auto-enable Edit Mode in execution flow so milestone bars are immediately draggable.
-  useEffect(() => {
-    if (mode === "execution" && !isProjectLocked) setEditMode(true);
-  }, [mode, isProjectLocked]);
-
   // ── Derived values ────────────────────────────────────────────────────────
 
   // Use optimisticStage while a save is in-flight for instant UI response
