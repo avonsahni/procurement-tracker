@@ -110,6 +110,7 @@ function mapPackageRow(
   tasksByPkg: Record<string, any[]> = {},
   cashInflowByPkg: Record<string, any[]> = {},
   cashOutflowByPkg: Record<string, any[]> = {},
+  revisionsByVendor: Record<string, any[]> = {},
 ) {
   const id = row.id;
   const tasksByMilestone = groupBy(tasksByPkg[id] || [], 'milestone_name');
@@ -131,6 +132,10 @@ function mapPackageRow(
     updatedAt: row.updated_at,
     vendors: (vendorsByPkg[id] || []).map((v: any) => ({
       id: v.id, name: v.name, quotedAmount: Number(v.quoted_amount), revisedAmount: Number(v.revised_amount),
+      revisions: (revisionsByVendor[v.id] || []).map((r: any) => ({
+        id: r.id, roundNumber: r.round_number, amount: Number(r.amount),
+        notes: r.notes || '', createdBy: r.created_by || '', createdAt: r.created_at,
+      })),
     })),
     remarks: (remarksByPkg[id] || []).map((r: any) => ({
       id: r.id, user: r.username, text: r.text, timestamp: r.timestamp, userId: r.user_id,
@@ -242,6 +247,16 @@ export async function assemblePackage(supabase: SupabaseClient, row: any) {
     supabase.from('cash_outflow').select('id, to_whom, on_account_of, date_paid, amount, remarks, created_by, created_at').eq('package_id', id).order('date_paid'),
   ]);
 
+  // Fetch revisions for all vendors in this package (sequential — needs vendor IDs)
+  let revisionsByVendor: Record<string, any[]> = {};
+  const vendorIds = (vendorsRes.data || []).map((v: any) => v.id);
+  if (vendorIds.length > 0) {
+    const { data: revs } = await supabase.from('vendor_revisions')
+      .select('id, vendor_id, round_number, amount, notes, created_by, created_at')
+      .in('vendor_id', vendorIds).order('round_number');
+    revisionsByVendor = groupBy(revs || [], 'vendor_id');
+  }
+
   return mapPackageRow(
     row,
     { [id]: vendorsRes.data || [] },
@@ -253,6 +268,7 @@ export async function assemblePackage(supabase: SupabaseClient, row: any) {
     { [id]: tasksRes.data || [] },
     { [id]: cashInflowRes.data || [] },
     { [id]: cashOutflowRes.data || [] },
+    revisionsByVendor,
   );
 }
 
@@ -452,6 +468,7 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
   let tasksByPkg: Record<string, any[]> = {};
   let cashInflowByPkg: Record<string, any[]> = {};
   let cashOutflowByPkg: Record<string, any[]> = {};
+  let revisionsByVendor: Record<string, any[]> = {};
 
   if (pkgs.length > 0) {
     const ids = pkgs.map((p: any) => p.id);
@@ -478,10 +495,19 @@ export async function assembleProject(supabase: SupabaseClient, row: any) {
     tasksByPkg       = groupBy(tasksRes.data        || [], 'package_id');
     cashInflowByPkg  = groupBy(cashInflowRes.data   || [], 'package_id');
     cashOutflowByPkg = groupBy(cashOutflowRes.data  || [], 'package_id');
+
+    // Fetch revisions for all vendors across all packages in one query
+    const allVendorIds = (vendorsRes.data || []).map((v: any) => v.id);
+    if (allVendorIds.length > 0) {
+      const { data: revs } = await supabase.from('vendor_revisions')
+        .select('id, vendor_id, round_number, amount, notes, created_by, created_at')
+        .in('vendor_id', allVendorIds).order('round_number');
+      revisionsByVendor = groupBy(revs || [], 'vendor_id');
+    }
   }
 
   const packages = pkgs.map((p: any) =>
-    mapPackageRow(p, vendorsByPkg, remarksByPkg, docsByPkg, auditByPkg, invoicesByPkg, milestonesByPkg, tasksByPkg, cashInflowByPkg, cashOutflowByPkg)
+    mapPackageRow(p, vendorsByPkg, remarksByPkg, docsByPkg, auditByPkg, invoicesByPkg, milestonesByPkg, tasksByPkg, cashInflowByPkg, cashOutflowByPkg, revisionsByVendor)
   );
 
   return {

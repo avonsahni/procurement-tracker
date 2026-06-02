@@ -82,11 +82,21 @@ export const CURRENCY_LABELS: Record<Currency, string> = {
   SGD: "Singapore Dollar (S$)",
 };
 
+export interface VendorRevision {
+  id: string;
+  roundNumber: number;
+  amount: number;
+  notes: string;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface Vendor {
   id: string;
   name: string;
   quotedAmount: number;
   revisedAmount: number;
+  revisions: VendorRevision[];
 }
 
 export interface AuditEntry {

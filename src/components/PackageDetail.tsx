@@ -24,6 +24,8 @@ import {
   addMilestoneTask,
   updateMilestoneTask,
   deleteMilestoneTask,
+  addVendorRevision,
+  deleteVendorRevision,
 } from "@/lib/store";
 import { STAGES, CURRENCY_SYMBOLS, formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -428,6 +430,15 @@ export default function PackageDetail({
               onUpdate={async (vid: any, updates: any) => { await updateVendor(packageId, vid, updates); await reloadPackage(); }}
               onAdd={async (v: any) => { await addVendor(packageId, v, user?.fullName); await reloadPackage(); }}
               onDelete={async (vid: any) => { await deleteVendor(packageId, vid, user?.fullName); await reloadPackage(); }}
+              onAddRevision={async (vid: string, data: { amount: number; notes: string }) => {
+                const rev = await addVendorRevision(packageId, vid, data);
+                await reloadPackage();
+                return rev;
+              }}
+              onDeleteRevision={async (vid: string, rid: string) => {
+                await deleteVendorRevision(packageId, vid, rid);
+                await reloadPackage();
+              }}
               onSelectWinner={(v: any) => {
                 setAwardVendor(v.name);
                 setAwardVal(v.revisedAmount.toString());

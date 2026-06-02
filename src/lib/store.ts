@@ -139,6 +139,12 @@ export async function updateVendor(pkgId: string, vid: string, updates: any): Pr
 export async function deleteVendor(pkgId: string, vid: string, user: string = 'System'): Promise<void> {
   await api(`/api/packages/${pkgId}/vendors/${vid}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user }) });
 }
+export async function addVendorRevision(pkgId: string, vid: string, data: { amount: number; notes?: string }): Promise<import('./types').VendorRevision> {
+  return api(`/api/packages/${pkgId}/vendors/${vid}/revisions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+}
+export async function deleteVendorRevision(pkgId: string, vid: string, rid: string): Promise<void> {
+  await api(`/api/packages/${pkgId}/vendors/${vid}/revisions/${rid}`, { method: 'DELETE' });
+}
 
 // Remarks
 export async function addRemark(pkgId: string, text: string, user: string = 'User', imageUrls?: string[], imageBytes?: number): Promise<void> {
