@@ -130,23 +130,26 @@ export default function VendorMatrix({
                   key={v.id}
                   className={`border-b border-slate-100 transition ${isWinner ? "bg-emerald-50/50" : "hover:bg-slate-50/50"}`}
                 >
-                  {/* Vendor name */}
+                  {/* Vendor name — commits on blur to avoid one audit entry per keystroke */}
                   <td className="px-5 py-3.5">
-                    <input
+                    <EditableCell
                       value={v.name}
-                      onChange={(e) => onUpdate(v.id, { name: e.target.value })}
                       disabled={readonly}
+                      onCommit={(val) => { if (val !== v.name) onUpdate(v.id, { name: val }); }}
                       className="bg-transparent font-medium text-slate-900 border-none focus:ring-0 w-full p-0 outline-none text-sm disabled:cursor-default"
                     />
                   </td>
 
-                  {/* Quoted */}
+                  {/* Quoted — commits on blur */}
                   <td className="px-4 py-3.5 text-right">
-                    <input
+                    <EditableCell
                       type="number"
-                      value={v.quotedAmount}
-                      onChange={(e) => onUpdate(v.id, { quotedAmount: parseFloat(e.target.value) || 0 })}
+                      value={String(v.quotedAmount)}
                       disabled={readonly}
+                      onCommit={(val) => {
+                        const n = parseFloat(val) || 0;
+                        if (n !== v.quotedAmount) onUpdate(v.id, { quotedAmount: n });
+                      }}
                       className="bg-transparent text-right font-mono text-slate-500 border-none focus:ring-0 w-full p-0 outline-none text-sm disabled:cursor-default"
                     />
                   </td>
@@ -329,5 +332,39 @@ export default function VendorMatrix({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Text/number input that holds its own draft while focused and only calls
+ * onCommit on blur or Enter. This keeps inline vendor edits from firing one
+ * API call (and one audit entry) per keystroke.
+ */
+function EditableCell({
+  value, onCommit, disabled, type = "text", className,
+}: {
+  value: string;
+  onCommit: (val: string) => void;
+  disabled?: boolean;
+  type?: "text" | "number";
+  className?: string;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [focused, setFocused] = useState(false);
+
+  // Keep the draft in sync with external updates while not actively editing.
+  useEffect(() => { if (!focused) setDraft(value); }, [value, focused]);
+
+  return (
+    <input
+      type={type}
+      value={draft}
+      disabled={disabled}
+      onFocus={() => setFocused(true)}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { setFocused(false); onCommit(draft); }}
+      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+      className={className}
+    />
   );
 }

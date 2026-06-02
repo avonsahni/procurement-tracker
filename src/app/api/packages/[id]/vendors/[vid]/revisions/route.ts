@@ -4,6 +4,7 @@ import { guard } from '@/lib/auth';
 import { z } from 'zod';
 import { parseBody } from '@/lib/validation';
 import { assertPackageProjectActive } from '@/lib/projectGuard';
+import { addAuditEntry } from '@/lib/db';
 
 const AddRevisionSchema = z.object({
   amount: z.number({ message: 'amount must be a number' }).min(0, 'amount must be non-negative'),
@@ -53,6 +54,12 @@ export async function POST(
 
   // Auto-update vendor's revised_amount to this latest round's amount
   await supabase.from('vendors').update({ revised_amount: parsed.data.amount }).eq('id', vid);
+
+  // Audit trail (package-level, shown on the package page)
+  await addAuditEntry(
+    supabase, pkgId, auth.fullName,
+    `Revision R${nextRound} — ${vendor.name}`, '', String(parsed.data.amount),
+  );
 
   return NextResponse.json({
     id: row.id,

@@ -72,6 +72,7 @@ export default function PackageDetail({
   const [punchingAward, setPunchingAward] = useState(false);
   const [awardVal, setAwardVal]           = useState("");
   const [awardVendor, setAwardVendor]     = useState("");
+  const [awardRemark, setAwardRemark]     = useState("");
   const [awardError, setAwardError]       = useState<string | null>(null);
   const [awarding, setAwarding]           = useState(false);
 
@@ -180,8 +181,17 @@ export default function PackageDetail({
     setAwarding(true);
     try {
       await punchAward(projectId, packageId, parseFloat(awardVal), awardVendor, user?.fullName);
+      // Optional remark recorded with the award — populates Remarks & Notes
+      const remarkText = awardRemark.trim();
+      if (remarkText) {
+        await addRemark(
+          packageId,
+          `Awarded to ${awardVendor} at ${formatCurrency(parseFloat(awardVal), pkg.currency)} — ${remarkText}`,
+          user?.fullName,
+        );
+      }
       setPunchingAward(false);
-      setAwardVal(""); setAwardVendor("");
+      setAwardVal(""); setAwardVendor(""); setAwardRemark("");
       // Reload both so project's available budget is fresh for any re-award
       const [pkgData, projData] = await Promise.all([
         fetchPackage(packageId),
@@ -869,7 +879,7 @@ export default function PackageDetail({
       {punchingAward && (
         <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => { setPunchingAward(false); setAwardError(null); }}
+          onClick={() => { setPunchingAward(false); setAwardError(null); setAwardRemark(""); }}
         >
           <div
             className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-md p-6"
@@ -928,6 +938,18 @@ export default function PackageDetail({
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                  Remarks <span className="text-slate-400 font-normal">(optional — added to Remarks &amp; Notes)</span>
+                </label>
+                <textarea
+                  value={awardRemark}
+                  onChange={e => setAwardRemark(e.target.value)}
+                  rows={2}
+                  placeholder="e.g. Lowest commercial bid after 3 rounds; warranty terms agreed."
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 resize-none"
+                />
+              </div>
             </div>
 
             {awardError && (
@@ -939,7 +961,7 @@ export default function PackageDetail({
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => { setPunchingAward(false); setAwardError(null); }}
+                onClick={() => { setPunchingAward(false); setAwardError(null); setAwardRemark(""); }}
                 className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition"
               >
                 Cancel

@@ -38,9 +38,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  await logPackageAudit(createAdminSupabase(), auth, pkgId, 'Vendor Updated', 'package', {
-    vendor: row.name, quoted: Number(row.quoted_amount), revised: Number(row.revised_amount),
-  });
+  await Promise.all([
+    logPackageAudit(createAdminSupabase(), auth, pkgId, 'Vendor Updated', 'package', {
+      vendor: row.name, quoted: Number(row.quoted_amount), revised: Number(row.revised_amount),
+    }),
+    // Package-level trail (shown on the page) — record the edited fields
+    addAuditEntry(
+      supabase, pkgId, auth.fullName,
+      `Vendor Edited — ${row.name}`, '',
+      Object.keys(updates).map(k => `${k}: ${(updates as any)[k]}`).join(', '),
+    ),
+  ]);
 
   return NextResponse.json({
     id: row.id, name: row.name, quotedAmount: Number(row.quoted_amount), revisedAmount: Number(row.revised_amount),
