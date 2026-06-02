@@ -305,7 +305,7 @@ function StorageUsageCard() {
   );
 }
 
-function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: () => void }) {
+function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[]; onRefresh: () => void; onUserAdded: (u: UserAccount) => void }) {
   const { user: me } = useAuth();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "admin" | "user" | "viewer">("all");
@@ -313,7 +313,36 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
   const [form, setForm] = useState({ fullName: "", email: "", password: "", role: "user" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
+  const [editForm, setEditForm] = useState({ fullName: "", email: "", password: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  const openEdit = (u: UserAccount) => {
+    setEditingUser(u);
+    setEditForm({ fullName: u.fullName, email: u.username, password: "" });
+    setEditError("");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingUser) return;
+    if (editForm.password && editForm.password.length < 8) { setEditError("Password must be at least 8 characters"); return; }
+    setEditSaving(true); setEditError("");
+    try {
+      const updates: Record<string, any> = {};
+      if (editForm.fullName !== editingUser.fullName) updates.fullName = editForm.fullName;
+      if (editForm.email !== editingUser.username) updates.email = editForm.email;
+      if (editForm.password) updates.password = editForm.password;
+      if (Object.keys(updates).length === 0) { setEditingUser(null); return; }
+      await updateUser(editingUser.id, updates);
+      onRefresh();
+      setEditingUser(null);
+    } catch (e: any) {
+      setEditError(e.message || "Failed to update user");
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const filtered = users.filter(u => {
     const matchesFilter = filter === "all" || u.role === filter;
@@ -328,10 +357,10 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
     if (form.password.length < 8) { setError("Password must be at least 8 characters"); return; }
     setSaving(true); setError("");
     try {
-      await addUser({ username: form.email, fullName: form.fullName, password: form.password, role: form.role as "admin" | "user" | "viewer", canEdit: form.role !== "viewer" });
+      const created = await addUser({ username: form.email, fullName: form.fullName, password: form.password, role: form.role as "admin" | "user" | "viewer", canEdit: form.role !== "viewer" });
       setForm({ fullName: "", email: "", password: "", role: "user" });
       setShowAdd(false);
-      onRefresh();
+      onUserAdded(created);
     } catch (e: any) {
       setError(e.message || "Failed to create user");
     } finally {
@@ -424,6 +453,43 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
         </div>
       )}
 
+      {/* Edit user modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => !editSaving && setEditingUser(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-900">Edit User — {editingUser.fullName}</h3>
+              <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Full Name</label>
+                <input value={editForm.fullName} onChange={e => setEditForm(f => ({ ...f, fullName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/30" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Email (login)</label>
+                <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/30" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">New Password <span className="text-slate-400 font-normal">(leave blank to keep current)</span></label>
+                <input type="password" value={editForm.password} onChange={e => setEditForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="Min 8 characters"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/30" />
+              </div>
+            </div>
+            {editError && <p className="text-xs text-red-600">{editError}</p>}
+            <div className="flex gap-2 justify-end pt-1">
+              <button onClick={() => setEditingUser(null)} disabled={editSaving} className="px-4 py-2 text-sm border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition">Cancel</button>
+              <button onClick={handleSaveEdit} disabled={editSaving} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition disabled:opacity-60">
+                {editSaving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* User table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
@@ -480,13 +546,22 @@ function UsersSection({ users, onRefresh }: { users: UserAccount[]; onRefresh: (
                   </td>
                   <td className="px-5 py-3.5 text-right">
                     {!isMe && (
-                      <button
-                        onClick={() => handleDelete(u.id)}
-                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                        title="Remove user"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => openEdit(u)}
+                          className="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
+                          title="Edit user"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(u.id)}
+                          className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                          title="Remove user"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -2210,7 +2285,7 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
         <main className="flex-1 overflow-y-auto p-8">
           {tab === "overview"   && <OverviewSection  users={users} orgName={orgName} />}
           {tab === "projects"   && <ProjectsSection />}
-          {tab === "users"      && <UsersSection     users={users} onRefresh={loadUsers} />}
+          {tab === "users"      && <UsersSection     users={users} onRefresh={loadUsers} onUserAdded={(u) => setUsers(prev => [...prev, u])} />}
           {tab === "branding"   && <BrandingSection  onSaved={loadBranding} />}
           {tab === "categories" && <CategoriesSection />}
           {tab === "audit"      && <AuditLogSection />}

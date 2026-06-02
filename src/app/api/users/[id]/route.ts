@@ -56,10 +56,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     await admin.from('profiles').update(updates).eq('id', id);
   }
 
-  if (body.password && isSelf) {
-    const supabase = await createServerSupabase();
-    const { error: pwErr } = await supabase.auth.updateUser({ password: body.password });
-    if (pwErr) return NextResponse.json({ error: pwErr.message }, { status: 400 });
+  if (body.password) {
+    if (isSelf) {
+      const supabase = await createServerSupabase();
+      const { error: pwErr } = await supabase.auth.updateUser({ password: body.password });
+      if (pwErr) return NextResponse.json({ error: pwErr.message }, { status: 400 });
+    } else if (isOrgAdmin) {
+      const { error: pwErr } = await admin.auth.admin.updateUserById(id, { password: body.password });
+      if (pwErr) return NextResponse.json({ error: pwErr.message }, { status: 400 });
+    }
+  }
+
+  if (body.email && isOrgAdmin && !isSelf) {
+    const { error: emailErr } = await admin.auth.admin.updateUserById(id, { email: body.email, email_confirm: true });
+    if (emailErr) return NextResponse.json({ error: emailErr.message }, { status: 400 });
   }
 
   // Audit (only log admin changes to other users, not self-edits)
@@ -68,6 +78,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.role !== undefined) changes.push(`role → ${body.role}`);
     if (body.canEdit !== undefined) changes.push(`can_edit → ${body.canEdit}`);
     if (body.fullName !== undefined) changes.push(`name → ${body.fullName}`);
+    if (body.email !== undefined) changes.push(`email → ${body.email}`);
+    if (body.password) changes.push('password changed');
     await addOrgAuditEntry(admin, auth.orgId, auth.id, auth.fullName,
       'User Updated', 'user_mgmt', targetName,
       { changes: changes.join(', ') });

@@ -52,13 +52,13 @@ export async function updateCompanyInfo(info: CompanyInfo): Promise<void> {
 export async function getUsers(): Promise<UserAccount[]> {
   return api('/api/users');
 }
-export async function addUser(user: Omit<UserAccount, 'id'>): Promise<void> {
-  await api('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(user) });
+export async function addUser(user: Omit<UserAccount, 'id'>): Promise<UserAccount> {
+  return api('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(user) });
 }
 export async function updateUserRights(id: string, canEdit: boolean): Promise<void> {
   await api(`/api/users/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canEdit }) });
 }
-export async function updateUser(id: string, updates: { fullName?: string; role?: string; canEdit?: boolean; password?: string }): Promise<void> {
+export async function updateUser(id: string, updates: { fullName?: string; email?: string; role?: string; canEdit?: boolean; password?: string }): Promise<void> {
   await api(`/api/users/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
 }
 export async function deleteUser(id: string): Promise<void> {
