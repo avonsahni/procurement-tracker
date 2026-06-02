@@ -33,7 +33,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const SUPABASE_URL  = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPABASE_URL  = (() => { try { return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || '').origin; } catch { return ''; } })();
 const ANON_KEY      = process.env.SUPABASE_ANON_KEY;
 const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const A_EMAIL       = process.env.ISO_USER_A_EMAIL;

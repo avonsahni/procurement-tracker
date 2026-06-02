@@ -11,7 +11,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPABASE_URL = (() => { try { return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || '').origin; } catch { return ''; } })();
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const FX = {
