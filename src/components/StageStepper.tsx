@@ -2,16 +2,15 @@
 
 import { useState } from "react";
 import { STAGES, Stage } from "@/lib/types";
-import { Check, Lock, Loader2 } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 
 interface StageStepperProps {
   currentStage: Stage;
   onStageChange?: (stage: Stage) => void;
   readonly?: boolean;
-  saving?: boolean;
 }
 
-export default function StageStepper({ currentStage, onStageChange, readonly, saving }: StageStepperProps) {
+export default function StageStepper({ currentStage, onStageChange, readonly }: StageStepperProps) {
   const currentIdx = STAGES.indexOf(currentStage);
   // Tracks the stage just clicked so we can fire a one-shot pulse animation.
   const [pulsing, setPulsing] = useState<string | null>(null);
@@ -31,7 +30,7 @@ export default function StageStepper({ currentStage, onStageChange, readonly, sa
         const isCompleted = idx < currentIdx;
         const isCurrent   = idx === currentIdx;
         const isNext      = idx === currentIdx + 1;
-        const isClickable = !readonly && !saving && !isCurrent && (isNext || isCompleted);
+        const isClickable = !readonly && !isCurrent && (isNext || isCompleted);
         const isLocked    = !readonly && !isCurrent && !isNext && !isCompleted;
 
         const Tag = isClickable ? "button" : "div";
@@ -59,13 +58,11 @@ export default function StageStepper({ currentStage, onStageChange, readonly, sa
                 }
               `}
             >
-              {saving && isCurrent
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : isCompleted
-                  ? <Check className="w-4 h-4" />
-                  : isLocked
-                    ? <Lock className="w-3.5 h-3.5" />
-                    : <span className="text-xs font-bold font-mono">{idx + 1}</span>
+              {isCompleted
+                ? <Check className="w-4 h-4" />
+                : isLocked
+                  ? <Lock className="w-3.5 h-3.5" />
+                  : <span className="text-xs font-bold font-mono">{idx + 1}</span>
               }
             </div>
 

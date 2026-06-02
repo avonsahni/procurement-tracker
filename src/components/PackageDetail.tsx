@@ -64,7 +64,7 @@ export default function PackageDetail({
   // Optimistic stage — set immediately on click so the stepper updates
   // without waiting for the API round-trip.
   const [optimisticStage, setOptimisticStage] = useState<string | null>(null);
-  const [stageSaving, setStageSaving]         = useState(false);
+  const [stageToast, setStageToast]           = useState<string | null>(null);
 
   // Award modal state
   const [punchingAward, setPunchingAward] = useState(false);
@@ -149,28 +149,27 @@ export default function PackageDetail({
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleStageChange = async (stage: string) => {
-    if (!effectiveEditMode || stageSaving) return;
+  const handleStageChange = (stage: string) => {
+    if (!effectiveEditMode) return;
     if (stage === "Award") {
       setAwardVal(pkg?.awardValue?.toString() || "");
       setAwardVendor("");
       setPunchingAward(true);
-    } else {
-      // Optimistic: update UI immediately, save in background
-      setOptimisticStage(stage);
-      setStageSaving(true);
-      try {
-        await updatePackage(packageId, { currentStage: stage }, user?.fullName);
-        // Reload silently in background to sync audit trail etc; don't await
-        reloadPackage().then(() => setOptimisticStage(null));
-      } catch (e: any) {
-        console.error('Stage change failed:', e?.message);
-        setOptimisticStage(null);
-        await reloadPackage();
-      } finally {
-        setStageSaving(false);
-      }
+      return;
     }
+    // Instant optimistic update — UI changes before the network request even starts.
+    const prev = pkg?.currentStage ?? null;
+    setOptimisticStage(stage);
+    setStageToast(null);
+
+    // Fire-and-forget: API updates in background, user isn't blocked.
+    updatePackage(packageId, { currentStage: stage }, user?.fullName)
+      .then(() => reloadPackage().then(() => setOptimisticStage(null)))
+      .catch((err: any) => {
+        // Revert the optimistic update and surface a dismissible failure notice.
+        setOptimisticStage(prev);
+        setStageToast(err?.message || 'Stage update failed — please try again');
+      });
   };
 
   const handlePunchAward = async () => {
@@ -410,9 +409,14 @@ export default function PackageDetail({
               <StageStepper
                 currentStage={displayStage ?? pkg.currentStage}
                 readonly={!effectiveEditMode || isAwarded}
-                saving={stageSaving}
                 onStageChange={handleStageChange}
               />
+              {stageToast && (
+                <div className="flex items-center justify-between gap-3 mt-1 px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                  <span>⚠ {stageToast}</span>
+                  <button type="button" onClick={() => setStageToast(null)} className="text-red-400 hover:text-red-600 font-bold leading-none">✕</button>
+                </div>
+              )}
             </div>
 
             <VendorMatrix
