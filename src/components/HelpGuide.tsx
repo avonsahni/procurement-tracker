@@ -255,7 +255,7 @@ function SectionProjects() {
       </P>
       <ul className="space-y-2 mt-1">
         <Li><strong>Purchasing Dashboard</strong> — package stage distribution, budget vs awarded</Li>
-        <Li><strong>Execution Dashboard</strong> — weighted milestone completion across awarded packages</Li>
+        <Li><strong>Execution Dashboard</strong> — weighted milestone completion plus a cumulative Financial Progress breakdown (Billing, Cash Inflow, Cash Outflow as % of total awarded) across awarded packages</Li>
         <Li><strong>Cashflow Dashboard</strong> — total cash in and out with per-package breakdown (read-only)</Li>
       </ul>
       <P>
@@ -1044,6 +1044,20 @@ function SectionSettings() {
         <Li><strong>Tagline</strong> — a short descriptor shown under the name</Li>
         <Li><strong>Logo URL</strong> — paste a public image URL to replace the default icon</Li>
         <Li><strong>Contact Email</strong> — reference email for your organisation</Li>
+        <Li><strong>Default Currency</strong> — the currency pre-selected when creating new packages (can be overridden per package)</Li>
+      </ul>
+
+      <H3>Organisation tab</H3>
+      <P>
+        Edit your organisation's registration and contact details. These are shared with
+        platform administrators for support and billing, and stay in sync with the platform
+        admin view — an update here is reflected there and vice versa.
+      </P>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Contact Name / Title / Email / Phone</strong> — your organisation's primary point of contact</Li>
+        <Li><strong>Org Type</strong> — e.g. Private Limited, LLP, Proprietorship</Li>
+        <Li><strong>Website</strong> — your organisation's website</Li>
+        <Li><strong>Address, City, State / Region, Country</strong> — registered address details</Li>
       </ul>
 
       <H3>Categories tab</H3>
