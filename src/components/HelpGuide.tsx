@@ -704,8 +704,8 @@ function SectionStages() {
         {[
           "Be in Edit Mode.",
           "Open the package detail page.",
-          "In the Comparison Matrix, click 'Select' on the winning vendor's row. The award dialog opens with that vendor and its latest revision value locked in — they cannot be changed in the dialog.",
-          "Alternatively, click the 'Award' node in the Procurement Timeline to open the dialog and enter the value / pick the vendor manually (used when there is no matrix vendor to select).",
+          "In the Comparison Matrix, click 'Select' on the winning vendor's row. This is the only way to award — the dialog opens with that vendor and its latest revision value locked in; neither can be changed.",
+          "Clicking the 'Award' node in the Procurement Timeline does not open a form — it simply points you to the matrix to click 'Select'.",
           "Optionally add a remark, then click Confirm Award. The stage locks, the award value and vendor are recorded, and the Billing and Cash Flow sections become available.",
         ].map((s, i) => (
           <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">

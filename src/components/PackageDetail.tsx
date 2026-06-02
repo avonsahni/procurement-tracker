@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/apiFetch";
 import {
@@ -67,12 +67,13 @@ export default function PackageDetail({
   // without waiting for the API round-trip.
   const [optimisticStage, setOptimisticStage] = useState<string | null>(null);
   const [stageToast, setStageToast]           = useState<string | null>(null);
+  // Hint shown when the user clicks the "Award" timeline node — awards are made
+  // only by clicking "Select" on a vendor in the Comparison Matrix.
+  const [awardHint, setAwardHint]             = useState<string | null>(null);
+  const matrixRef = useRef<HTMLDivElement>(null);
 
-  // Award modal state
+  // Award modal state — only ever opened (locked) from a vendor row's "Select".
   const [punchingAward, setPunchingAward] = useState(false);
-  // Locked when opened via a vendor row's "Select" button — vendor + value are
-  // fixed to that vendor's latest revision and cannot be changed in the dialog.
-  const [awardLocked, setAwardLocked]     = useState(false);
   const [awardVal, setAwardVal]           = useState("");
   const [awardVendor, setAwardVendor]     = useState("");
   const [awardRemark, setAwardRemark]     = useState("");
@@ -158,10 +159,13 @@ export default function PackageDetail({
   const handleStageChange = (stage: string) => {
     if (!effectiveEditMode) return;
     if (stage === "Award") {
-      setAwardVal(pkg?.awardValue?.toString() || "");
-      setAwardVendor("");
-      setAwardLocked(false);
-      setPunchingAward(true);
+      // Awards are made only by clicking "Select" on a vendor in the Comparison
+      // Matrix (which locks the vendor + its latest revision value). The Award
+      // node never opens a free-form dialog — route the user to the matrix.
+      setAwardHint(pkg.vendors.length === 0
+        ? 'Add a vendor to the Comparison Matrix, then click "Select" to award.'
+        : 'Click "Select" on the winning vendor in the Comparison Matrix to award.');
+      matrixRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
     // Instant optimistic update — UI changes before the network request even starts.
@@ -433,8 +437,15 @@ export default function PackageDetail({
                   <button type="button" onClick={() => setStageToast(null)} className="text-red-400 hover:text-red-600 font-bold leading-none">✕</button>
                 </div>
               )}
+              {awardHint && (
+                <div className="flex items-center justify-between gap-3 mt-1 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
+                  <span>{awardHint}</span>
+                  <button type="button" onClick={() => setAwardHint(null)} className="text-blue-400 hover:text-blue-600 font-bold leading-none">✕</button>
+                </div>
+              )}
             </div>
 
+            <div ref={matrixRef}>
             <VendorMatrix
               vendors={pkg.vendors}
               currency={pkg.currency}
@@ -471,12 +482,13 @@ export default function PackageDetail({
                 } : prev);
               }}
               onSelectWinner={(v: any) => {
+                setAwardHint(null);
                 setAwardVendor(v.name);
                 setAwardVal(v.revisedAmount.toString());
-                setAwardLocked(true);
                 setPunchingAward(true);
               }}
             />
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <RemarksSection
@@ -929,33 +941,17 @@ export default function PackageDetail({
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">
                   Award Value ({CURRENCY_SYMBOLS[pkg.currency as keyof typeof CURRENCY_SYMBOLS]})
                 </label>
-                {awardLocked ? (
-                  <>
-                    <div className={`w-full border rounded-lg px-3 py-2.5 text-sm font-mono flex items-center justify-between ${
-                      wouldExceed
-                        ? "border-red-400 bg-red-50 text-red-700"
-                        : "border-slate-200 bg-slate-50 text-slate-900"
-                    }`}>
-                      <span>{formatCurrency(enteredVal, pkg.currency)}</span>
-                      <Lock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-1.5">
-                      Locked to the selected vendor&apos;s latest revision.
-                    </p>
-                  </>
-                ) : (
-                  <input
-                    type="number"
-                    value={awardVal}
-                    onChange={e => { setAwardVal(e.target.value); setAwardError(null); }}
-                    className={`w-full border rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 font-mono transition ${
-                      wouldExceed
-                        ? "border-red-400 focus:ring-red-400/30 focus:border-red-500"
-                        : "border-slate-200 focus:ring-blue-500/30 focus:border-blue-500"
-                    }`}
-                    autoFocus
-                  />
-                )}
+                <div className={`w-full border rounded-lg px-3 py-2.5 text-sm font-mono flex items-center justify-between ${
+                  wouldExceed
+                    ? "border-red-400 bg-red-50 text-red-700"
+                    : "border-slate-200 bg-slate-50 text-slate-900"
+                }`}>
+                  <span>{formatCurrency(enteredVal, pkg.currency)}</span>
+                  <Lock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1.5">
+                  Locked to the selected vendor&apos;s latest revision.
+                </p>
                 {wouldExceed && (
                   <p className="text-xs text-red-600 mt-1.5 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
@@ -965,28 +961,13 @@ export default function PackageDetail({
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Awarded Vendor</label>
-                {awardLocked ? (
-                  <>
-                    <div className="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2.5 text-sm text-slate-900 flex items-center justify-between">
-                      <span className="font-medium">{awardVendor || "—"}</span>
-                      <Lock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-1.5">
-                      Set by the &quot;Select&quot; button on the vendor row.
-                    </p>
-                  </>
-                ) : (
-                  <select
-                    value={awardVendor}
-                    onChange={e => setAwardVendor(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                  >
-                    <option value="">Select vendor…</option>
-                    {pkg.vendors.map((v: any) => (
-                      <option key={v.id} value={v.name}>{v.name}</option>
-                    ))}
-                  </select>
-                )}
+                <div className="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2.5 text-sm text-slate-900 flex items-center justify-between">
+                  <span className="font-medium">{awardVendor || "—"}</span>
+                  <Lock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1.5">
+                  Set by the &quot;Select&quot; button on the vendor row.
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">
