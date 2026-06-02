@@ -64,6 +64,15 @@ export async function PUT(
   if (platform_notes !== undefined) updates.platform_notes = platform_notes;
   if (trial_ends_at !== undefined) updates.trial_ends_at = trial_ends_at || null;
 
+  // Registration / contact details — platform admins can edit these too.
+  const REG_FIELDS = [
+    'contact_name', 'contact_title', 'contact_email', 'phone', 'org_type',
+    'website', 'address_line1', 'city', 'state_region', 'country',
+  ] as const;
+  for (const key of REG_FIELDS) {
+    if (body[key] !== undefined) updates[key] = body[key] === '' ? null : body[key];
+  }
+
   if (subscription_status !== undefined) {
     updates.subscription_status = subscription_status;
     if (subscription_status === 'paused') {

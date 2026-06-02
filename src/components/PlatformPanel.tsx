@@ -1080,6 +1080,26 @@ function OrgDetailView({
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsMsg, setSettingsMsg]       = useState('');
 
+  // ── Registration details edit state ──
+  const REG_FIELDS = [
+    { key: 'contact_name',  label: 'Contact Name' },
+    { key: 'contact_title', label: 'Contact Title' },
+    { key: 'contact_email', label: 'Contact Email', type: 'email' },
+    { key: 'phone',         label: 'Phone' },
+    { key: 'org_type',      label: 'Org Type' },
+    { key: 'website',       label: 'Website' },
+    { key: 'address_line1', label: 'Address', full: true },
+    { key: 'city',          label: 'City' },
+    { key: 'state_region',  label: 'State / Region' },
+    { key: 'country',       label: 'Country' },
+  ] as const;
+  type RegKey = typeof REG_FIELDS[number]['key'];
+  const emptyReg = () => Object.fromEntries(REG_FIELDS.map(f => [f.key, ''])) as Record<RegKey, string>;
+  const [editingReg, setEditingReg] = useState(false);
+  const [regForm, setRegForm]       = useState<Record<RegKey, string>>(emptyReg());
+  const [regSaving, setRegSaving]   = useState(false);
+  const [regMsg, setRegMsg]         = useState('');
+
   // ── Extend expiry state ──
   const [extendDate, setExtendDate]   = useState('');
   const [extendSaving, setExtendSaving] = useState(false);
@@ -1117,7 +1137,45 @@ function OrgDetailView({
     setNotes(detail.platform_notes || '');
     setTrialEndsAt(detail.trial_ends_at ? detail.trial_ends_at.slice(0, 10) : '');
     setEditingPlan(false);
+    setRegForm(Object.fromEntries(
+      REG_FIELDS.map(f => [f.key, (detail as any)[f.key] || ''])
+    ) as Record<RegKey, string>);
+    setEditingReg(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);
+
+  const handleCancelRegEdit = () => {
+    if (!detail) return;
+    setRegForm(Object.fromEntries(
+      REG_FIELDS.map(f => [f.key, (detail as any)[f.key] || ''])
+    ) as Record<RegKey, string>);
+    setEditingReg(false);
+    setRegMsg('');
+  };
+
+  const handleSaveReg = async () => {
+    setRegSaving(true); setRegMsg('');
+    try {
+      const res = await apiFetch(`/api/platform/orgs/${orgId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(regForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      // Reflect saved values locally without a refetch.
+      setDetail(prev => prev ? { ...prev, ...Object.fromEntries(
+        REG_FIELDS.map(f => [f.key, regForm[f.key] || null])
+      ) } as OrgDetail : prev);
+      setRegMsg('Saved!');
+      setEditingReg(false);
+    } catch (e: any) {
+      setRegMsg(e.message || 'Save failed');
+    } finally {
+      setRegSaving(false);
+      setTimeout(() => setRegMsg(''), 3000);
+    }
+  };
 
   const handleCancelPlanEdit = () => {
     if (!detail) return;
@@ -1503,14 +1561,24 @@ function OrgDetailView({
 
           {/* ── Registration Details ── */}
           <div className="bg-white border border-slate-200 rounded-xl p-6">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-4">
-              <Building className="w-4 h-4 text-slate-400" /> Registration Details
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <Building className="w-4 h-4 text-slate-400" /> Registration Details
+              </h3>
+              {!loadingDetail && !editingReg && (
+                <button
+                  onClick={() => setEditingReg(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg transition"
+                >
+                  <Edit2 className="w-3.5 h-3.5" /> Edit
+                </button>
+              )}
+            </div>
             {loadingDetail ? (
               <div className="flex items-center gap-2 text-slate-400 text-sm py-4">
                 <Loader2 className="w-4 h-4 animate-spin" /> Loading…
               </div>
-            ) : (
+            ) : !editingReg ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                 {([
                   { label: 'Contact Name',    value: detail?.contact_name },
@@ -1533,6 +1601,44 @@ function OrgDetailView({
                   </div>
                 ))}
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                  {REG_FIELDS.map(f => (
+                    <div key={f.key} className={'full' in f && f.full ? 'sm:col-span-2' : undefined}>
+                      <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">{f.label}</label>
+                      <input
+                        value={regForm[f.key]}
+                        onChange={e => setRegForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                        type={'type' in f && f.type ? f.type : 'text'}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 pt-4">
+                  <button
+                    onClick={handleSaveReg}
+                    disabled={regSaving}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-50"
+                  >
+                    {regSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    {regSaving ? 'Saving…' : 'Save Changes'}
+                  </button>
+                  <button
+                    onClick={handleCancelRegEdit}
+                    disabled={regSaving}
+                    className="px-4 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-50 transition disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  {regMsg && (
+                    <span className={`text-sm font-medium ${regMsg === 'Saved!' ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {regMsg}
+                    </span>
+                  )}
+                </div>
+              </>
             )}
           </div>
 

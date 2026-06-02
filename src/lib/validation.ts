@@ -179,6 +179,23 @@ export const CompanyUpdateSchema = z.object({
   defaultCurrency: z.enum(['INR', 'USD', 'GBP', 'EUR', 'JPY', 'AED', 'SGD']).optional().default('INR'),
 });
 
+// Organisation registration details — editable by the org admin and platform admin.
+// Every field is optional free text; empty strings are normalised to null on write.
+const regText = (max: number) => z.string().trim().max(max).optional().nullable();
+
+export const OrgRegistrationUpdateSchema = z.object({
+  contact_name:  regText(120),
+  contact_title: regText(120),
+  contact_email: z.string().trim().max(200).email().optional().nullable().or(z.literal('')),
+  phone:         regText(40),
+  org_type:      regText(80),
+  website:       regText(200),
+  address_line1: regText(300),
+  city:          regText(120),
+  state_region:  regText(120),
+  country:       regText(120),
+});
+
 export const UserCreateSchema = z.object({
   username: trimmedString('username', 3, 50),
   password: z.string().min(8, 'password must be at least 8 chars'),

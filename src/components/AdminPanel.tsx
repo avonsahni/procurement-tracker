@@ -684,6 +684,127 @@ function BrandingSection({ onSaved }: { onSaved: () => void }) {
   );
 }
 
+interface OrgDetailsForm {
+  contact_name: string;
+  contact_title: string;
+  contact_email: string;
+  phone: string;
+  org_type: string;
+  website: string;
+  address_line1: string;
+  city: string;
+  state_region: string;
+  country: string;
+}
+
+const EMPTY_ORG_DETAILS: OrgDetailsForm = {
+  contact_name: "", contact_title: "", contact_email: "", phone: "", org_type: "",
+  website: "", address_line1: "", city: "", state_region: "", country: "",
+};
+
+const ORG_DETAIL_FIELDS: { key: keyof OrgDetailsForm; label: string; placeholder: string; type?: string; full?: boolean }[] = [
+  { key: "contact_name",  label: "Contact Name",   placeholder: "Jane Doe" },
+  { key: "contact_title", label: "Contact Title",  placeholder: "Procurement Manager" },
+  { key: "contact_email", label: "Contact Email",  placeholder: "jane@company.com", type: "email" },
+  { key: "phone",         label: "Phone",          placeholder: "+91 98765 43210" },
+  { key: "org_type",      label: "Org Type",       placeholder: "Private Limited" },
+  { key: "website",       label: "Website",        placeholder: "https://company.com" },
+  { key: "address_line1", label: "Address",        placeholder: "123 Industrial Estate", full: true },
+  { key: "city",          label: "City",           placeholder: "Mumbai" },
+  { key: "state_region",  label: "State / Region",  placeholder: "Maharashtra" },
+  { key: "country",       label: "Country",        placeholder: "India" },
+];
+
+function OrgDetailsSection() {
+  const [form, setForm] = useState<OrgDetailsForm>(EMPTY_ORG_DETAILS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/organization", { headers: { "X-Requested-With": "fetch" } })
+      .then(r => r.json())
+      .then(d => {
+        setForm({
+          contact_name:  d.contact_name  || "",
+          contact_title: d.contact_title || "",
+          contact_email: d.contact_email || "",
+          phone:         d.phone         || "",
+          org_type:      d.org_type      || "",
+          website:       d.website       || "",
+          address_line1: d.address_line1 || "",
+          city:          d.city          || "",
+          state_region:  d.state_region  || "",
+          country:       d.country       || "",
+        });
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true); setSaved(false); setError("");
+    try {
+      const res = await fetch("/api/admin/organization", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Save failed");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e: any) {
+      setError(e.message || "Save failed");
+    } finally { setSaving(false); }
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h2 className="text-xl font-semibold text-slate-900">Organisation Details</h2>
+        <p className="text-sm text-slate-500 mt-0.5">Registration and contact information for your organisation. Visible to platform administrators.</p>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+          {ORG_DETAIL_FIELDS.map(f => (
+            <div key={f.key} className={f.full ? "sm:col-span-2" : undefined}>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">{f.label}</label>
+              <input
+                value={form[f.key]}
+                onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+                type={f.type || "text"}
+                placeholder={f.placeholder}
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-900 bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-3 mt-5">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+            {saving ? "Saving…" : saved ? "Saved!" : "Save Details"}
+          </button>
+          {error && <span className="text-sm font-medium text-red-600">{error}</span>}
+        </div>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+        <p className="font-medium mb-1">🔒 Org-wide setting</p>
+        <p className="text-xs text-blue-700">These details apply to your whole organisation and are shared with platform administrators for support and billing.</p>
+      </div>
+    </div>
+  );
+}
+
 function CategoriesSection() {
   const [cats, setCats] = useState<string[]>([]);
   const [newName, setNewName] = useState("");
@@ -2200,17 +2321,18 @@ function ProjectsSection() {
 
 // ─────────────────────── main component ───────────────────────
 
-type Tab = "overview" | "projects" | "users" | "branding" | "categories" | "audit" | "export" | "danger";
+type Tab = "overview" | "projects" | "users" | "branding" | "organisation" | "categories" | "audit" | "export" | "danger";
 
 const NAV: { id: Tab; icon: any; label: string }[] = [
-  { id: "overview",    icon: BarChart3,     label: "Overview" },
-  { id: "projects",    icon: FolderOpen,    label: "Projects" },
-  { id: "users",       icon: Users,         label: "Users" },
-  { id: "branding",    icon: Globe,         label: "Branding" },
-  { id: "categories",  icon: Tag,           label: "Categories" },
-  { id: "audit",       icon: Clock,         label: "Audit Log" },
-  { id: "export",      icon: Download,      label: "Export Data" },
-  { id: "danger",      icon: AlertTriangle, label: "Danger Zone" },
+  { id: "overview",     icon: BarChart3,     label: "Overview" },
+  { id: "projects",     icon: FolderOpen,    label: "Projects" },
+  { id: "users",        icon: Users,         label: "Users" },
+  { id: "branding",     icon: Globe,         label: "Branding" },
+  { id: "organisation", icon: Building2,     label: "Organisation" },
+  { id: "categories",   icon: Tag,           label: "Categories" },
+  { id: "audit",        icon: Clock,         label: "Audit Log" },
+  { id: "export",       icon: Download,      label: "Export Data" },
+  { id: "danger",       icon: AlertTriangle, label: "Danger Zone" },
 ];
 
 // Tabs available when the org is expired/paused — read-only + export only.
@@ -2319,6 +2441,7 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
           {tab === "projects"   && <ProjectsSection />}
           {tab === "users"      && <UsersSection     users={users} onRefresh={loadUsers} onUserAdded={(u) => setUsers(prev => [...prev, u])} />}
           {tab === "branding"   && <BrandingSection  onSaved={loadBranding} />}
+          {tab === "organisation" && <OrgDetailsSection />}
           {tab === "categories" && <CategoriesSection />}
           {tab === "audit"      && <AuditLogSection />}
           {tab === "export"     && <ExportSection    orgName={orgName} />}
