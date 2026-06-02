@@ -593,7 +593,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
         <ExecTrackingSection projects={projects} totalAwarded={stats.awarded} totalBilled={stats.billed} />
 
         {/* STAT CARDS — portfolio rollups; drill into Project Portfolio below for detail */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3 mb-8">
           {([
             { label: "Active Projects",  icon: FolderOpen,    accent: "text-blue-600",    val: stats.total },
             { label: "Total Packages",   icon: Box,           accent: "text-slate-900",   val: stats.packages },
@@ -603,12 +603,12 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
             { label: "Total Cash In",    icon: TrendingUp,    accent: "text-emerald-600", val: formatCurrency(stats.inflow) },
             { label: "Total Cash Out",   icon: TrendingDown,  accent: "text-red-600",     val: formatCurrency(stats.outflow) },
           ] as any[]).map((s, i) => (
-            <div key={i} className="bg-white border border-slate-200 rounded-xl p-5">
+            <div key={i} className="bg-white border border-slate-200 rounded-xl p-4">
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 w-fit mb-3">
                 <s.icon className={`w-4 h-4 ${s.accent}`} />
               </div>
-              <p className="text-xs text-slate-500 mb-1">{s.label}</p>
-              <p className={`text-xl font-semibold leading-none ${s.accent}`}>{s.val}</p>
+              <p className="text-xs text-slate-500 mb-1 truncate">{s.label}</p>
+              <p className={`text-base font-semibold leading-tight truncate ${s.accent}`}>{s.val}</p>
             </div>
           ))}
         </div>
