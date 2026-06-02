@@ -70,6 +70,9 @@ export default function PackageDetail({
 
   // Award modal state
   const [punchingAward, setPunchingAward] = useState(false);
+  // Locked when opened via a vendor row's "Select" button — vendor + value are
+  // fixed to that vendor's latest revision and cannot be changed in the dialog.
+  const [awardLocked, setAwardLocked]     = useState(false);
   const [awardVal, setAwardVal]           = useState("");
   const [awardVendor, setAwardVendor]     = useState("");
   const [awardRemark, setAwardRemark]     = useState("");
@@ -157,6 +160,7 @@ export default function PackageDetail({
     if (stage === "Award") {
       setAwardVal(pkg?.awardValue?.toString() || "");
       setAwardVendor("");
+      setAwardLocked(false);
       setPunchingAward(true);
       return;
     }
@@ -469,6 +473,7 @@ export default function PackageDetail({
               onSelectWinner={(v: any) => {
                 setAwardVendor(v.name);
                 setAwardVal(v.revisedAmount.toString());
+                setAwardLocked(true);
                 setPunchingAward(true);
               }}
             />
@@ -924,17 +929,33 @@ export default function PackageDetail({
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">
                   Award Value ({CURRENCY_SYMBOLS[pkg.currency as keyof typeof CURRENCY_SYMBOLS]})
                 </label>
-                <input
-                  type="number"
-                  value={awardVal}
-                  onChange={e => { setAwardVal(e.target.value); setAwardError(null); }}
-                  className={`w-full border rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 font-mono transition ${
-                    wouldExceed
-                      ? "border-red-400 focus:ring-red-400/30 focus:border-red-500"
-                      : "border-slate-200 focus:ring-blue-500/30 focus:border-blue-500"
-                  }`}
-                  autoFocus
-                />
+                {awardLocked ? (
+                  <>
+                    <div className={`w-full border rounded-lg px-3 py-2.5 text-sm font-mono flex items-center justify-between ${
+                      wouldExceed
+                        ? "border-red-400 bg-red-50 text-red-700"
+                        : "border-slate-200 bg-slate-50 text-slate-900"
+                    }`}>
+                      <span>{formatCurrency(enteredVal, pkg.currency)}</span>
+                      <Lock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1.5">
+                      Locked to the selected vendor&apos;s latest revision.
+                    </p>
+                  </>
+                ) : (
+                  <input
+                    type="number"
+                    value={awardVal}
+                    onChange={e => { setAwardVal(e.target.value); setAwardError(null); }}
+                    className={`w-full border rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 font-mono transition ${
+                      wouldExceed
+                        ? "border-red-400 focus:ring-red-400/30 focus:border-red-500"
+                        : "border-slate-200 focus:ring-blue-500/30 focus:border-blue-500"
+                    }`}
+                    autoFocus
+                  />
+                )}
                 {wouldExceed && (
                   <p className="text-xs text-red-600 mt-1.5 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
@@ -944,16 +965,28 @@ export default function PackageDetail({
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Awarded Vendor</label>
-                <select
-                  value={awardVendor}
-                  onChange={e => setAwardVendor(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                >
-                  <option value="">Select vendor…</option>
-                  {pkg.vendors.map((v: any) => (
-                    <option key={v.id} value={v.name}>{v.name}</option>
-                  ))}
-                </select>
+                {awardLocked ? (
+                  <>
+                    <div className="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2.5 text-sm text-slate-900 flex items-center justify-between">
+                      <span className="font-medium">{awardVendor || "—"}</span>
+                      <Lock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1.5">
+                      Set by the &quot;Select&quot; button on the vendor row.
+                    </p>
+                  </>
+                ) : (
+                  <select
+                    value={awardVendor}
+                    onChange={e => setAwardVendor(e.target.value)}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  >
+                    <option value="">Select vendor…</option>
+                    {pkg.vendors.map((v: any) => (
+                      <option key={v.id} value={v.name}>{v.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">
