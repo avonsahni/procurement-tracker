@@ -79,7 +79,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (emailTaken) {
       return NextResponse.json(
-        { error: 'User ID not available — this email is already in use by another account.' },
+        { error: 'User ID not available — Use a different ID.' },
         { status: 409 }
       );
     }

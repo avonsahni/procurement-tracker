@@ -83,7 +83,7 @@ export const POST = withRoute(async (req: NextRequest) => {
 
   if (existing) {
     return NextResponse.json(
-      { error: 'User ID not available — this email is already registered to another account on the platform.' },
+      { error: 'User ID not available — Use a different ID.' },
       { status: 409 }
     );
   }
