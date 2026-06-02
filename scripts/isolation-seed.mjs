@@ -76,9 +76,11 @@ async function seed() {
   }
 
   // ── Auth users ────────────────────────────────────────────────────────────
-  // handle_new_user trigger fires on createUser. It reads org_id + org_role from
-  // user_metadata and inserts into organization_members (ON CONFLICT (user_id) DO NOTHING).
-  // The org must already exist at this point.
+  // We do NOT pass org_id in user_metadata. Passing it triggers the IF branch
+  // of handle_new_user which uses ON CONFLICT (org_id, user_id) — a constraint
+  // that migration 032 dropped. On pre-033 databases that clause is invalid and
+  // the createUser call fails. Instead we let the trigger take the self-signup
+  // path (creates a throwaway org), then immediately overwrite the membership.
   for (const [label, id, email, password, orgId] of [
     ['A', FX.userA, A_EMAIL, A_PASSWORD, FX.orgA],
     ['B', FX.userB, B_EMAIL, B_PASSWORD, FX.orgB],
@@ -92,25 +94,16 @@ async function seed() {
         email,
         password,
         email_confirm: true,
-        user_metadata: {
-          full_name: `ISO Test User ${label}`,
-          org_id:    orgId,
-          org_role:  'owner',
-        },
+        user_metadata: { full_name: `ISO Test User ${label}` },
       });
       if (error) die(`createUser ${label}`, error);
       console.log(`  ✓ user-${label}       ${data.user.id}`);
     }
-  }
 
-  // ── Ensure org memberships exist with owner role ──────────────────────────
-  // Trigger creates them, but upsert here handles the case where the user
-  // pre-existed with a different role or the trigger's ON CONFLICT skipped it.
-  for (const [orgId, userId] of [[FX.orgA, FX.userA], [FX.orgB, FX.userB]]) {
-    await soft('org_members upsert',
-      admin.from('organization_members')
-        .upsert({ org_id: orgId, user_id: userId, role: 'owner' }, { onConflict: 'user_id' })
-    );
+    // Point membership to the fixed org (upsert handles both first-run and re-run).
+    const { error: memErr } = await admin.from('organization_members')
+      .upsert({ org_id: orgId, user_id: id, role: 'owner' }, { onConflict: 'user_id' });
+    if (memErr) die(`org_member ${label}`, memErr);
   }
 
   // ── Company info ──────────────────────────────────────────────────────────
