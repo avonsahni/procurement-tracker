@@ -1111,17 +1111,19 @@ const fmtDate = (s?: string) => s ? new Date(s).toLocaleDateString('en-GB') : ''
 function ExportSection({ orgName }: { orgName: string }) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ projects: number; packages: number; vendors: number; invoices: number; milestones: number } | null>(null);
+  const [preview, setPreview] = useState<{ projects: number; packages: number; vendors: number; invoices: number; milestones: number; cashInflows: number; cashOutflows: number } | null>(null);
 
   const fetchPreview = useCallback(async () => {
     try {
       const data = await fetch('/api/export').then(r => r.json());
       setPreview({
-        projects:   (data.projects   || []).length,
-        packages:   (data.packages   || []).length,
-        vendors:    (data.vendors    || []).length,
-        invoices:   (data.invoices   || []).length,
-        milestones: (data.milestones || []).length,
+        projects:     (data.projects     || []).length,
+        packages:     (data.packages     || []).length,
+        vendors:      (data.vendors      || []).length,
+        invoices:     (data.invoices     || []).length,
+        milestones:   (data.milestones   || []).length,
+        cashInflows:  (data.cashInflows  || []).length,
+        cashOutflows: (data.cashOutflows || []).length,
       });
     } catch { /* silent */ }
   }, []);
@@ -1214,10 +1216,32 @@ function ExportSection({ orgName }: { orgName: string }) {
       wsMilestones['!cols'] = [25,30,28,14,16,20].map(w => ({ wch: w }));
       XLSX.utils.book_append_sheet(wb, wsMilestones, 'Milestones');
 
-      // ── Sheet 6: Summary ────────────────────────────────
+      // ── Sheet 6: Cash Flow ──────────────────────────────
+      const cashFlowRows = [
+        ['Type', 'Project', 'Package', 'On Account Of', 'From / To Party', 'Date', 'Amount', 'Remarks', 'Recorded By'],
+        ...(data.cashInflows || []).map((r: any) => [
+          'Cash Inflow', r.projectName, r.packageName,
+          r.on_account || '', r.from_party || '',
+          fmtDate(r.date_received), Number(r.amount) || 0,
+          r.remarks || '', r.created_by || '',
+        ]),
+        ...(data.cashOutflows || []).map((r: any) => [
+          'Cash Outflow', r.projectName, r.packageName,
+          r.on_account_of || '', r.to_whom || '',
+          fmtDate(r.date_paid), Number(r.amount) || 0,
+          r.remarks || '', r.created_by || '',
+        ]),
+      ];
+      const wsCashFlow = XLSX.utils.aoa_to_sheet(cashFlowRows);
+      wsCashFlow['!cols'] = [14,25,30,28,25,14,18,28,20].map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsCashFlow, 'Cash Flow');
+
+      // ── Sheet 7: Summary ────────────────────────────────
       const totalBudget  = (data.projects || []).reduce((s: number, p: any) => s + (Number(p.budget) || 0), 0);
       const totalAwarded = (data.packages || []).filter((pk: any) => pk.current_stage === 'Award').reduce((s: number, pk: any) => s + (Number(pk.award_value) || 0), 0);
       const totalBilled  = (data.packages || []).reduce((s: number, pk: any) => s + (Number(pk.billedAmount) || 0), 0);
+      const totalInflows  = (data.cashInflows  || []).reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
+      const totalOutflows = (data.cashOutflows || []).reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
       const summaryRows = [
         ['Export Summary', ''],
         ['Exported At', now.toLocaleString('en-GB')],
@@ -1229,10 +1253,15 @@ function ExportSection({ orgName }: { orgName: string }) {
         ['Awarded Packages', (data.packages || []).filter((pk: any) => pk.current_stage === 'Award').length],
         ['Total Vendors', (data.vendors || []).length],
         ['Total Invoices', (data.invoices || []).length],
+        ['Cash Receipts (Inflow entries)', (data.cashInflows || []).length],
+        ['Cash Payments (Outflow entries)', (data.cashOutflows || []).length],
         ['Total Budget (INR)', totalBudget],
         ['Total Award Value (INR)', totalAwarded],
         ['Total Billed (INR)', totalBilled],
         ['Billing Rate (%)', totalAwarded > 0 ? +((totalBilled / totalAwarded) * 100).toFixed(1) : 0],
+        ['Total Cash Received', totalInflows],
+        ['Total Cash Paid Out', totalOutflows],
+        ['Net Cash Flow', totalInflows - totalOutflows],
       ];
       const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
       wsSummary['!cols'] = [28, 30].map(w => ({ wch: w }));
@@ -1260,13 +1289,15 @@ function ExportSection({ orgName }: { orgName: string }) {
 
       {/* Preview cards */}
       {preview && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {[
-            { icon: Layers,          label: 'Projects',   value: preview.projects },
-            { icon: Package,         label: 'Packages',   value: preview.packages },
-            { icon: Users,           label: 'Vendors',    value: preview.vendors },
-            { icon: Receipt,         label: 'Invoices',   value: preview.invoices },
-            { icon: Activity,        label: 'Milestones', value: preview.milestones },
+            { icon: Layers,          label: 'Projects',        value: preview.projects },
+            { icon: Package,         label: 'Packages',        value: preview.packages },
+            { icon: Users,           label: 'Vendors',         value: preview.vendors },
+            { icon: Receipt,         label: 'Invoices',        value: preview.invoices },
+            { icon: Activity,        label: 'Milestones',      value: preview.milestones },
+            { icon: TrendingUp,      label: 'Cash Receipts',   value: preview.cashInflows },
+            { icon: TrendingDown,    label: 'Cash Payments',   value: preview.cashOutflows },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="bg-white border border-slate-200 rounded-xl p-4 text-center">
               <Icon className="w-5 h-5 text-blue-500 mx-auto mb-1.5" />
@@ -1281,17 +1312,18 @@ function ExportSection({ orgName }: { orgName: string }) {
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
           <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Workbook Contents (6 sheets)
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Workbook Contents (7 sheets)
           </h3>
         </div>
         <div className="divide-y divide-slate-100">
           {[
-            { sheet: 'Summary',    desc: 'High-level totals — budget, award value, billing rate, record counts' },
+            { sheet: 'Summary',    desc: 'High-level totals — budget, award value, billing rate, cash flow, record counts' },
             { sheet: 'Projects',   desc: 'All projects with budget, status, awarded package count, billed amount' },
             { sheet: 'Packages',   desc: 'Every package — stage, category, origin, currency, award value, billed' },
             { sheet: 'Vendors',    desc: 'All vendor quotes (quoted and revised amounts) per package' },
             { sheet: 'Invoices',   desc: 'All invoice records with date, amount, invoice number and notes' },
             { sheet: 'Milestones', desc: 'Execution milestone progress per package (0–100% per milestone)' },
+            { sheet: 'Cash Flow',  desc: 'All cash inflow and outflow entries with party, date, amount and remarks' },
           ].map(({ sheet, desc }) => (
             <div key={sheet} className="px-5 py-3 flex items-start gap-3">
               <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-mono mt-0.5 flex-shrink-0">{sheet}</span>

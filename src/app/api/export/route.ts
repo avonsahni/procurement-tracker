@@ -27,7 +27,7 @@ export async function GET() {
 
   if (projErr) return NextResponse.json({ error: projErr.message }, { status: 500 });
   if (!projects || projects.length === 0) {
-    return NextResponse.json({ projects: [], packages: [], vendors: [], invoices: [], milestones: [] });
+    return NextResponse.json({ projects: [], packages: [], vendors: [], invoices: [], milestones: [], cashInflows: [], cashOutflows: [] });
   }
 
   const projectIds = projects.map((p: any) => p.id);
@@ -41,8 +41,8 @@ export async function GET() {
 
   const packageIds = (packages || []).map((p: any) => p.id);
 
-  // 3. Parallel fetch of vendors, invoices, milestones, awarded vendor names
-  const [vendorsRes, invoicesRes, milestonesRes, awardedVendorsRes, invoiceTotalsRes] = await Promise.all([
+  // 3. Parallel fetch of vendors, invoices, milestones, awarded vendor names, cash flows
+  const [vendorsRes, invoicesRes, milestonesRes, awardedVendorsRes, invoiceTotalsRes, inflowRes, outflowRes] = await Promise.all([
     packageIds.length
       ? admin.from('vendors').select('id, package_id, name, quoted_amount, revised_amount').in('package_id', packageIds)
       : { data: [] },
@@ -59,6 +59,12 @@ export async function GET() {
     // Sum of invoices per package
     packageIds.length
       ? admin.from('invoices').select('package_id, amount').in('package_id', packageIds)
+      : { data: [] },
+    packageIds.length
+      ? admin.from('cash_inflow').select('id, package_id, on_account, from_party, date_received, amount, remarks, created_by').in('package_id', packageIds).order('date_received')
+      : { data: [] },
+    packageIds.length
+      ? admin.from('cash_outflow').select('id, package_id, to_whom, on_account_of, date_paid, amount, remarks, created_by').in('package_id', packageIds).order('date_paid')
       : { data: [] },
   ]);
 
@@ -116,6 +122,18 @@ export async function GET() {
     projectName: pkgProjectById[m.package_id] || '',
   }));
 
+  const enrichedInflows = (inflowRes.data || []).map((r: any) => ({
+    ...r,
+    packageName: pkgNameById[r.package_id] || '',
+    projectName: pkgProjectById[r.package_id] || '',
+  }));
+
+  const enrichedOutflows = (outflowRes.data || []).map((r: any) => ({
+    ...r,
+    packageName: pkgNameById[r.package_id] || '',
+    projectName: pkgProjectById[r.package_id] || '',
+  }));
+
   await addOrgAuditEntry(admin, orgId, auth.id, auth.fullName,
     'Data Exported', 'admin', undefined,
     { projects: projects.length, packages: (packages || []).length });
@@ -128,5 +146,7 @@ export async function GET() {
     vendors: enrichedVendors,
     invoices: enrichedInvoices,
     milestones: enrichedMilestones,
+    cashInflows: enrichedInflows,
+    cashOutflows: enrichedOutflows,
   });
 }
