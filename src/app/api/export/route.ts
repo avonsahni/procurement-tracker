@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { guard } from '@/lib/auth';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { addOrgAuditEntry } from '@/lib/db';
+import { milestoneProgressFromTasks } from '@/lib/types';
 
 // Returns all org data as JSON for client-side Excel generation.
 // Admin-only: only org owners and admins may export.
@@ -42,7 +43,7 @@ export async function GET() {
   const packageIds = (packages || []).map((p: any) => p.id);
 
   // 3. Parallel fetch of vendors, invoices, milestones, awarded vendor names, cash flows
-  const [vendorsRes, invoicesRes, milestonesRes, awardedVendorsRes, invoiceTotalsRes, inflowRes, outflowRes] = await Promise.all([
+  const [vendorsRes, invoicesRes, milestonesRes, milestoneTasksRes, awardedVendorsRes, invoiceTotalsRes, inflowRes, outflowRes] = await Promise.all([
     packageIds.length
       ? admin.from('vendors').select('id, package_id, name, quoted_amount, revised_amount').in('package_id', packageIds)
       : { data: [] },
@@ -51,6 +52,9 @@ export async function GET() {
       : { data: [] },
     packageIds.length
       ? admin.from('package_milestones').select('package_id, milestone_name, progress, display_order, completed_at, completed_by').in('package_id', packageIds).order('display_order')
+      : { data: [] },
+    packageIds.length
+      ? admin.from('milestone_tasks').select('package_id, milestone_name, progress').in('package_id', packageIds)
       : { data: [] },
     // Resolve awarded vendor names
     packageIds.length
@@ -116,8 +120,16 @@ export async function GET() {
     projectName: pkgProjectById[inv.package_id] || '',
   }));
 
+  // Milestone progress is derived from subtasks (0 when none), matching the app's
+  // package and project views — never the denormalised package_milestones.progress.
+  const taskProgsByPkgMs: Record<string, Record<string, number[]>> = {};
+  for (const t of (milestoneTasksRes.data || [])) {
+    const byMs = taskProgsByPkgMs[t.package_id] || (taskProgsByPkgMs[t.package_id] = {});
+    (byMs[t.milestone_name] || (byMs[t.milestone_name] = [])).push(Number(t.progress || 0));
+  }
   const enrichedMilestones = (milestonesRes.data || []).map((m: any) => ({
     ...m,
+    progress: milestoneProgressFromTasks(taskProgsByPkgMs[m.package_id]?.[m.milestone_name] ?? []),
     packageName: pkgNameById[m.package_id] || '',
     projectName: pkgProjectById[m.package_id] || '',
   }));

@@ -21,6 +21,29 @@ export const MILESTONE_WEIGHTS: Record<ExecutionMilestoneName, number> = {
 /** Sum of all weights — used as the denominator for weighted completion %. */
 export const TOTAL_MILESTONE_WEIGHT = (Object.values(MILESTONE_WEIGHTS) as number[]).reduce((a, b) => a + b, 0);
 
+/**
+ * Single source of truth for a milestone's effective progress (0–100):
+ * the average of its subtask progress, or 0 when it has no subtasks.
+ * Used by both the package detail view and the project rollup so the same
+ * package never shows two different numbers.
+ */
+export function milestoneProgressFromTasks(taskProgresses: number[]): number {
+  if (!taskProgresses.length) return 0;
+  return Math.round(taskProgresses.reduce((s, p) => s + (p || 0), 0) / taskProgresses.length);
+}
+
+/**
+ * Weighted overall completion (0–100) from a milestone-name → progress map.
+ * Milestones absent from the map count as 0.
+ */
+export function overallMilestonePct(progressByName: Record<string, number>): number {
+  if (TOTAL_MILESTONE_WEIGHT <= 0) return 0;
+  return EXECUTION_MILESTONES.reduce(
+    (s, n) => s + (MILESTONE_WEIGHTS[n] ?? 0) * (progressByName[n] ?? 0),
+    0,
+  ) / TOTAL_MILESTONE_WEIGHT;
+}
+
 export interface MilestoneTask {
   id: string;
   milestoneName: string;
