@@ -1,6 +1,7 @@
 name: Tenant Isolation Test
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'supabase/migrations/**'
