@@ -26,13 +26,14 @@ export default function VendorMatrix({
 }: VendorMatrixProps) {
   const confirm = useConfirm();
 
-  // R-columns: one per actual data round, plus one pending column when the user
-  // clicks "+ Add Revision Round". The pending column disappears automatically
-  // once any vendor saves a value in it (maxFromData grows) — so empty columns
-  // never persist after a reload or navigation.
+  // R-columns driven purely by data. pendingCol is a transient flag for the
+  // one extra column shown after clicking "+ Add Revision Round". It resets
+  // whenever vendor revision data changes (any save or delete), and also
+  // whenever vendors are added/removed — covering all parent-reload cases.
   const maxFromData = vendors.reduce((m, v) => Math.max(m, v.revisions.length), 0);
+  const vendorRevKey = vendors.map(v => `${v.id}:${v.revisions.length}`).join(',');
   const [pendingCol, setPendingCol] = useState(false);
-  useEffect(() => { setPendingCol(false); }, [maxFromData]);
+  useEffect(() => { setPendingCol(false); }, [vendorRevKey]);
   const totalCols = maxFromData + (pendingCol ? 1 : 0);
 
   // Per-cell draft amounts keyed by `${vendorId}-${colIndex}`
@@ -122,7 +123,8 @@ export default function VendorMatrix({
                 </td>
               </tr>
             ) : vendors.map((v) => {
-              const isWinner = v.id === awardedVendorId;
+              // awardedVendorId stores the vendor name (legacy field naming)
+              const isWinner = v.name === awardedVendorId;
               return (
                 <tr
                   key={v.id}
@@ -222,12 +224,12 @@ export default function VendorMatrix({
                   {/* Final Awarded */}
                   <td className="px-4 py-3.5 text-right">
                     {isWinner ? (
-                      <div className="flex flex-col items-end gap-1">
+                      <div className="flex flex-col items-end gap-1.5">
                         <span className="text-sm font-mono font-bold text-emerald-700 whitespace-nowrap">
                           {formatCurrency(awardValue || 0, currency)}
                         </span>
-                        <span className="inline-flex items-center gap-1 text-xs bg-emerald-600 text-white px-2 py-0.5 rounded-full font-semibold">
-                          <CheckCircle2 className="w-3 h-3" /> Awarded
+                        <span className="inline-flex items-center gap-1 text-xs bg-emerald-600 text-white px-2.5 py-0.5 rounded-full font-semibold tracking-wide">
+                          <CheckCircle2 className="w-3 h-3" /> Final Selected
                         </span>
                       </div>
                     ) : isAwarded ? (
