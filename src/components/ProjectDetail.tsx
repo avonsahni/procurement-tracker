@@ -146,7 +146,12 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
     (s, pkg) => s + EXECUTION_MILESTONES.reduce((ss, name) => ss + (MILESTONE_WEIGHTS[name] ?? 0) * milestoneProgress(pkg, name), 0), 0
   );
   const exMilestonePct = execMilestoneCount > 0 ? execProgressSum / execMilestoneCount : 0;
-  const exFinancialPct = totalAwarded > 0 ? Math.min(100, (totalBilled / totalAwarded) * 100) : 0;
+  // Cumulative financial progress across all awarded packages — billing, cash
+  // inflow and cash outflow each as a % of total awarded value (mirrors the
+  // three-bar breakdown shown on each package row).
+  const exFinancialPct = totalAwarded > 0 ? Math.min(100, (totalBilled  / totalAwarded) * 100) : 0;
+  const exInflowPct    = totalAwarded > 0 ? Math.min(100, (totalInflow  / totalAwarded) * 100) : 0;
+  const exOutflowPct   = totalAwarded > 0 ? Math.min(100, (totalOutflow / totalAwarded) * 100) : 0;
 
   // Per-milestone average across all awarded packages (for pipeline chart)
   const perMilestoneAvg = EXECUTION_MILESTONES.map(name => ({
@@ -924,13 +929,38 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                           <span className="text-slate-500 flex items-center gap-1.5">
                             <Receipt className="w-3.5 h-3.5 text-violet-500" />Financial Progress
                           </span>
-                          <span className="font-mono font-semibold text-violet-700">{exFinancialPct.toFixed(1)}%</span>
                         </div>
-                        <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-violet-500 transition-all duration-500" style={{ width: `${Math.min(100, exFinancialPct)}%` }} />
+                        <div className="pl-4 space-y-2 border-l-2 border-slate-100">
+                          {/* Billing */}
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] text-slate-400 w-24 flex-shrink-0">Billing</span>
+                            <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                              <div className={`h-full rounded-full transition-all duration-500 ${exFinancialPct >= 100 ? "bg-emerald-500" : exFinancialPct > 0 ? "bg-violet-500" : "bg-slate-200"}`}
+                                style={{ width: `${Math.min(100, exFinancialPct)}%` }} />
+                            </div>
+                            <span className={`text-[10px] font-mono font-semibold w-10 text-right flex-shrink-0 ${exFinancialPct >= 100 ? "text-emerald-600" : exFinancialPct > 0 ? "text-violet-600" : "text-slate-400"}`}>{exFinancialPct.toFixed(1)}%</span>
+                          </div>
+                          {/* Cash Inflow */}
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] text-slate-400 w-24 flex-shrink-0">Cash Inflow</span>
+                            <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                              <div className={`h-full rounded-full transition-all duration-500 ${exInflowPct >= 100 ? "bg-emerald-500" : exInflowPct > 0 ? "bg-emerald-400" : "bg-slate-200"}`}
+                                style={{ width: `${Math.min(100, exInflowPct)}%` }} />
+                            </div>
+                            <span className={`text-[10px] font-mono font-semibold w-10 text-right flex-shrink-0 ${exInflowPct > 0 ? "text-emerald-600" : "text-slate-400"}`}>{exInflowPct.toFixed(1)}%</span>
+                          </div>
+                          {/* Cash Outflow */}
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] text-slate-400 w-24 flex-shrink-0">Cash Outflow</span>
+                            <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                              <div className={`h-full rounded-full transition-all duration-500 ${exOutflowPct >= 100 ? "bg-rose-600" : exOutflowPct > 0 ? "bg-red-400" : "bg-slate-200"}`}
+                                style={{ width: `${Math.min(100, exOutflowPct)}%` }} />
+                            </div>
+                            <span className={`text-[10px] font-mono font-semibold w-10 text-right flex-shrink-0 ${exOutflowPct > 0 ? "text-red-600" : "text-slate-400"}`}>{exOutflowPct.toFixed(1)}%</span>
+                          </div>
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          {formatCurrency(totalBilled)} billed of {formatCurrency(totalAwarded)} awarded
+                        <p className="text-[10px] text-slate-400 mt-2">
+                          {formatCurrency(totalBilled)} billed · {formatCurrency(totalInflow)} in · {formatCurrency(totalOutflow)} out · of {formatCurrency(totalAwarded)} awarded
                         </p>
                       </div>
                     </div>
