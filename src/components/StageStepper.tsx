@@ -34,17 +34,17 @@ export default function StageStepper({ currentStage, onStageChange, readonly, sa
             onClick={isClickable && !saving ? () => onStageChange?.(stage) : undefined}
             title={isLocked ? "Complete prior stages first" : isCurrent ? "Current stage" : undefined}
             className={`relative z-10 flex flex-col items-center gap-2 select-none
-              ${isClickable && !saving ? "cursor-pointer active:opacity-70" : "cursor-default"}
+              ${isClickable && !saving ? "cursor-pointer" : "cursor-default"}
             `}
           >
             <div
-              className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-colors
+              className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-[box-shadow,background-color,border-color] duration-150
                 ${isCompleted
-                  ? "bg-emerald-500 border-white text-white"
+                  ? `bg-emerald-500 border-white text-white${isClickable && !saving ? " hover:shadow-[0_0_0_6px_rgba(16,185,129,0.25)] active:shadow-[0_0_0_8px_rgba(16,185,129,0.35)]" : ""}`
                   : isCurrent
                     ? "bg-blue-600 border-white text-white ring-2 ring-blue-200"
                     : isNext
-                      ? "bg-white border-blue-400 text-blue-600"
+                      ? `bg-white border-blue-400 text-blue-600${isClickable && !saving ? " hover:shadow-[0_0_0_6px_rgba(59,130,246,0.2)] active:shadow-[0_0_0_8px_rgba(59,130,246,0.3)] hover:bg-blue-50" : ""}`
                       : "bg-slate-100 border-white text-slate-400"
                 }
               `}
