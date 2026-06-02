@@ -409,7 +409,8 @@ export default function PackageDetail({
               )}
               <StageStepper
                 currentStage={displayStage ?? pkg.currentStage}
-                readonly={!effectiveEditMode || isAwarded || stageSaving}
+                readonly={!effectiveEditMode || isAwarded}
+                saving={stageSaving}
                 onStageChange={handleStageChange}
               />
             </div>
