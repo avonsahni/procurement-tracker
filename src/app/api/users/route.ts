@@ -71,6 +71,24 @@ export const POST = withRoute(async (req: NextRequest) => {
 
   const admin = createAdminSupabase();
 
+  // ── Uniqueness guard ─────────────────────────────────────────────────────
+  // Supabase Auth enforces a project-wide unique constraint on email, but the
+  // error it returns is generic. We check first so the message is actionable.
+  const { data: existing } = await admin
+    .schema('auth')
+    .from('users')
+    .select('id')
+    .eq('email', username.toLowerCase())
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json(
+      { error: 'User ID not available — this email is already registered to another account on the platform.' },
+      { status: 409 }
+    );
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const { data, error } = await admin.auth.admin.createUser({
     email: username,
     password,

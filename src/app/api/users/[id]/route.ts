@@ -68,6 +68,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   if (body.email && isOrgAdmin && !isSelf) {
+    // Guard: new email must not already belong to any other account on the platform
+    const { data: emailTaken } = await admin
+      .schema('auth')
+      .from('users')
+      .select('id')
+      .eq('email', body.email.toLowerCase())
+      .neq('id', id)          // allow keeping the same email (no-op update)
+      .maybeSingle();
+
+    if (emailTaken) {
+      return NextResponse.json(
+        { error: 'User ID not available — this email is already in use by another account.' },
+        { status: 409 }
+      );
+    }
+
     const { error: emailErr } = await admin.auth.admin.updateUserById(id, { email: body.email, email_confirm: true });
     if (emailErr) return NextResponse.json({ error: emailErr.message }, { status: 400 });
   }
