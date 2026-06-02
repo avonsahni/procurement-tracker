@@ -442,12 +442,29 @@ export default function PackageDetail({
               onDelete={async (vid: any) => { await deleteVendor(packageId, vid, user?.fullName); await reloadPackage(); }}
               onAddRevision={async (vid: string, data: { amount: number; notes: string }) => {
                 const rev = await addVendorRevision(packageId, vid, data);
-                await reloadPackage();
+                // Surgical state update — no full package reload (avoids the lag)
+                setPkg((prev: any) => prev ? {
+                  ...prev,
+                  vendors: prev.vendors.map((v: any) =>
+                    v.id === vid
+                      ? { ...v, revisions: [...v.revisions, rev], revisedAmount: rev.amount }
+                      : v
+                  ),
+                } : prev);
                 return rev;
               }}
               onDeleteRevision={async (vid: string, rid: string) => {
                 await deleteVendorRevision(packageId, vid, rid);
-                await reloadPackage();
+                setPkg((prev: any) => prev ? {
+                  ...prev,
+                  vendors: prev.vendors.map((v: any) => {
+                    if (v.id !== vid) return v;
+                    const remaining = v.revisions.filter((r: any) => r.id !== rid);
+                    // Mirror server: revised_amount tracks the latest remaining round
+                    const revised = remaining.length > 0 ? remaining[remaining.length - 1].amount : v.revisedAmount;
+                    return { ...v, revisions: remaining, revisedAmount: revised };
+                  }),
+                } : prev);
               }}
               onSelectWinner={(v: any) => {
                 setAwardVendor(v.name);
