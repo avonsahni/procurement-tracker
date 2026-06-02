@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { STAGES, Stage } from "@/lib/types";
 import { Check, Lock, Loader2 } from "lucide-react";
 
@@ -12,39 +13,48 @@ interface StageStepperProps {
 
 export default function StageStepper({ currentStage, onStageChange, readonly, saving }: StageStepperProps) {
   const currentIdx = STAGES.indexOf(currentStage);
+  // Tracks the stage just clicked so we can fire a one-shot pulse animation.
+  const [pulsing, setPulsing] = useState<string | null>(null);
+
+  const handleClick = (stage: Stage) => {
+    setPulsing(stage);
+    window.setTimeout(() => setPulsing(p => (p === stage ? null : p)), 400);
+    onStageChange?.(stage);
+  };
 
   return (
     <div className="flex items-start justify-between w-full relative pt-3 pb-10">
-      {/* Connector line */}
-      <div className="absolute top-[30px] left-0 w-full h-0.5 bg-slate-200 z-0" />
+      {/* Connector line — behind the circles, never intercepts clicks */}
+      <div className="absolute top-[30px] left-0 w-full h-0.5 bg-slate-200 z-0 pointer-events-none" />
 
       {STAGES.map((stage, idx) => {
         const isCompleted = idx < currentIdx;
         const isCurrent   = idx === currentIdx;
         const isNext      = idx === currentIdx + 1;
-        const isClickable = !readonly && !isCurrent && (isNext || isCompleted);
+        const isClickable = !readonly && !saving && !isCurrent && (isNext || isCompleted);
         const isLocked    = !readonly && !isCurrent && !isNext && !isCompleted;
 
         const Tag = isClickable ? "button" : "div";
+        const colorClass = isCompleted ? "stage-green" : isNext ? "stage-blue" : "";
 
         return (
           <Tag
             key={stage}
-            // @ts-ignore
-            onClick={isClickable && !saving ? () => onStageChange?.(stage) : undefined}
+            {...(isClickable ? { type: "button" as const, onClick: () => handleClick(stage) } : {})}
             title={isLocked ? "Complete prior stages first" : isCurrent ? "Current stage" : undefined}
-            className={`relative z-10 flex flex-col items-center gap-2 select-none
-              ${isClickable && !saving ? "cursor-pointer" : "cursor-default"}
+            className={`relative z-10 flex flex-col items-center gap-2 select-none bg-transparent border-0 p-0
+              ${isClickable ? `stage-clickable ${colorClass}` : "cursor-default"}
+              ${pulsing === stage ? "stage-pulse" : ""}
             `}
           >
             <div
-              className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-[box-shadow,background-color,border-color] duration-150
+              className={`stage-circle w-11 h-11 rounded-full flex items-center justify-center border-2
                 ${isCompleted
-                  ? `bg-emerald-500 border-white text-white${isClickable && !saving ? " hover:shadow-[0_0_0_6px_rgba(16,185,129,0.25)] active:shadow-[0_0_0_8px_rgba(16,185,129,0.35)]" : ""}`
+                  ? "bg-emerald-500 border-white text-white"
                   : isCurrent
                     ? "bg-blue-600 border-white text-white ring-2 ring-blue-200"
                     : isNext
-                      ? `bg-white border-blue-400 text-blue-600${isClickable && !saving ? " hover:shadow-[0_0_0_6px_rgba(59,130,246,0.2)] active:shadow-[0_0_0_8px_rgba(59,130,246,0.3)] hover:bg-blue-50" : ""}`
+                      ? "bg-white border-blue-400 text-blue-600"
                       : "bg-slate-100 border-white text-slate-400"
                 }
               `}
