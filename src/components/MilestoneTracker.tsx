@@ -5,7 +5,7 @@ import {
   ClipboardList, CheckCircle2, Loader2, ChevronDown, ChevronRight,
   Plus, Trash2, CalendarDays, AlertCircle,
 } from "lucide-react";
-import { EXECUTION_MILESTONES, MILESTONE_WEIGHTS, TOTAL_MILESTONE_WEIGHT, PackageMilestone, MilestoneTask } from "@/lib/types";
+import { EXECUTION_MILESTONES, milestoneProgressFromTasks, overallMilestonePct, PackageMilestone, MilestoneTask } from "@/lib/types";
 import { useConfirm } from "@/components/ConfirmDialog";
 
 // ── DraggableBar ─────────────────────────────────────────────────────────────
@@ -189,14 +189,12 @@ export default function MilestoneTracker({
   // If no tasks are defined the milestone shows 0%.
   const getMilestoneProgress = (name: string) => {
     const tasks = milestones.find(x => x.milestoneName === name)?.tasks ?? [];
-    if (tasks.length === 0) return 0;
-    const avg = tasks.reduce((s, t) => s + (taskProgress[t.id] ?? t.progress), 0) / tasks.length;
-    return Math.round(avg);
+    return milestoneProgressFromTasks(tasks.map(t => taskProgress[t.id] ?? t.progress));
   };
 
-  const overallPct = TOTAL_MILESTONE_WEIGHT > 0
-    ? EXECUTION_MILESTONES.reduce((s, n) => s + (MILESTONE_WEIGHTS[n] ?? 0) * getMilestoneProgress(n), 0) / TOTAL_MILESTONE_WEIGHT
-    : 0;
+  const overallPct = overallMilestonePct(
+    Object.fromEntries(EXECUTION_MILESTONES.map(n => [n, getMilestoneProgress(n)]))
+  );
   const doneCount  = EXECUTION_MILESTONES.filter(n => getMilestoneProgress(n) === 100).length;
 
   // Overall timeline: earliest start → latest end across all tasks

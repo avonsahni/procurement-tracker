@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { EXECUTION_MILESTONES, MILESTONE_WEIGHTS, TOTAL_MILESTONE_WEIGHT } from '@/lib/types';
+import { EXECUTION_MILESTONES, MILESTONE_WEIGHTS, TOTAL_MILESTONE_WEIGHT, milestoneProgressFromTasks } from '@/lib/types';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 
 // Helpers that turn raw Postgres rows into the camelCase shape the client expects.
@@ -156,26 +156,31 @@ function mapPackageRow(
       user: i.username,
       createdAt: i.created_at,
     })),
-    milestones: (milestonesByPkg[id] || []).map((m: any) => ({
-      id: m.id,
-      milestoneName: m.milestone_name,
-      displayOrder: m.display_order,
-      progress: Number(m.progress || 0),
-      completedAt: m.completed_at || undefined,
-      completedBy: m.completed_by || undefined,
-      tasks: (tasksByMilestone[m.milestone_name] || []).map((t: any) => ({
-        id: t.id,
-        milestoneName: t.milestone_name,
-        name: t.name,
-        description: t.description || undefined,
-        progress: Number(t.progress || 0),
-        startDate: t.start_date || undefined,
-        endDate: t.end_date || undefined,
-        sortOrder: t.sort_order,
-        createdBy: t.created_by || undefined,
-        createdAt: t.created_at,
-      })),
-    })),
+    milestones: (milestonesByPkg[id] || []).map((m: any) => {
+      const msTasks = tasksByMilestone[m.milestone_name] || [];
+      return {
+        id: m.id,
+        milestoneName: m.milestone_name,
+        displayOrder: m.display_order,
+        // Effective progress is derived from subtasks (0 when none), matching the
+        // package detail view and project rollup — never the stored cache value.
+        progress: milestoneProgressFromTasks(msTasks.map((t: any) => Number(t.progress || 0))),
+        completedAt: m.completed_at || undefined,
+        completedBy: m.completed_by || undefined,
+        tasks: msTasks.map((t: any) => ({
+          id: t.id,
+          milestoneName: t.milestone_name,
+          name: t.name,
+          description: t.description || undefined,
+          progress: Number(t.progress || 0),
+          startDate: t.start_date || undefined,
+          endDate: t.end_date || undefined,
+          sortOrder: t.sort_order,
+          createdBy: t.created_by || undefined,
+          createdAt: t.created_at,
+        })),
+      };
+    }),
     cashInflow: (cashInflowByPkg[id] || []).map((r: any) => ({
       id: r.id,
       onAccount:    r.on_account,
@@ -291,13 +296,17 @@ export async function rollUpMilestoneTasks(supabase: SupabaseClient, pkgId: stri
     byMilestone[t.milestone_name].push(t);
   }
 
-  // Update each milestone's progress to the average of its tasks
-  for (const [name, mTasks] of Object.entries(byMilestone)) {
-    const avg = Math.round(mTasks.reduce((s, t) => s + (t.progress || 0), 0) / mTasks.length);
+  // Reconcile EVERY execution milestone's stored progress to the average of its
+  // tasks — or 0 when it has none. Resetting taskless milestones (not just the
+  // ones that currently have tasks) keeps the denormalised cache from drifting
+  // away from the task-derived value shown across the app.
+  for (const name of EXECUTION_MILESTONES) {
+    const mTasks = byMilestone[name] || [];
+    const avg = milestoneProgressFromTasks(mTasks.map(t => t.progress || 0));
     await supabase.from('package_milestones').upsert({
       package_id:    pkgId,
       milestone_name: name,
-      display_order: (EXECUTION_MILESTONES as unknown as string[]).indexOf(name) + 1 || 99,
+      display_order: EXECUTION_MILESTONES.indexOf(name) + 1,
       progress:      avg,
       completed_at:  avg === 100 ? new Date().toISOString() : null,
       completed_by:  null,
@@ -354,15 +363,22 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
   let milestonesByPkg: Record<string, any[]> = {};
   let inflowByPkg:  Record<string, number> = {};
   let outflowByPkg: Record<string, number> = {};
+  // package_id → (milestone_name → effective progress 0–100), derived from subtasks
+  // so the project rollup matches the package detail view exactly.
+  const milestoneProgressByPkg: Record<string, Record<string, number>> = {};
   if (pkgs.length > 0) {
     const ids = pkgs.map((p: any) => p.id);
-    const [invRes, vendorRes, milestoneRes, inflowRes, outflowRes] = await Promise.all([
+    // milestone_tasks are read with the admin client — RLS on that table keys off
+    // the project owner, which doesn't match org members (same as assemblePackage).
+    const admin = createAdminSupabase();
+    const [invRes, vendorRes, milestoneRes, tasksRes, inflowRes, outflowRes] = await Promise.all([
       supabase.from('invoices').select('package_id, amount').in('package_id', ids),
       supabase.from('vendors').select('package_id').in('package_id', ids),
       supabase.from('package_milestones')
         .select('id, package_id, milestone_name, display_order, progress, completed_at, completed_by')
         .in('package_id', ids)
         .order('display_order'),
+      admin.from('milestone_tasks').select('package_id, milestone_name, progress').in('package_id', ids),
       supabase.from('cash_inflow').select('package_id, amount').in('package_id', ids),
       supabase.from('cash_outflow').select('package_id, amount').in('package_id', ids),
     ]);
@@ -375,9 +391,20 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
     if (milestoneRes.error) {
       console.error('[assembleProjectSummary] milestone query failed:', milestoneRes.error.message);
     }
+
+    // Group subtask progress by package + milestone, then take the average
+    // (0 when a milestone has no subtasks) — identical to MilestoneTracker.
+    const taskProgs: Record<string, Record<string, number[]>> = {};
+    for (const t of tasksRes.data || []) {
+      const byMs = taskProgs[t.package_id] || (taskProgs[t.package_id] = {});
+      (byMs[t.milestone_name] || (byMs[t.milestone_name] = [])).push(Number(t.progress || 0));
+    }
     for (const m of milestoneRes.data || []) {
+      const prog = milestoneProgressFromTasks(taskProgs[m.package_id]?.[m.milestone_name] ?? []);
+      const byMs = milestoneProgressByPkg[m.package_id] || (milestoneProgressByPkg[m.package_id] = {});
+      byMs[m.milestone_name] = prog;
       const w = MILESTONE_WEIGHTS[m.milestone_name as keyof typeof MILESTONE_WEIGHTS] ?? 0;
-      milestonesCompletedByPkg[m.package_id] = (milestonesCompletedByPkg[m.package_id] || 0) + w * Number(m.progress || 0);
+      milestonesCompletedByPkg[m.package_id] = (milestonesCompletedByPkg[m.package_id] || 0) + w * prog;
     }
     milestonesByPkg = groupBy(milestoneRes.data || [], 'package_id');
     for (const r of inflowRes.data || []) {
@@ -419,7 +446,7 @@ export async function assembleProjectSummary(supabase: SupabaseClient, row: any)
       id: m.id,
       milestoneName: m.milestone_name,
       displayOrder: m.display_order,
-      progress: Number(m.progress || 0),
+      progress: milestoneProgressByPkg[p.id]?.[m.milestone_name] ?? 0,
       completedAt: m.completed_at || undefined,
       completedBy: m.completed_by || undefined,
     })),
