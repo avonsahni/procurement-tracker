@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:isolation": "node scripts/test-isolation.mjs",
+    "test:isolation:seed": "node scripts/isolation-seed.mjs",
+    "test:isolation:teardown": "node scripts/isolation-teardown.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

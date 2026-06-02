@@ -1,0 +1,52 @@
+name: Tenant Isolation Test
+
+on:
+  push:
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/test-isolation.mjs'
+      - 'scripts/isolation-seed.mjs'
+      - 'scripts/isolation-teardown.mjs'
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/test-isolation.mjs'
+      - 'scripts/isolation-seed.mjs'
+      - 'scripts/isolation-teardown.mjs'
+
+jobs:
+  isolation-test:
+    name: RLS isolation check
+    runs-on: ubuntu-latest
+
+    env:
+      NEXT_PUBLIC_SUPABASE_URL:   ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY:          ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY:  ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ISO_USER_A_EMAIL:           ${{ secrets.ISO_USER_A_EMAIL }}
+      ISO_USER_A_PASSWORD:        ${{ secrets.ISO_USER_A_PASSWORD }}
+      ISO_USER_B_EMAIL:           ${{ secrets.ISO_USER_B_EMAIL }}
+      ISO_USER_B_PASSWORD:        ${{ secrets.ISO_USER_B_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Seed test fixtures
+        run: npm run test:isolation:seed
+
+      - name: Run tenant isolation tests
+        run: npm run test:isolation
+
+      - name: Teardown test fixtures
+        if: always()
+        run: npm run test:isolation:teardown
