@@ -26,12 +26,14 @@ export default function VendorMatrix({
 }: VendorMatrixProps) {
   const confirm = useConfirm();
 
-  // Number of R-columns to display — grows with data, can be bumped via the button
+  // R-columns: one per actual data round, plus one pending column when the user
+  // clicks "+ Add Revision Round". The pending column disappears automatically
+  // once any vendor saves a value in it (maxFromData grows) — so empty columns
+  // never persist after a reload or navigation.
   const maxFromData = vendors.reduce((m, v) => Math.max(m, v.revisions.length), 0);
-  const [totalCols, setTotalCols] = useState(maxFromData);
-  useEffect(() => {
-    setTotalCols(prev => Math.max(prev, maxFromData));
-  }, [maxFromData]);
+  const [pendingCol, setPendingCol] = useState(false);
+  useEffect(() => { setPendingCol(false); }, [maxFromData]);
+  const totalCols = maxFromData + (pendingCol ? 1 : 0);
 
   // Per-cell draft amounts keyed by `${vendorId}-${colIndex}`
   const [cellDrafts, setCellDrafts]   = useState<Record<string, string>>({});
@@ -79,7 +81,7 @@ export default function VendorMatrix({
             {!isAwarded && (
               <button
                 type="button"
-                onClick={() => setTotalCols(prev => prev + 1)}
+                onClick={() => setPendingCol(true)}
                 className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-1 transition"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Revision Round
@@ -220,20 +222,22 @@ export default function VendorMatrix({
                   {/* Final Awarded */}
                   <td className="px-4 py-3.5 text-right">
                     {isWinner ? (
-                      <div className="flex flex-col items-end">
-                        <span className="text-sm font-mono font-semibold text-emerald-700 whitespace-nowrap">
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-sm font-mono font-bold text-emerald-700 whitespace-nowrap">
                           {formatCurrency(awardValue || 0, currency)}
                         </span>
-                        <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 rounded font-medium mt-0.5">
-                          Winner
+                        <span className="inline-flex items-center gap-1 text-xs bg-emerald-600 text-white px-2 py-0.5 rounded-full font-semibold">
+                          <CheckCircle2 className="w-3 h-3" /> Awarded
                         </span>
                       </div>
+                    ) : isAwarded ? (
+                      <span className="text-slate-300 font-mono text-sm">—</span>
                     ) : (
                       !readonly && onSelectWinner && (
                         <button
                           type="button"
                           onClick={() => onSelectWinner(v)}
-                          className="text-xs font-medium text-slate-500 hover:text-emerald-700 flex items-center gap-1 ml-auto transition"
+                          className="text-xs font-medium text-slate-400 hover:text-emerald-700 flex items-center gap-1 ml-auto transition"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" /> Select
                         </button>
