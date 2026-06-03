@@ -492,7 +492,8 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
 
       {/* User table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">User</th>
@@ -569,6 +570,7 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Permission guide */}
@@ -1164,7 +1166,7 @@ function AuditLogSection() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[680px] text-sm">
               <thead>
                 <tr className="bg-slate-50 text-left border-b border-slate-200">
                   <th className="px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">When</th>

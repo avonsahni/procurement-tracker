@@ -749,7 +749,8 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
               </div>
             ) : (
               <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                <table className="w-full text-left">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px] text-left">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/60">
                       <th className="px-4 py-3 text-xs font-medium text-slate-500 w-8">#</th>
@@ -824,6 +825,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </>
