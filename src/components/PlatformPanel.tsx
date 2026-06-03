@@ -2107,6 +2107,37 @@ function OrgDetailView({
             </div>
           )}
 
+          {/* Storage usage */}
+          {(() => {
+            const used  = detail?.usedBytes ?? 0;
+            const limit = PLAN_STORAGE_LIMITS[detail?.plan ?? 'trial'] ?? PLAN_STORAGE_LIMITS.trial;
+            const pct   = storagePct(used, limit);
+            const barColor = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500';
+            return (
+              <div className="bg-white border border-slate-200 rounded-xl p-6">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
+                    <HardDrive className="w-4 h-4 text-slate-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900">Storage Usage</h3>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                      Total uploaded documents and remark photos for this organisation,
+                      against the <strong className="capitalize">{detail?.plan ?? 'trial'}</strong> plan limit.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-baseline justify-between mb-2">
+                  <span className="text-lg font-semibold text-slate-900">{humanBytes(used)}</span>
+                  <span className="text-xs text-slate-500">of {humanBytes(limit)} &middot; {pct}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Wipe data */}
           <div className="bg-white border border-red-200 rounded-xl p-6">
             <div className="flex items-start gap-3 mb-4">

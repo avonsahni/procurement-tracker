@@ -13,7 +13,7 @@ export async function GET(
   const { id: orgId } = await params;
   const admin = createAdminSupabase();
 
-  const [orgRes, membersRes, projectsRes, authRes] = await Promise.all([
+  const [orgRes, membersRes, projectsRes, storageRes, authRes] = await Promise.all([
     admin.from('organizations')
       .select(`id, name, plan, subscription_status, trial_ends_at,
                paused_at, paused_reason, platform_notes, created_at,
@@ -23,6 +23,7 @@ export async function GET(
       .maybeSingle(),
     admin.from('organization_members').select('org_id, user_id, role').eq('org_id', orgId),
     admin.from('projects').select('id').eq('org_id', orgId),
+    admin.from('org_storage_bytes').select('used_bytes').eq('org_id', orgId).maybeSingle(),
     admin.auth.admin.listUsers({ perPage: 1000 }),
   ]);
 
@@ -41,6 +42,7 @@ export async function GET(
     ...orgRes.data,
     memberCount:  (membersRes.data || []).length,
     projectCount: (projectsRes.data || []).length,
+    usedBytes:    Number((storageRes.data as any)?.used_bytes ?? 0),
     ownerEmails,
   });
 }
