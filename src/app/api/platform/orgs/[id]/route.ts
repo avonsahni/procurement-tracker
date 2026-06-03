@@ -97,7 +97,7 @@ export async function PUT(
   return NextResponse.json({ ok: true });
 }
 
-// DELETE /api/platform/orgs/[id]  — permanently delete an org and all its data
+// DELETE /api/platform/orgs/[id]  — permanently delete an org and everything related to it
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -117,13 +117,77 @@ export async function DELETE(
 
   const admin = createAdminSupabase();
 
-  // Cascade: organizations → org_members, projects → packages → vendors/invoices/etc.
-  // All FK relationships have ON DELETE CASCADE, so deleting the org is sufficient.
+  // 1. Collect member user IDs before the cascade removes membership rows
+  const { data: members } = await admin
+    .from('organization_members')
+    .select('user_id')
+    .eq('org_id', orgId);
+  const userIds = (members ?? []).map((m: any) => m.user_id as string).filter(Boolean);
+
+  // 2. Collect storage file paths so the bucket is cleaned up
+  let filesDeleted = 0;
+  const { data: projects } = await admin
+    .from('projects')
+    .select('id')
+    .eq('org_id', orgId);
+  const projectIds = (projects ?? []).map((p: any) => p.id as string);
+
+  if (projectIds.length > 0) {
+    const { data: packages } = await admin
+      .from('packages')
+      .select('id')
+      .in('project_id', projectIds);
+    const pkgIds = (packages ?? []).map((p: any) => p.id as string);
+
+    if (pkgIds.length > 0) {
+      const storagePaths: string[] = [];
+
+      const { data: docs } = await admin
+        .from('documents')
+        .select('storage_path')
+        .in('package_id', pkgIds)
+        .not('storage_path', 'is', null);
+      for (const d of docs ?? []) {
+        if ((d as any).storage_path) storagePaths.push((d as any).storage_path);
+      }
+
+      const { data: remarks } = await admin
+        .from('remarks')
+        .select('image_urls')
+        .in('package_id', pkgIds);
+      for (const r of remarks ?? []) {
+        for (const url of (r as any).image_urls ?? []) {
+          if (url) storagePaths.push(url);
+        }
+      }
+
+      // Delete files in batches — non-fatal if bucket operation fails
+      if (storagePaths.length > 0) {
+        const BATCH = 100;
+        for (let i = 0; i < storagePaths.length; i += BATCH) {
+          const batch = storagePaths.slice(i, i + BATCH);
+          const { data: removed } = await admin.storage.from('package-documents').remove(batch);
+          filesDeleted += (removed ?? []).length;
+        }
+      }
+    }
+  }
+
+  // 3. Delete the org — FK cascades handle all relational data:
+  //    organization_members, projects, packages, vendors, invoices, remarks,
+  //    documents, audit_trail, package_milestones, milestone_tasks, cash_inflow,
+  //    cash_outflow, company_info, categories, org_audit_log
   const { error } = await admin
     .from('organizations')
     .delete()
     .eq('id', orgId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+
+  // 4. Delete auth users — cascades to profiles and active_sessions
+  for (const uid of userIds) {
+    await admin.auth.admin.deleteUser(uid);
+  }
+
+  return NextResponse.json({ ok: true, usersDeleted: userIds.length, filesDeleted });
 }
