@@ -11,6 +11,7 @@ import {
   ToggleLeft, ToggleRight, IndianRupee, Plus, Mail,
   MessageSquare, Phone, Building, Inbox, Circle, Eye, EyeOff,
   HardDrive, Database, RotateCcw, AlertTriangle, CalendarDays,
+  Package, TrendingUp, ClipboardList, Settings, Receipt, FileText,
 } from "lucide-react";
 import { humanBytes, storagePct, PLAN_STORAGE_LIMITS } from "@/lib/storageLimit";
 
@@ -1021,6 +1022,187 @@ const ROLE_STYLES: Record<string, string> = {
   viewer: 'bg-slate-100 text-slate-600 ring-slate-200',
 };
 
+// ─── Org Activity (audit log) ──────────────────────────────────────────────────
+
+type ActivityEntry = {
+  id: string;
+  user_name: string;
+  action: string;
+  category: string;
+  entity_name: string | null;
+  details: Record<string, any> | null;
+  created_at: string;
+};
+
+const ACTIVITY_CATEGORY_STYLES: Record<string, { color: string; icon: any }> = {
+  user_mgmt: { color: 'text-violet-600 bg-violet-50 border-violet-200',    icon: Users },
+  project:   { color: 'text-blue-600 bg-blue-50 border-blue-200',          icon: FolderOpen },
+  package:   { color: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: Package },
+  cashflow:  { color: 'text-teal-600 bg-teal-50 border-teal-200',          icon: TrendingUp },
+  billing:   { color: 'text-cyan-600 bg-cyan-50 border-cyan-200',          icon: Receipt },
+  document:  { color: 'text-orange-600 bg-orange-50 border-orange-200',    icon: FileText },
+  milestone: { color: 'text-indigo-600 bg-indigo-50 border-indigo-200',    icon: ClipboardList },
+  remark:    { color: 'text-sky-600 bg-sky-50 border-sky-200',             icon: MessageSquare },
+  settings:  { color: 'text-amber-600 bg-amber-50 border-amber-200',       icon: Settings },
+  admin:     { color: 'text-red-600 bg-red-50 border-red-200',             icon: Database },
+  general:   { color: 'text-slate-600 bg-slate-100 border-slate-200',      icon: Activity },
+};
+
+function fmtRelativeActivity(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+const ACTIVITY_CATEGORIES = ['all', 'user_mgmt', 'project', 'package', 'billing', 'cashflow', 'document', 'milestone', 'remark', 'settings', 'admin'];
+const ACTIVITY_CAT_LABELS: Record<string, string> = {
+  all: 'All', user_mgmt: 'Users', project: 'Projects', package: 'Packages',
+  billing: 'Billing', cashflow: 'Cash Flow', document: 'Documents',
+  milestone: 'Milestones', remark: 'Remarks', settings: 'Settings', admin: 'Admin',
+};
+
+function OrgActivitySection({ orgId }: { orgId: string }) {
+  const [entries, setEntries] = useState<ActivityEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter]   = useState<string>('all');
+  const [search, setSearch]   = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res  = await apiFetch(`/api/platform/orgs/${orgId}/audit`);
+      const data = await res.json();
+      setEntries(Array.isArray(data) ? data : []);
+    } catch { /* silent */ } finally { setLoading(false); }
+  }, [orgId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = entries.filter(e => {
+    const matchCat = filter === 'all' || e.category === filter;
+    const q = search.toLowerCase();
+    const matchSearch = !q ||
+      e.action.toLowerCase().includes(q) ||
+      e.user_name.toLowerCase().includes(q) ||
+      (e.entity_name || '').toLowerCase().includes(q);
+    return matchCat && matchSearch;
+  });
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">Activity Log</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Every add, edit and delete by any user in this organisation — who did what, and when (last 500).</p>
+        </div>
+        <button onClick={load} className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-medium transition">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search action, user, item…"
+            className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 w-64"
+          />
+        </div>
+        {ACTIVITY_CATEGORIES.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setFilter(cat)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+              filter === cat ? 'bg-orange-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {ACTIVITY_CAT_LABELS[cat] ?? cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Result count */}
+      {!loading && filtered.length > 0 && (
+        <p className="text-xs text-slate-400">
+          Showing {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
+          {filter !== 'all' || search ? ' (filtered)' : ''}
+        </p>
+      )}
+
+      {/* Table */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16 text-slate-400">
+            <Clock className="w-8 h-8 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No activity recorded yet</p>
+            <p className="text-xs mt-1">Adds, edits and deletes by this organisation's users will appear here.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-left border-b border-slate-200">
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">When</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">User</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Action</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Item</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map(entry => {
+                  const style = ACTIVITY_CATEGORY_STYLES[entry.category] || ACTIVITY_CATEGORY_STYLES.general;
+                  const ActionIcon = style.icon;
+                  return (
+                    <tr key={entry.id} className="hover:bg-slate-50 transition align-top">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <p className="text-xs font-medium text-slate-600">{fmtRelativeActivity(entry.created_at)}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {new Date(entry.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 font-medium whitespace-nowrap">{entry.user_name}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-6 h-6 rounded-md border flex items-center justify-center flex-shrink-0 ${style.color}`}>
+                            <ActionIcon className="w-3 h-3" />
+                          </span>
+                          <span className="text-sm font-medium text-slate-900 whitespace-nowrap">{entry.action}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {entry.entity_name || <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-500 max-w-[320px]">
+                        {entry.details && Object.keys(entry.details).length > 0
+                          ? Object.entries(entry.details).map(([k, v]) => `${k}: ${v}`).join(' · ')
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function OrgDetailView({
   orgId,
   orgs,
@@ -1032,7 +1214,7 @@ function OrgDetailView({
   onBack: () => void;
   onOrgUpdated: () => void;
 }) {
-  type DetailTab = 'users' | 'settings' | 'data';
+  type DetailTab = 'users' | 'activity' | 'settings' | 'data';
   const [detailTab, setDetailTab] = useState<DetailTab>('users');
 
   // Org data (from already-loaded list, enriched by individual GET if needed)
@@ -1396,6 +1578,7 @@ function OrgDetailView({
       <div className="flex gap-1 border-b border-slate-200">
         {([
           { id: 'users' as const, label: 'Users', icon: Users },
+          { id: 'activity' as const, label: 'Activity', icon: Activity },
           { id: 'settings' as const, label: 'Settings', icon: Edit2 },
           { id: 'data' as const, label: 'Data', icon: Database },
         ]).map(t => (
@@ -1553,6 +1736,11 @@ function OrgDetailView({
             </p>
           </div>
         </div>
+      )}
+
+      {/* ── Activity tab ── */}
+      {detailTab === 'activity' && (
+        <OrgActivitySection orgId={orgId} />
       )}
 
       {/* ── Settings tab ── */}
