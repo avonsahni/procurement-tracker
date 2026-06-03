@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
-import { addAuditEntry } from '@/lib/db';
+import { addAuditEntry, logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { DocumentCreateSchema, parseBody } from '@/lib/validation';
 import { storageLimitForPlan, humanBytes } from '@/lib/storageLimit';
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (error || !row) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
 
   await addAuditEntry(supabase, pkgId, auth.fullName, 'Document Added', '', name);
+  await logPackageAudit(createAdminSupabase(), auth, pkgId, 'Document Added', 'document', { name });
 
   return NextResponse.json({
     id: row.id, name: row.name, size: row.size || '', type: row.type || '',

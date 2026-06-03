@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { addAuditEntry } from '@/lib/db';
+import { createAdminSupabase } from '@/lib/supabase/admin';
+import { addAuditEntry, logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { InvoiceCreateSchema, parseBody } from '@/lib/validation';
 import { formatCurrency } from '@/lib/types';
@@ -110,6 +111,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     'Invoice Recorded', '',
     invoiceNumber ? `${invoiceNumber} (${amount})` : String(amount)
   );
+  await logPackageAudit(createAdminSupabase(), auth, pkgId, 'Invoice Recorded', 'billing', {
+    invoiceNumber, amount: Number(amount),
+  });
 
   return NextResponse.json({
     id: row.id,

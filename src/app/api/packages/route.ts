@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { assemblePackage } from '@/lib/db';
+import { createAdminSupabase } from '@/lib/supabase/admin';
+import { assemblePackage, logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { PackageCreateSchema, parseBody } from '@/lib/validation';
 import { withRoute } from '@/lib/withRoute';
@@ -29,6 +30,8 @@ export const POST = withRoute(async (req: NextRequest) => {
     .single();
 
   if (error || !row) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
+
+  await logPackageAudit(createAdminSupabase(), auth, row.id, 'Package Created', 'package', { category, origin });
 
   return NextResponse.json(await assemblePackage(supabase, row), { status: 201 });
 }, { route: '/api/packages' });

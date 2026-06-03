@@ -64,6 +64,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const changedFields = Object.keys(parsed.data);
+  await addOrgAuditEntry(createAdminSupabase(), auth.orgId, auth.id, auth.fullName,
+    'Project Updated', 'project', row.name, { fields: changedFields });
+
   return NextResponse.json(await assembleProject(supabase, row));
 }
 

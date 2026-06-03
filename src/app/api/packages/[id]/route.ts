@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
-import { assemblePackage, addAuditEntry, addOrgAuditEntry } from '@/lib/db';
+import { assemblePackage, addAuditEntry, addOrgAuditEntry, logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { PackageUpdateSchema, parseBody } from '@/lib/validation';
 import { EXECUTION_MILESTONES } from '@/lib/types';
@@ -59,6 +59,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       setFields.rfq_float_date = now;
     }
     await addAuditEntry(supabase, id, auth.fullName, 'Stage', pkg.current_stage, updates.currentStage);
+    await logPackageAudit(createAdminSupabase(), auth, id, 'Stage Changed', 'package', {
+      from: pkg.current_stage, to: updates.currentStage,
+    });
   }
   if (updates.awardValue !== undefined) setFields.award_value = updates.awardValue;
   if (updates.awardedVendorId !== undefined) setFields.awarded_vendor_id = updates.awardedVendorId;

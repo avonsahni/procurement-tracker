@@ -4,7 +4,8 @@ import { guard } from '@/lib/auth';
 import { z } from 'zod';
 import { parseBody } from '@/lib/validation';
 import { assertPackageProjectActive } from '@/lib/projectGuard';
-import { addAuditEntry } from '@/lib/db';
+import { addAuditEntry, logPackageAudit } from '@/lib/db';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 
 const AddRevisionSchema = z.object({
   amount: z.number({ message: 'amount must be a number' }).min(0, 'amount must be non-negative'),
@@ -60,6 +61,9 @@ export async function POST(
     supabase, pkgId, auth.fullName,
     `Revision R${nextRound} — ${vendor.name}`, '', String(parsed.data.amount),
   );
+  await logPackageAudit(createAdminSupabase(), auth, pkgId, 'Vendor Revision Added', 'package', {
+    vendor: vendor.name, round: nextRound, amount: Number(parsed.data.amount),
+  });
 
   return NextResponse.json({
     id: row.id,

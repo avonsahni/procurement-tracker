@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { guard } from '@/lib/auth';
 import { assertPackageProjectActive } from '@/lib/projectGuard';
-import { addAuditEntry } from '@/lib/db';
+import { addAuditEntry, logPackageAudit } from '@/lib/db';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 
 export async function DELETE(
   _req: NextRequest,
@@ -38,6 +39,9 @@ export async function DELETE(
       `Revision R${rev.round_number} Removed — ${vendor?.name ?? 'vendor'}`,
       String(rev.amount), '',
     );
+    await logPackageAudit(createAdminSupabase(), auth, pkgId, 'Vendor Revision Removed', 'package', {
+      vendor: vendor?.name ?? 'vendor', round: rev.round_number, amount: Number(rev.amount),
+    });
   }
 
   // After deletion, sync vendor's revised_amount to the new latest round (or keep as-is if none left)

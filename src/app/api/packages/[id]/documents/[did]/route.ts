@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { addAuditEntry } from '@/lib/db';
+import { createAdminSupabase } from '@/lib/supabase/admin';
+import { addAuditEntry, logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { assertPackageProjectActive } from '@/lib/projectGuard';
 
@@ -24,6 +25,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       await supabase.storage.from('package-documents').remove([doc.storage_path]);
     }
     await addAuditEntry(supabase, pkgId, auth.fullName, 'Document Removed', doc.name, '');
+    await logPackageAudit(createAdminSupabase(), auth, pkgId, 'Document Removed', 'document', { name: doc.name });
   }
 
   await supabase.from('documents').delete().eq('id', did);

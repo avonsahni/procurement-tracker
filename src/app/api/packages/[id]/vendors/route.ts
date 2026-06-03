@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { addAuditEntry } from '@/lib/db';
+import { createAdminSupabase } from '@/lib/supabase/admin';
+import { addAuditEntry, logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { VendorCreateSchema, parseBody } from '@/lib/validation';
 import { assertProjectActive } from '@/lib/projectGuard';
@@ -29,6 +30,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (error || !row) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
 
   await addAuditEntry(supabase, pkgId, auth.fullName, 'Vendor Added', '', name);
+  await logPackageAudit(createAdminSupabase(), auth, pkgId, 'Vendor Added', 'package', {
+    vendor: name, quoted: Number(quoted), revised: Number(revised),
+  });
 
   return NextResponse.json({
     id: row.id, name: row.name, quotedAmount: Number(row.quoted_amount), revisedAmount: Number(row.revised_amount),

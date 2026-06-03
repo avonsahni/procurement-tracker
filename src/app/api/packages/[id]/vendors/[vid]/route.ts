@@ -63,7 +63,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const g = await assertPackageProjectActive(supabase, pkgId, auth);
   if (g) return g;
   const { data: v } = await supabase.from('vendors').select('name').eq('id', vid).single();
-  if (v) await addAuditEntry(supabase, pkgId, auth.fullName, 'Vendor Removed', v.name, '');
+  if (v) {
+    await addAuditEntry(supabase, pkgId, auth.fullName, 'Vendor Removed', v.name, '');
+    await logPackageAudit(createAdminSupabase(), auth, pkgId, 'Vendor Removed', 'package', { vendor: v.name });
+  }
   await supabase.from('vendors').delete().eq('id', vid);
   return NextResponse.json({ ok: true });
 }

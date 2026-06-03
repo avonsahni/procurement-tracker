@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { addAuditEntry } from '@/lib/db';
+import { createAdminSupabase } from '@/lib/supabase/admin';
+import { addAuditEntry, logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { assertPackageProjectActive } from '@/lib/projectGuard';
 
@@ -15,6 +16,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (inv) {
     const label = inv.invoice_number ? `${inv.invoice_number} (${inv.amount})` : String(inv.amount);
     await addAuditEntry(supabase, pkgId, auth.fullName, 'Invoice Removed', label, '');
+    await logPackageAudit(createAdminSupabase(), auth, pkgId, 'Invoice Removed', 'billing', {
+      invoiceNumber: inv.invoice_number || '', amount: Number(inv.amount),
+    });
   }
   await supabase.from('invoices').delete().eq('id', iid);
   return NextResponse.json({ ok: true });

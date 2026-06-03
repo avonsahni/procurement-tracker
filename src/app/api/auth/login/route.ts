@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 import { getCurrentUser } from '@/lib/auth';
+import { addOrgAuditEntry } from '@/lib/db';
 import { LoginSchema, parseBody } from '@/lib/validation';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
@@ -29,6 +31,9 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Login failed' }, { status: 500 });
   }
+
+  await addOrgAuditEntry(createAdminSupabase(), user.orgId, user.id, user.fullName,
+    'Signed In', 'auth', user.email);
 
   return NextResponse.json({
     id: user.id,
