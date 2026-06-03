@@ -140,26 +140,26 @@ export const DocumentCreateSchema = z.object({
 });
 
 export const InvoiceCreateSchema = z.object({
-  amount: nonNegNumber('amount'),
-  invoiceNumber: z.string().trim().max(100).optional().default(''),
-  invoiceDate: z.string().optional(),
-  notes: z.string().trim().max(1000).optional().default(''),
+  amount: nonNegNumber('amount').refine(v => v > 0, 'amount must be greater than 0'),
+  invoiceNumber: trimmedString('invoiceNumber', 1, 100),
+  invoiceDate: z.string().min(1, 'invoiceDate required'),
+  notes: trimmedString('notes', 1, 1000),
 });
 
 export const CashInflowCreateSchema = z.object({
   onAccount:    trimmedString('onAccount', 1, 500),
   fromParty:    trimmedString('fromParty', 1, 200),
   dateReceived: z.string().min(1, 'dateReceived required'),
-  amount:       nonNegNumber('amount'),
-  remarks:      z.string().trim().max(1000).optional().default(''),
+  amount:       nonNegNumber('amount').refine(v => v > 0, 'amount must be greater than 0'),
+  remarks:      trimmedString('remarks', 1, 1000),
 });
 
 export const CashOutflowCreateSchema = z.object({
   toWhom:       trimmedString('toWhom', 1, 200),
   onAccountOf:  trimmedString('onAccountOf', 1, 500),
   datePaid:     z.string().min(1, 'datePaid required'),
-  amount:       nonNegNumber('amount'),
-  remarks:      z.string().trim().max(1000).optional().default(''),
+  amount:       nonNegNumber('amount').refine(v => v > 0, 'amount must be greater than 0'),
+  remarks:      trimmedString('remarks', 1, 1000),
 });
 
 export const CategoryCreateSchema = z.object({

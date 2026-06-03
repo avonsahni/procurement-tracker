@@ -210,17 +210,19 @@ export default function PackageDetail({
   };
 
   const handleAddInflow = async () => {
-    if (!inflowForm.onAccount || !inflowForm.fromParty || !inflowForm.dateReceived || !inflowForm.amount) return;
+    if (!inflowForm.onAccount.trim() || !inflowForm.fromParty.trim() || !inflowForm.dateReceived || !inflowForm.amount || !inflowForm.remarks.trim()) {
+      setInflowError('All fields are required.'); return;
+    }
     const inflowAmt = parseFloat(inflowForm.amount);
     if (isNaN(inflowAmt) || inflowAmt <= 0) { setInflowError('Amount must be a positive number.'); return; }
     setInflowSaving(true); setInflowError(null);
     try {
       const record = await addCashInflow(packageId, {
-        onAccount: inflowForm.onAccount,
-        fromParty: inflowForm.fromParty,
+        onAccount: inflowForm.onAccount.trim(),
+        fromParty: inflowForm.fromParty.trim(),
         dateReceived: inflowForm.dateReceived,
         amount: inflowAmt,
-        remarks: inflowForm.remarks || undefined,
+        remarks: inflowForm.remarks.trim(),
       });
       // Instant optimistic update — no full reload needed
       setPkg((prev: any) => prev ? {
@@ -238,17 +240,19 @@ export default function PackageDetail({
   };
 
   const handleAddOutflow = async () => {
-    if (!outflowForm.toWhom || !outflowForm.onAccountOf || !outflowForm.datePaid || !outflowForm.amount) return;
+    if (!outflowForm.toWhom.trim() || !outflowForm.onAccountOf.trim() || !outflowForm.datePaid || !outflowForm.amount || !outflowForm.remarks.trim()) {
+      setOutflowError('All fields are required.'); return;
+    }
     const outflowAmt = parseFloat(outflowForm.amount);
     if (isNaN(outflowAmt) || outflowAmt <= 0) { setOutflowError('Amount must be a positive number.'); return; }
     setOutflowSaving(true); setOutflowError(null);
     try {
       const record = await addCashOutflow(packageId, {
-        toWhom: outflowForm.toWhom,
-        onAccountOf: outflowForm.onAccountOf,
+        toWhom: outflowForm.toWhom.trim(),
+        onAccountOf: outflowForm.onAccountOf.trim(),
         datePaid: outflowForm.datePaid,
         amount: outflowAmt,
-        remarks: outflowForm.remarks || undefined,
+        remarks: outflowForm.remarks.trim(),
       });
       // Instant optimistic update — no full reload needed
       setPkg((prev: any) => prev ? {
@@ -588,31 +592,31 @@ export default function PackageDetail({
                 <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">On Account Of</label>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">On Account Of *</label>
                       <input value={inflowForm.onAccount} onChange={e => setInflowForm(f => ({ ...f, onAccount: e.target.value }))}
                         placeholder="e.g. Milestone 1 payment"
                         className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white" />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">From Party</label>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">From Party *</label>
                       <input value={inflowForm.fromParty} onChange={e => setInflowForm(f => ({ ...f, fromParty: e.target.value }))}
                         placeholder="e.g. Client Name"
                         className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white" />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Date Received</label>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Date Received *</label>
                       <input type="date" value={inflowForm.dateReceived} onChange={e => setInflowForm(f => ({ ...f, dateReceived: e.target.value }))}
                         className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white" />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Amount ({pkg.currency})</label>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Amount ({pkg.currency}) *</label>
                       <input type="number" min="0.01" step="any" value={inflowForm.amount} onChange={e => setInflowForm(f => ({ ...f, amount: e.target.value }))}
                         placeholder="0"
                         className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Remarks (optional)</label>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Remarks *</label>
                     <input value={inflowForm.remarks} onChange={e => setInflowForm(f => ({ ...f, remarks: e.target.value }))}
                       placeholder="Any notes…"
                       className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400 bg-white" />
@@ -621,8 +625,9 @@ export default function PackageDetail({
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => { setShowInflowForm(false); setInflowError(null); }}
                       className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">Cancel</button>
-                    <button onClick={handleAddInflow} disabled={inflowSaving}
-                      className="px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition disabled:opacity-50">
+                    <button onClick={handleAddInflow}
+                      disabled={inflowSaving || !inflowForm.onAccount.trim() || !inflowForm.fromParty.trim() || !inflowForm.dateReceived || !(parseFloat(inflowForm.amount) > 0) || !inflowForm.remarks.trim()}
+                      className="px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
                       {inflowSaving ? 'Saving…' : 'Save Receipt'}
                     </button>
                   </div>
@@ -734,31 +739,31 @@ export default function PackageDetail({
                 <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">To Whom</label>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">To Whom *</label>
                       <input value={outflowForm.toWhom} onChange={e => setOutflowForm(f => ({ ...f, toWhom: e.target.value }))}
                         placeholder="e.g. Vendor / Contractor"
                         className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 bg-white" />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">On Account Of</label>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">On Account Of *</label>
                       <input value={outflowForm.onAccountOf} onChange={e => setOutflowForm(f => ({ ...f, onAccountOf: e.target.value }))}
                         placeholder="e.g. Mobilisation advance"
                         className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 bg-white" />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Date Paid</label>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Date Paid *</label>
                       <input type="date" value={outflowForm.datePaid} onChange={e => setOutflowForm(f => ({ ...f, datePaid: e.target.value }))}
                         className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 bg-white" />
                     </div>
                     <div>
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Amount ({pkg.currency})</label>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Amount ({pkg.currency}) *</label>
                       <input type="number" min="0.01" step="any" value={outflowForm.amount} onChange={e => setOutflowForm(f => ({ ...f, amount: e.target.value }))}
                         placeholder="0"
                         className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 bg-white" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Remarks (optional)</label>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Remarks *</label>
                     <input value={outflowForm.remarks} onChange={e => setOutflowForm(f => ({ ...f, remarks: e.target.value }))}
                       placeholder="Any notes…"
                       className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 bg-white" />
@@ -767,8 +772,9 @@ export default function PackageDetail({
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => { setShowOutflowForm(false); setOutflowError(null); }}
                       className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">Cancel</button>
-                    <button onClick={handleAddOutflow} disabled={outflowSaving}
-                      className="px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-50">
+                    <button onClick={handleAddOutflow}
+                      disabled={outflowSaving || !outflowForm.toWhom.trim() || !outflowForm.onAccountOf.trim() || !outflowForm.datePaid || !(parseFloat(outflowForm.amount) > 0) || !outflowForm.remarks.trim()}
+                      className="px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
                       {outflowSaving ? 'Saving…' : 'Save Payment'}
                     </button>
                   </div>

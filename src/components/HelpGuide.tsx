@@ -591,8 +591,7 @@ function SectionCashFlow() {
           "Enable Edit Mode.",
           "Scroll to the Cash Inflow card.",
           "Click '+ Record Receipt' to expand the form.",
-          "Fill in On Account (description), From Party (payer name), Date Received, and Amount.",
-          "Optionally add a Remarks note.",
+          "Fill in every field — On Account (description), From Party (payer name), Date Received, Amount, and Remarks. All are required.",
           "Click 'Save Receipt'. The record appears immediately — no page refresh needed.",
         ].map((s, i) => (
           <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
@@ -608,8 +607,7 @@ function SectionCashFlow() {
           "Open an awarded package and switch to Execution view.",
           "Scroll to the Cash Outflow card.",
           "Click '+ Record Payment' to expand the form.",
-          "Fill in To Whom (payee), On Account Of (purpose), Date Paid, and Amount.",
-          "Optionally add a Remarks note.",
+          "Fill in every field — To Whom (payee), On Account Of (purpose), Date Paid, Amount, and Remarks. All are required.",
           "Click 'Save Payment'. The record appears and totals update instantly.",
         ].map((s, i) => (
           <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
@@ -786,8 +784,8 @@ function SectionBilling() {
           "Enable Edit Mode.",
           "Scroll to the Billing section on the package detail page.",
           "Click '+ Add Invoice'.",
-          "Enter the invoice amount, invoice number, invoice date, and optional notes.",
-          "Click Add Invoice. The billed total updates immediately — no page refresh needed.",
+          "Enter every field — invoice amount, invoice number, invoice date, and notes. All are required.",
+          "Click Record. The billed total updates immediately — no page refresh needed.",
         ].map((s, i) => (
           <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
             <StepBadge n={i + 1} />

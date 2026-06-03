@@ -44,14 +44,17 @@ export default function BillingSection({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) return;
+    if (!amt || amt <= 0) { setInvoiceError("Amount must be greater than 0."); return; }
+    if (!invoiceNumber.trim() || !invoiceDate || !notes.trim()) {
+      setInvoiceError("All fields are required."); return;
+    }
     setInvoiceError(null);
     setSubmitting(true);
     try {
       await onAddInvoice({
         amount: amt,
         invoiceNumber: invoiceNumber.trim(),
-        invoiceDate: invoiceDate ? new Date(invoiceDate).toISOString() : new Date().toISOString(),
+        invoiceDate: new Date(invoiceDate).toISOString(),
         notes: notes.trim(),
       });
       setAmount(""); setInvoiceNumber(""); setNotes("");
@@ -212,18 +215,20 @@ export default function BillingSection({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Invoice # (optional)</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Invoice # *</label>
                   <input
+                    required
                     value={invoiceNumber}
-                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                    onChange={(e) => { setInvoiceNumber(e.target.value); setInvoiceError(null); }}
                     className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 placeholder-slate-400"
                     placeholder="INV-001"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Invoice Date</label>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5">Invoice Date *</label>
                   <input
                     type="date"
+                    required
                     value={invoiceDate}
                     onChange={(e) => setInvoiceDate(e.target.value)}
                     className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
@@ -231,10 +236,11 @@ export default function BillingSection({
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">Notes (optional)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Notes *</label>
                 <textarea
+                  required
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={(e) => { setNotes(e.target.value); setInvoiceError(null); }}
                   rows={2}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 placeholder-slate-400 resize-none"
                   placeholder="Milestone 1 progress payment"
@@ -259,7 +265,7 @@ export default function BillingSection({
               </button>
               <button
                 type="submit"
-                disabled={submitting || wouldExceedAward}
+                disabled={submitting || wouldExceedAward || !(parseFloat(amount) > 0) || !invoiceNumber.trim() || !invoiceDate || !notes.trim()}
                 className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition">
                 Record
               </button>
