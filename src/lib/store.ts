@@ -220,8 +220,8 @@ export async function addMilestoneTask(
   name: string,
   startDate?: string,
   endDate?: string,
-): Promise<void> {
-  await api(`/api/packages/${pkgId}/milestone-tasks`, {
+): Promise<any> {
+  return api(`/api/packages/${pkgId}/milestone-tasks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ milestoneName, name, startDate: startDate || null, endDate: endDate || null }),

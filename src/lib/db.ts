@@ -296,40 +296,43 @@ export async function rollUpMilestoneTasks(supabase: SupabaseClient, pkgId: stri
     byMilestone[t.milestone_name].push(t);
   }
 
-  // Reconcile EVERY execution milestone's stored progress to the average of its
-  // tasks — or 0 when it has none. Resetting taskless milestones (not just the
-  // ones that currently have tasks) keeps the denormalised cache from drifting
-  // away from the task-derived value shown across the app.
-  for (const name of EXECUTION_MILESTONES) {
+  // Build all 6 milestone upsert rows at once (single batched round-trip instead
+  // of 6 sequential awaits), and run it in parallel with the package date update.
+  const milestoneRows = EXECUTION_MILESTONES.map((name, i) => {
     const mTasks = byMilestone[name] || [];
     const avg = milestoneProgressFromTasks(mTasks.map(t => t.progress || 0));
-    await supabase.from('package_milestones').upsert({
-      package_id:    pkgId,
+    return {
+      package_id:     pkgId,
       milestone_name: name,
-      display_order: EXECUTION_MILESTONES.indexOf(name) + 1,
-      progress:      avg,
-      completed_at:  avg === 100 ? new Date().toISOString() : null,
-      completed_by:  null,
-    }, { onConflict: 'package_id,milestone_name' });
-  }
+      display_order:  i + 1,
+      progress:       avg,
+      completed_at:   avg === 100 ? new Date().toISOString() : null,
+      completed_by:   null,
+    };
+  });
 
-  // Package-level dates: earliest task start, latest task end
-  const starts = tasks.filter(t => t.start_date).map(t => t.start_date as string).sort();
-  const ends   = tasks.filter(t => t.end_date).map(t => t.end_date as string).sort();
+  const starts   = tasks.filter(t => t.start_date).map(t => t.start_date as string).sort();
+  const ends     = tasks.filter(t => t.end_date).map(t => t.end_date as string).sort();
   const pkgStart = starts.length ? starts[0] : null;
   const pkgEnd   = ends.length ? ends[ends.length - 1] : null;
 
-  await supabase.from('packages')
-    .update({ start_date: pkgStart, end_date: pkgEnd })
-    .eq('id', pkgId);
+  const [, pkgResult] = await Promise.all([
+    supabase.from('package_milestones')
+      .upsert(milestoneRows, { onConflict: 'package_id,milestone_name' }),
+    supabase.from('packages')
+      .update({ start_date: pkgStart, end_date: pkgEnd })
+      .eq('id', pkgId)
+      .select('project_id')
+      .single(),
+  ]);
 
   // Project-level dates: min/max across all packages in the same project
-  const { data: pkgRow } = await supabase.from('packages').select('project_id').eq('id', pkgId).single();
-  if (pkgRow?.project_id) {
+  const projectId = (pkgResult as any).data?.project_id;
+  if (projectId) {
     const { data: siblings } = await supabase
       .from('packages')
       .select('start_date, end_date')
-      .eq('project_id', pkgRow.project_id);
+      .eq('project_id', projectId);
 
     const projStarts = (siblings || []).filter(p => p.start_date).map(p => p.start_date as string).sort();
     const projEnds   = (siblings || []).filter(p => p.end_date).map(p => p.end_date as string).sort();
@@ -337,7 +340,7 @@ export async function rollUpMilestoneTasks(supabase: SupabaseClient, pkgId: stri
     await supabase.from('projects').update({
       start_date: projStarts.length ? projStarts[0] : null,
       end_date:   projEnds.length ? projEnds[projEnds.length - 1] : null,
-    }).eq('id', pkgRow.project_id);
+    }).eq('id', projectId);
   }
 }
 

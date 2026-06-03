@@ -867,8 +867,31 @@ export default function PackageDetail({
               onAddTask={async (milestoneName, name, startDate, endDate) => {
                 setMilestoneError(null);
                 try {
-                  await addMilestoneTask(packageId, milestoneName, name, startDate, endDate);
-                  await reloadPackage();
+                  const raw = await addMilestoneTask(packageId, milestoneName, name, startDate, endDate);
+                  // Map snake_case DB row to camelCase MilestoneTask and insert optimistically
+                  const newTask = {
+                    id:            raw.id,
+                    milestoneName: raw.milestone_name,
+                    name:          raw.name,
+                    description:   raw.description || undefined,
+                    progress:      raw.progress ?? 0,
+                    startDate:     raw.start_date || undefined,
+                    endDate:       raw.end_date || undefined,
+                    sortOrder:     raw.sort_order ?? 0,
+                    createdBy:     raw.created_by || undefined,
+                    createdAt:     raw.created_at,
+                  };
+                  setPkg((prev: any) => {
+                    if (!prev) return prev;
+                    const milestones = (prev.milestones || []).map((m: any) =>
+                      m.milestoneName !== milestoneName
+                        ? m
+                        : { ...m, tasks: [...(m.tasks || []), newTask] }
+                    );
+                    return { ...prev, milestones };
+                  });
+                  // Background reload to sync server-computed milestone progress + dates
+                  reloadPackage();
                 } catch (e: any) {
                   setMilestoneError(e?.message || 'Failed to add task');
                 }
