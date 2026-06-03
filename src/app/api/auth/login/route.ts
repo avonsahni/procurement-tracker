@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/auth';
+import { createAdminSupabase } from '@/lib/supabase/admin';
+import { getSessionUserUnchecked } from '@/lib/auth';
+import {
+  getActiveSession, isSessionFresh, registerSession,
+  newSessionId, setSessionCookie, readSessionCookie,
+} from '@/lib/session';
 import { LoginSchema, parseBody } from '@/lib/validation';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
@@ -24,8 +30,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   }
 
-  // Use getCurrentUser so the response includes org role correctly
-  const user = await getCurrentUser();
+  // ── Single-active-session gate ────────────────────────────────────────────
+  // Reject the login if this account already holds a still-active session on
+  // another device/browser. The slot frees automatically once that session
+  // goes stale (browser closed) or the user logs out there.
+  const admin = createAdminSupabase();
+  const cookieStore = await cookies();
+  const existing = await getActiveSession(admin, data.user.id);
+  const incomingSid = readSessionCookie(cookieStore);
+
+  if (existing && isSessionFresh(existing) && existing.session_id !== incomingSid) {
+    // Undo the Supabase sign-in we just performed so this device is left fully
+    // logged out, then report the conflict.
+    await supabase.auth.signOut();
+    return NextResponse.json(
+      {
+        error: 'This account is already logged in on another device or browser. ' +
+          'Log out there first, or wait a few minutes and try again.',
+        code: 'SESSION_ACTIVE',
+      },
+      { status: 409 },
+    );
+  }
+
+  // Claim the single session slot for this device.
+  const sessionId = newSessionId();
+  await registerSession(
+    admin,
+    data.user.id,
+    sessionId,
+    req.headers.get('user-agent'),
+    ip,
+  );
+  setSessionCookie(cookieStore, sessionId);
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // Assemble the response (session already established above, so skip the gate)
+  const user = await getSessionUserUnchecked();
   if (!user) {
     return NextResponse.json({ error: 'Login failed' }, { status: 500 });
   }

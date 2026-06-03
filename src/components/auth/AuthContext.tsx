@@ -33,6 +33,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, []);
 
+  // Heartbeat: while logged in, ping /api/auth/me periodically. This keeps the
+  // single-session slot fresh for this (open) tab, and detects when the session
+  // has been taken over elsewhere or revoked — in which case the server returns
+  // no user and we drop the client into a logged-out state.
+  useEffect(() => {
+    if (!user) return;
+    const HEARTBEAT_MS = 60_000;
+    const id = setInterval(() => {
+      fetch('/api/auth/me', { credentials: 'same-origin' })
+        .then(r => r.ok ? r.json() : { user: null })
+        .then(data => {
+          if (!data.user) { setUser(null); setEditMode(false); }
+        })
+        .catch(() => { /* network blip — keep current state */ });
+    }, HEARTBEAT_MS);
+    return () => clearInterval(id);
+  }, [user]);
+
   const login = async (email: string, password: string) => {
     const res = await apiFetch('/api/auth/login', {
       method: 'POST',

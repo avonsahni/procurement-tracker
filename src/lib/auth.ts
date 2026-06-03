@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { getActiveSession, touchSession, readSessionCookie } from '@/lib/session';
 
 export type OrgStatus = 'trial' | 'active' | 'paused' | 'canceled';
 export type OrgPlan  = 'trial' | 'starter' | 'pro' | 'enterprise';
@@ -23,11 +25,51 @@ export type AuthUser = {
   trialEndsAt: string | null;
 };
 
+/**
+ * Confirms the request's session cookie still owns the user's single active
+ * session. Returns false when another device has taken over (or the slot was
+ * cleared / went stale), which callers treat as "logged out". Refreshes the
+ * heartbeat on success so an active device keeps its slot.
+ */
+async function ownsActiveSession(userId: string): Promise<boolean> {
+  const admin = createAdminSupabase();
+  const session = await getActiveSession(admin, userId);
+  // No row → the slot is free (e.g. logged out, or pre-feature session). The
+  // device cannot prove ownership, so it must log in again to claim the slot.
+  if (!session) return false;
+
+  const cookieStore = await cookies();
+  const cookieId = readSessionCookie(cookieStore);
+  if (!cookieId || cookieId !== session.session_id) return false;
+
+  await touchSession(admin, userId, session.last_seen_at);
+  return true;
+}
+
+/**
+ * Loads the full AuthUser WITHOUT enforcing single-session ownership.
+ * Used by the login/signup flow, which establishes the session itself.
+ */
+export async function getSessionUserUnchecked(): Promise<AuthUser | null> {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  return assembleAuthUser(user.id, user.email ?? '');
+}
+
 export async function getCurrentUser(): Promise<AuthUser | null> {
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
+  // Single-active-session gate: a device that doesn't own the current session
+  // is treated as logged out.
+  if (!(await ownsActiveSession(user.id))) return null;
+
+  return assembleAuthUser(user.id, user.email ?? '');
+}
+
+async function assembleAuthUser(userId: string, email: string): Promise<AuthUser> {
   const admin = createAdminSupabase();
 
   // Two parallel queries instead of three sequential ones:
@@ -36,11 +78,11 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   const [{ data: profile, error: profileErr }, { data: memberships, error: memErr }] = await Promise.all([
     admin.from('profiles')
       .select('full_name, can_edit, is_platform_admin')
-      .eq('id', user.id)
+      .eq('id', userId)
       .maybeSingle(),
     admin.from('organization_members')
       .select('org_id, role, organizations(subscription_status, trial_ends_at, plan)')
-      .eq('user_id', user.id),
+      .eq('user_id', userId),
   ]);
 
   if (profileErr) console.error('[getCurrentUser] profile error:', profileErr.message);
@@ -65,9 +107,9 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   const role: 'admin' | 'user' | 'viewer' = isOrgAdmin ? 'admin' : canEdit ? 'user' : 'viewer';
 
   return {
-    id: user.id,
-    email: user.email ?? '',
-    fullName: profile?.full_name || user.email?.split('@')[0] || 'User',
+    id: userId,
+    email,
+    fullName: profile?.full_name || email.split('@')[0] || 'User',
     role,
     canEdit,
     orgId: membership?.org_id ?? '',

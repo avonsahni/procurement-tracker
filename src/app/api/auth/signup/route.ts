@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { registerSession, newSessionId, setSessionCookie } from '@/lib/session';
 import { SignupSchema, parseBody } from '@/lib/validation';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { seedSampleData } from '@/lib/seed-data';
@@ -117,6 +119,20 @@ export async function POST(req: NextRequest) {
       needsConfirmation: true,
       message: 'Check your inbox to confirm your email before signing in.',
     });
+  }
+
+  // Signup logs the user straight in — claim the single-session slot so the
+  // single-session gate doesn't immediately reject their first requests.
+  if (data.user) {
+    const sessionId = newSessionId();
+    await registerSession(
+      createAdminSupabase(),
+      data.user.id,
+      sessionId,
+      req.headers.get('user-agent'),
+      ip,
+    );
+    setSessionCookie(await cookies(), sessionId);
   }
 
   return NextResponse.json({
