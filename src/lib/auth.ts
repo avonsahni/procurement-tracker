@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
-import { getActiveSession, touchSession, readSessionCookie } from '@/lib/session';
+import { getActiveSession, touchSession, readSessionCookie, newSessionId, registerSession, setSessionCookie } from '@/lib/session';
 
 export type OrgStatus = 'trial' | 'active' | 'paused' | 'canceled';
 export type OrgPlan  = 'trial' | 'starter' | 'pro' | 'enterprise';
@@ -27,16 +27,29 @@ export type AuthUser = {
 
 /**
  * Confirms the request's session cookie still owns the user's single active
- * session. Returns false when another device has taken over (or the slot was
- * cleared / went stale), which callers treat as "logged out". Refreshes the
- * heartbeat on success so an active device keeps its slot.
+ * session. Refreshes the heartbeat on success so an active device keeps its slot.
+ *
+ * Three outcomes:
+ *   • No row in active_sessions → slot is free; auto-enroll this device and
+ *     allow. Handles pre-migration sessions, post-inactivity-timeout re-entry,
+ *     and future deployments without disrupting logged-in users.
+ *   • Row exists, cookie matches → valid owner; touch heartbeat and allow.
+ *   • Row exists, cookie mismatch → another device holds the slot; block.
  */
 async function ownsActiveSession(userId: string): Promise<boolean> {
   const admin = createAdminSupabase();
   const session = await getActiveSession(admin, userId);
-  // No row → the slot is free (e.g. logged out, or pre-feature session). The
-  // device cannot prove ownership, so it must log in again to claim the slot.
-  if (!session) return false;
+
+  if (!session) {
+    // Slot is free — silently claim it for this device so the user is not
+    // disrupted. This is safe: if two requests race here, both write the same
+    // user_id (upsert on PK) and the last writer wins, which is fine.
+    const sessionId = newSessionId();
+    const cookieStore = await cookies();
+    await registerSession(admin, userId, sessionId, null, null);
+    setSessionCookie(cookieStore, sessionId);
+    return true;
+  }
 
   const cookieStore = await cookies();
   const cookieId = readSessionCookie(cookieStore);
