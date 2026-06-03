@@ -266,13 +266,13 @@ function OrgsSection({
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-x-auto">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[860px] text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Organisation</th>
@@ -2524,7 +2524,7 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto overflow-x-auto p-8">
           {/* Org detail view — overrides tab content when an org is selected */}
           {selectedOrgId ? (
             <OrgDetailView
