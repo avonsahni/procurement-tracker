@@ -23,6 +23,7 @@ const role = z.enum(['admin', 'user', 'viewer']);
 export const LoginSchema = z.object({
   email: z.string().trim().email('valid email required'),
   password: z.string().min(8, 'password must be at least 8 characters'),
+  transfer: z.boolean().optional().default(false),
 });
 
 export const SignupSchema = z.object({

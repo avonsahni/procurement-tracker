@@ -9,7 +9,7 @@ interface AuthContextType {
   loading: boolean;
   editMode: boolean;
   setEditMode: (mode: boolean) => void;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, opts?: { transfer?: boolean }) => Promise<void>;
   signup: (email: string, password: string, fullName: string, orgName?: string, extra?: Record<string, unknown>) => Promise<{ needsConfirmation: boolean }>;
   logout: () => Promise<void>;
   /** True when the org is paused, canceled, or the trial has expired */
@@ -51,15 +51,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [user]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, opts?: { transfer?: boolean }) => {
     const res = await apiFetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, transfer: opts?.transfer ?? false }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || 'Invalid credentials');
+      const err = new Error(body.error || 'Invalid credentials') as Error & { code?: string };
+      err.code = body.code;
+      throw err;
     }
     const userData: UserAccount = await res.json();
     setUser(userData);

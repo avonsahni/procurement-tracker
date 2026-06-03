@@ -18,7 +18,7 @@ import { randomUUID } from 'crypto';
 export const SESSION_COOKIE = 'ps_session';
 
 /** A session with no activity for longer than this is treated as abandoned. */
-export const SESSION_STALE_MS = 3 * 60_000; // 3 minutes
+export const SESSION_STALE_MS = 15 * 60_000; // 15 minutes
 
 /** Don't rewrite last_seen_at more often than this (write throttle). */
 const HEARTBEAT_MS = 30_000; // 30 seconds

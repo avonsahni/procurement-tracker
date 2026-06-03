@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) {
     return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
   }
-  const { email, password } = parsed.data;
+  const { email, password, transfer } = parsed.data;
 
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -31,27 +31,28 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Single-active-session gate ────────────────────────────────────────────
-  // Reject the login if this account already holds a still-active session on
-  // another device/browser. The slot frees automatically once that session
-  // goes stale (browser closed) or the user logs out there.
   const admin = createAdminSupabase();
   const cookieStore = await cookies();
   const existing = await getActiveSession(admin, data.user.id);
   const incomingSid = readSessionCookie(cookieStore);
+  const isConflict = existing && isSessionFresh(existing) && existing.session_id !== incomingSid;
 
-  if (existing && isSessionFresh(existing) && existing.session_id !== incomingSid) {
-    // Undo the Supabase sign-in we just performed so this device is left fully
-    // logged out, then report the conflict.
+  if (isConflict && !transfer) {
+    // Credentials are valid but a fresh session exists on another device.
+    // Ask the client whether to transfer the session here.
     await supabase.auth.signOut();
     return NextResponse.json(
       {
-        error: 'This account is already logged in on another device or browser. ' +
-          'Log out there first, or wait a few minutes and try again.',
+        error: 'This account is already logged in on another device or browser.',
         code: 'SESSION_ACTIVE',
+        canTransfer: true,
       },
       { status: 409 },
     );
   }
+  // If transfer === true (user confirmed), fall through and overwrite the existing
+  // session row, which kicks the other device on its next request.
+  // ──────────────────────────────────────────────────────────────────────────
 
   // Claim the single session slot for this device.
   const sessionId = newSessionId();

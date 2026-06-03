@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { getCompanyInfo, CompanyInfo } from "@/lib/store";
-import { Lock, Mail, User, ArrowRight, CheckCircle2, Building2 } from "lucide-react";
+import { Lock, Mail, User, ArrowRight, CheckCircle2, Building2, AlertTriangle, Smartphone } from "lucide-react";
 
 type Mode = "login" | "signup";
 
@@ -22,12 +22,16 @@ function LoginFormBody({
   const [error, setError] = useState("");
   const [confirmMessage, setConfirmMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  // Session-transfer prompt state
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferring, setTransferring] = useState(false);
   const { login, signup } = useAuth();
 
   const switchMode = (m: Mode) => {
     setMode(m);
     setError("");
     setConfirmMessage("");
+    setShowTransfer(false);
     setPassword("");
   };
 
@@ -35,6 +39,7 @@ function LoginFormBody({
     e.preventDefault();
     setError("");
     setConfirmMessage("");
+    setShowTransfer(false);
     setLoading(true);
     try {
       if (mode === "login") {
@@ -50,9 +55,26 @@ function LoginFormBody({
         setPassword("");
       }
     } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      if (err.code === "SESSION_ACTIVE") {
+        // Show transfer prompt instead of a plain error
+        setShowTransfer(true);
+      } else {
+        setError(err.message || "Something went wrong");
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTransfer = async () => {
+    setTransferring(true);
+    setShowTransfer(false);
+    try {
+      await login(email, password, { transfer: true });
+    } catch (err: any) {
+      setError(err.message || "Transfer failed. Please try again.");
+    } finally {
+      setTransferring(false);
     }
   };
 
@@ -86,10 +108,44 @@ function LoginFormBody({
         </div>
       )}
 
+      {/* Session-transfer prompt — shown instead of the form when another device is active */}
+      {showTransfer && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 space-y-3">
+          <div className="flex items-start gap-3">
+            <Smartphone className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Account active on another device</p>
+              <p className="text-xs text-amber-700 mt-1">
+                This account is currently logged in elsewhere. Would you like to transfer the session to this device?
+                The other device will be signed out immediately.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleTransfer}
+              disabled={transferring}
+              className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition"
+            >
+              {transferring ? "Transferring…" : "Transfer to this device"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowTransfer(false)}
+              className="px-4 py-2 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200">
-            {error}
+          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm border border-red-200 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
           </div>
         )}
         {confirmMessage && (
@@ -162,7 +218,7 @@ function LoginFormBody({
         </div>
 
         <button
-          disabled={loading}
+          disabled={loading || transferring}
           className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
         >
           {loading ? (mode === "login" ? "Signing in..." : "Creating organisation...") : (
