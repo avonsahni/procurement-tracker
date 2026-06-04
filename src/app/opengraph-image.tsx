@@ -51,7 +51,7 @@ export default function Image() {
           </span>
         </div>
 
-        {/* Wordmark */}
+        {/* Wordmark — brand mark colours: Ink Navy box + Track Gold arc */}
         <div
           style={{
             display: "flex",
@@ -65,19 +65,25 @@ export default function Image() {
               width: "56px",
               height: "56px",
               borderRadius: "14px",
-              background: "linear-gradient(135deg, #2563eb, #38bdf8)",
+              background: "#0B1B2B",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "28px",
-              fontWeight: 800,
-              color: "#fff",
             }}
           >
-            <span>P</span>
+            {/* Simplified arc mark in Track Gold */}
+            <div
+              style={{
+                width: "32px",
+                height: "16px",
+                borderTop: "4px solid #C9A227",
+                borderLeft: "4px solid #C9A227",
+                borderRadius: "50% 50% 0 0 / 100% 100% 0 0",
+              }}
+            />
           </div>
-          <span style={{ fontSize: "48px", fontWeight: 800, color: "#ffffff" }}>
-            ProcureTrack
+          <span style={{ fontSize: "48px", fontWeight: 700, color: "#FAF7F2", letterSpacing: "-1px" }}>
+            Procure<span style={{ fontWeight: 400, color: "#cfd9e3" }}>Track</span>
           </span>
         </div>
 

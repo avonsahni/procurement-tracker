@@ -19,6 +19,7 @@ import {
 } from "@/lib/store";
 import { CURRENCY_LABELS, formatCurrency } from "@/lib/types";
 import BillingUpgradeModal from "@/components/BillingUpgradeModal";
+import { LogoMark } from "@/components/Logo";
 
 const API = (path: string, opts?: RequestInit) => {
   const headers = new Headers(opts?.headers);
@@ -2399,9 +2400,7 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
         </button>
         <div className="h-5 w-px bg-slate-200" />
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-violet-600 rounded-lg flex items-center justify-center">
-            <Shield className="w-4 h-4 text-white" />
-          </div>
+          <LogoMark size={28} />
           <div>
             <span className="text-sm font-semibold text-slate-900">Admin Panel</span>
             <span className="text-xs text-slate-400 ml-2">{orgName}</span>

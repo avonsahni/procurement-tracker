@@ -9,6 +9,7 @@ import {
   Activity, CalendarDays,
 } from "lucide-react";
 import { LoginModal } from "@/components/auth/LoginForm";
+import { LogoFull } from "@/components/Logo";
 
 // ─── Inline UI mockups ────────────────────────────────────────────────────────
 
@@ -703,12 +704,7 @@ export default function LandingPage() {
       {/* ── Nav ─────────────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Package className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-slate-900 text-lg tracking-tight">ProcureTrack</span>
-          </div>
+          <LogoFull height={34} />
           <div className="flex items-center gap-3">
             <a href="#features" className="hidden sm:block text-sm text-slate-500 hover:text-slate-900 transition">Features</a>
             <a href="#pricing" className="hidden sm:block text-sm text-slate-500 hover:text-slate-900 transition">Pricing</a>
@@ -1251,12 +1247,7 @@ export default function LandingPage() {
       {/* ── Footer ──────────────────────────────────────────────────────────── */}
       <footer className="py-10 px-6 border-t border-slate-200 bg-white">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Package className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="font-bold text-slate-700 text-sm">ProcureTrack</span>
-          </div>
+          <LogoFull height={26} />
           <p className="text-xs text-slate-400 text-center">
             © {new Date().getFullYear()} ProcureTrack · DPDP-ready · All rights reserved
             &nbsp;·&nbsp; <a href="mailto:admin@procuretrack.in" className="hover:text-slate-600 transition">admin@procuretrack.in</a>

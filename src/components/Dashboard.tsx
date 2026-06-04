@@ -14,6 +14,7 @@ import HelpGuide from "@/components/HelpGuide";
 import {
   Building2, FolderOpen, Activity, Settings, Shield, Box, Layers, Search, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown, TrendingUp, TrendingDown,
 } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
 
 const statusColors: Record<string, string> = {
   Active:    "bg-blue-50 text-blue-700 ring-blue-200",
@@ -425,9 +426,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
             className="flex items-center gap-3 hover:opacity-80 transition group"
             title="Go to home"
           >
-            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center group-hover:bg-blue-700 transition flex-shrink-0">
-              <Building2 className="w-5 h-5 text-white" />
-            </div>
+            <LogoMark size={36} className="flex-shrink-0" />
             <div className="text-left">
               <h1 className="text-sm font-semibold text-slate-900 leading-none">{company.name}</h1>
               <p className="text-[11px] text-slate-500 mt-1">{company.tagline}</p>

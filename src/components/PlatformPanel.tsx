@@ -14,6 +14,7 @@ import {
   Package, TrendingUp, ClipboardList, Settings, Receipt, FileText,
 } from "lucide-react";
 import { humanBytes, storagePct, PLAN_STORAGE_LIMITS } from "@/lib/storageLimit";
+import { LogoMark } from "@/components/Logo";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2499,9 +2500,7 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
         </button>
         <div className="h-5 w-px bg-slate-200" />
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-orange-600 rounded-lg flex items-center justify-center">
-            <Crown className="w-4 h-4 text-white" />
-          </div>
+          <LogoMark size={28} />
           <div>
             <span className="text-sm font-semibold text-slate-900">Platform Control</span>
             <span className="text-xs text-slate-400 ml-2">Super Admin</span>

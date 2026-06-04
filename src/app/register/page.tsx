@@ -9,6 +9,7 @@ import {
   Briefcase, ArrowRight, Loader2, Eye, EyeOff, Tag, X,
   AlertTriangle, Clock,
 } from "lucide-react";
+import { LogoFull } from "@/components/Logo";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -596,12 +597,7 @@ export default function RegisterPage() {
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-        <a href="/" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Package className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-bold text-slate-900 text-base tracking-tight">ProcureTrack</span>
-        </a>
+        <a href="/"><LogoFull height={34} /></a>
         <a href="/" className="text-sm text-slate-500 hover:text-slate-800 transition">
           Already registered? <span className="text-blue-600 font-medium">Sign in</span>
         </a>
