@@ -1233,7 +1233,7 @@ export default function LandingPage() {
           </h2>
           <p className="text-blue-200 text-base mb-8 leading-relaxed">
             Set up your organisation in 30 seconds. No credit card. No sales call.
-            Just a cleaner way to track procurement.
+            Just a cleaner way to track Projects.
           </p>
           <button
             onClick={openSignup}
