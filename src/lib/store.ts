@@ -72,6 +72,36 @@ export async function fetchProjects(): Promise<Project[]> {
 export async function fetchProject(id: string): Promise<ProjectSummary | undefined> {
   try { return await api(`/api/projects/${id}`); } catch { return undefined; }
 }
+
+export interface MilestoneTaskDetail {
+  id: string;
+  name: string;
+  description?: string;
+  progress: number;
+  startDate?: string;
+  endDate?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+export interface ProjectMilestonePackage {
+  id: string;
+  name: string;
+  category: string;
+  currentStage: string;
+  progress: number;
+  tasks: MilestoneTaskDetail[];
+}
+export interface ProjectMilestoneView {
+  projectId: string;
+  projectName: string;
+  client: string;
+  status: string;
+  milestone: string;
+  packages: ProjectMilestonePackage[];
+}
+export async function fetchProjectMilestone(projectId: string, milestone: string): Promise<ProjectMilestoneView> {
+  return api(`/api/projects/${projectId}/milestones/${encodeURIComponent(milestone)}`);
+}
 export interface NewProjectInput {
   name: string;
   client?: string;

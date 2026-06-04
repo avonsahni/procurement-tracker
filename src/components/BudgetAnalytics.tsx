@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { fetchProjects } from "@/lib/store";
 import { formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
 import { ArrowLeft, BarChart3, TrendingUp, DollarSign, Layers, AlertTriangle, CheckCircle2, Clock, Receipt, Flag } from "lucide-react";
@@ -35,6 +36,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
+  const router = useRouter();
   const [data, setData] = useState<ProjectBudgetData[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"name" | "budget" | "committed" | "billed" | "utilization">("budget");
@@ -555,7 +557,13 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
                       const labelColor  = isComplete ? "text-emerald-700" : isActive ? "text-amber-700" : "text-slate-400";
 
                       return (
-                        <div key={m.name} className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                        <button
+                          key={m.name}
+                          type="button"
+                          onClick={() => router.push(`/projects/${p.id}/milestones/${encodeURIComponent(m.name)}`)}
+                          title={`View ${m.name} across all packages`}
+                          className="text-left bg-slate-50 border border-slate-100 rounded-xl p-3 hover:border-blue-300 hover:bg-white hover:shadow-sm transition cursor-pointer"
+                        >
                           <div className="flex items-center gap-1.5 mb-2">
                             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
                             <span className="text-[10px] font-medium text-slate-500 leading-tight truncate">{m.name}</span>
@@ -574,7 +582,7 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
                               {m.done}/{m.total} done
                             </span>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
