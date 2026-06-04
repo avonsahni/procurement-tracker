@@ -750,84 +750,96 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                 <p className="text-slate-500 text-sm">No packages match filters</p>
               </div>
             ) : (
-              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px] text-left">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/60">
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 w-8">#</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500">Package</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 hidden md:table-cell">Category</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500">Stage</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 text-center hidden sm:table-cell">Vendors</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500">Award Value</th>
-                      <th className="px-4 py-3 text-xs font-medium text-slate-500 hidden lg:table-cell">Lead Time</th>
-                      <th className="px-4 py-3 w-10" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPurchasing.map((pkg: PackageSummary, idx: number) => {
-                      const isAwarded   = pkg.currentStage === "Award";
-                      const stageIdx    = STAGES.indexOf(pkg.currentStage);
-                      const progressPct = ((stageIdx + 1) / STAGES.length) * 100;
-                      const leadTime    = calculateLeadTime(pkg);
-                      return (
-                        <tr key={pkg.id} onClick={() => openPackage(pkg.id)}
-                          className={`border-b border-slate-100 last:border-0 cursor-pointer hover:bg-blue-50/40 transition group ${isAwarded ? "bg-emerald-50/20" : ""}`}>
-                          <td className="px-4 py-3.5"><span className="text-xs font-mono text-slate-400">{idx + 1}</span></td>
-                          <td className="px-4 py-3.5">
-                            <p className="text-sm font-semibold text-slate-900 leading-none">{pkg.name}</p>
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded">{pkg.origin}</span>
-                              <span className="text-[10px] text-slate-400">{pkg.currency}</span>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {filteredPurchasing.map((pkg: PackageSummary, idx: number) => {
+                  const isAwarded   = pkg.currentStage === "Award";
+                  const stageIdx    = STAGES.indexOf(pkg.currentStage);
+                  const progressPct = ((stageIdx + 1) / STAGES.length) * 100;
+                  const leadTime    = calculateLeadTime(pkg);
+                  return (
+                    <div
+                      key={pkg.id}
+                      onClick={() => openPackage(pkg.id)}
+                      className="pressable bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group relative"
+                    >
+                      {/* Card header */}
+                      <div className="px-5 py-4 bg-slate-50/60 border-b border-slate-200 flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 border ${isAwarded ? "bg-emerald-100 border-emerald-200" : "bg-blue-100 border-blue-200"}`}>
+                          <span className={`text-xs font-bold ${isAwarded ? "text-emerald-700" : "text-blue-700"}`}>{idx + 1}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-slate-900 group-hover:text-blue-700 transition truncate">{pkg.name}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded">{pkg.origin}</span>
+                            <span className="text-[10px] text-slate-400">{pkg.currency}</span>
+                            {pkg.category && <span className="text-[10px] text-slate-400 truncate">· {pkg.category}</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          {isAwarded && (
+                            <div className="text-right hidden sm:block">
+                              <p className="text-[10px] text-slate-400">Award Value</p>
+                              <p className="text-sm font-mono font-semibold text-emerald-700">{formatCurrency(pkg.awardValue || 0, pkg.currency)}</p>
                             </div>
-                          </td>
-                          <td className="px-4 py-3.5 hidden md:table-cell">
-                            <span className="text-xs text-slate-600">{pkg.category || "—"}</span>
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-center gap-1.5">
-                              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${stageDotColor(pkg.currentStage)}`} />
-                              <div>
-                                <p className="text-xs font-medium text-slate-700 whitespace-nowrap leading-none">
-                                  {isAwarded ? <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Awarded</span> : pkg.currentStage}
-                                </p>
-                                <MiniBar pct={progressPct} color={isAwarded ? "bg-emerald-500" : "bg-blue-500"} />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3.5 text-center hidden sm:table-cell">
-                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold ${(pkg.vendorCount || 0) > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"}`}>
+                          )}
+                          {effectiveEditMode && (
+                            <button
+                              onClick={e => handleDeletePkg(pkg.id, e)}
+                              className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition" />
+                        </div>
+                      </div>
+
+                      {/* Stage progress + metadata */}
+                      <div className="px-5 py-4 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5 w-40 flex-shrink-0">
+                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${stageDotColor(pkg.currentStage)}`} />
+                            <span className="text-xs text-slate-600 truncate leading-none">
+                              {isAwarded
+                                ? <span className="text-emerald-700 flex items-center gap-1"><CheckCircle2 className="w-3 h-3 flex-shrink-0" />Awarded</span>
+                                : pkg.currentStage}
+                            </span>
+                          </div>
+                          <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${isAwarded ? "bg-emerald-500" : "bg-blue-500"}`}
+                              style={{ width: `${progressPct}%` }}
+                            />
+                          </div>
+                          <span className={`text-xs font-mono font-semibold w-9 text-right flex-shrink-0 ${isAwarded ? "text-emerald-600" : "text-blue-600"}`}>
+                            {progressPct.toFixed(0)}%
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold ${(pkg.vendorCount || 0) > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"}`}>
                               {pkg.vendorCount || 0}
                             </span>
-                          </td>
-                          <td className="px-4 py-3.5">
-                            {isAwarded
-                              ? <span className="text-sm font-mono font-semibold text-emerald-700">{formatCurrency(pkg.awardValue || 0, pkg.currency)}</span>
-                              : <span className="text-sm text-slate-300 font-mono">—</span>}
-                          </td>
-                          <td className="px-4 py-3.5 hidden lg:table-cell">
-                            {leadTime
-                              ? <span className="text-xs text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3 flex-shrink-0" />{leadTime}</span>
-                              : <span className="text-xs text-slate-300">—</span>}
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-center justify-end gap-1">
-                              {effectiveEditMode && (
-                                <button onClick={e => handleDeletePkg(pkg.id, e)}
-                                  className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              <div className="p-1.5 text-slate-300 group-hover:text-blue-600 transition"><ArrowRight className="w-3.5 h-3.5" /></div>
+                            <span className="text-[10px] text-slate-400">vendor{(pkg.vendorCount || 0) !== 1 ? "s" : ""}</span>
+                          </div>
+                          {leadTime && (
+                            <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                              <Clock className="w-3 h-3 flex-shrink-0" />
+                              <span>{leadTime}</span>
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                </div>
+                          )}
+                          {isAwarded && (
+                            <div className="ml-auto text-right sm:hidden">
+                              <p className="text-[10px] text-slate-400">Award</p>
+                              <p className="text-xs font-mono font-semibold text-emerald-700">{formatCurrency(pkg.awardValue || 0, pkg.currency)}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>
