@@ -37,6 +37,7 @@ interface OrgRow {
   projectCount: number;
   ownerEmails: string[];
   usedBytes: number;
+  seat_count: number | null;
 }
 
 interface OrgDetail extends OrgRow {
@@ -351,9 +352,18 @@ function OrgsSection({
                       </div>
                     </td>
 
-                    {/* Members */}
+                    {/* Members / Seats */}
                     <td className="px-4 py-3.5 text-center">
-                      <span className="text-sm font-semibold text-slate-700">{org.memberCount}</span>
+                      {org.seat_count != null ? (
+                        <div className="flex flex-col items-center">
+                          <span className={`text-sm font-semibold ${org.memberCount >= org.seat_count ? 'text-red-600' : 'text-slate-700'}`}>
+                            {org.memberCount} / {org.seat_count}
+                          </span>
+                          <span className="text-[10px] text-slate-400">seats</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm font-semibold text-slate-700">{org.memberCount}</span>
+                      )}
                     </td>
 
                     {/* Projects */}
@@ -586,12 +596,12 @@ function ErrorLogSection() {
 // ─── Plans & Coupons Section ──────────────────────────────────────────────────
 
 function PlansSection() {
-  type PricingRow = { tier: string; price_inr: number; period: string; description: string | null; updated_by: string | null; updated_at: string };
+  type PricingRow = { tier: string; price_inr: number; price_inr_annual: number | null; period: string; description: string | null; updated_by: string | null; updated_at: string };
   type CouponRow  = { id: string; code: string; type: 'free' | 'discount'; discount_pct: number | null; free_plan: string | null; valid_days: number; max_uses: number | null; used_count: number; is_active: boolean; expires_at: string | null; notes: string | null };
 
   const [pricing, setPricing]           = useState<PricingRow[]>([]);
   const [editTier, setEditTier]         = useState<string | null>(null);
-  const [editForm, setEditForm]         = useState({ price_inr: 0, period: 'month', description: '' });
+  const [editForm, setEditForm]         = useState({ price_inr: 0, price_inr_annual: 0, period: 'month', description: '' });
   const [savingPrice, setSavingPrice]   = useState(false);
   const [priceMsg, setPriceMsg]         = useState('');
 
@@ -622,7 +632,7 @@ function PlansSection() {
 
   const startEditPrice = (p: PricingRow) => {
     setEditTier(p.tier);
-    setEditForm({ price_inr: p.price_inr, period: p.period, description: p.description ?? '' });
+    setEditForm({ price_inr: p.price_inr, price_inr_annual: p.price_inr_annual ?? 0, period: p.period, description: p.description ?? '' });
     setPriceMsg('');
   };
 
@@ -632,7 +642,11 @@ function PlansSection() {
       const res = await apiFetch('/api/platform/pricing', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier, ...editForm, price_inr: Number(editForm.price_inr) }),
+        body: JSON.stringify({
+          tier, ...editForm,
+          price_inr:        Number(editForm.price_inr),
+          price_inr_annual: Number(editForm.price_inr_annual) || null,
+        }),
       });
       const body = await res.json();
       if (!res.ok) { setPriceMsg(body.error || 'Save failed'); return; }
@@ -752,10 +766,17 @@ function PlansSection() {
 
                 {editTier !== p.tier ? (
                   <>
-                    <p className={`text-2xl font-extrabold ${TIER_TEXT[p.tier]}`}>
-                      {Number(p.price_inr) === 0 ? 'Free' : `₹${Number(p.price_inr).toLocaleString('en-US')}`}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">per {p.period}</p>
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <p className={`text-2xl font-extrabold ${TIER_TEXT[p.tier]}`}>
+                        {Number(p.price_inr) === 0 ? 'Free' : `₹${Number(p.price_inr).toLocaleString('en-IN')}`}
+                      </p>
+                      <span className="text-xs text-slate-500">/ seat / month</span>
+                    </div>
+                    {p.price_inr_annual != null && p.price_inr_annual > 0 && (
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        ₹{Number(p.price_inr_annual).toLocaleString('en-IN')} / seat / year (annual)
+                      </p>
+                    )}
                     {p.description && <p className="text-xs text-slate-400 mt-1">{p.description}</p>}
                     {p.updated_by && (
                       <p className="text-[10px] text-slate-400 mt-2">Updated by {p.updated_by} · {fmtDate(p.updated_at)}</p>
@@ -764,7 +785,7 @@ function PlansSection() {
                 ) : (
                   <div className="space-y-2.5 mt-1">
                     <div>
-                      <label className="text-[11px] text-slate-500 font-medium block mb-1">Price (₹)</label>
+                      <label className="text-[11px] text-slate-500 font-medium block mb-1">Monthly price / seat (₹)</label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">₹</span>
                         <input type="number" min="0" step="1"
@@ -775,12 +796,16 @@ function PlansSection() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-[11px] text-slate-500 font-medium block mb-1">Period</label>
-                      <select value={editForm.period}
-                        onChange={e => setEditForm(f => ({ ...f, period: e.target.value }))}
-                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-white">
-                        {['14 days','month','3 months','6 months','year'].map(o => <option key={o}>{o}</option>)}
-                      </select>
+                      <label className="text-[11px] text-slate-500 font-medium block mb-1">Annual price / seat (₹) <span className="text-slate-400 font-normal">optional</span></label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">₹</span>
+                        <input type="number" min="0" step="1"
+                          value={editForm.price_inr_annual}
+                          onChange={e => setEditForm(f => ({ ...f, price_inr_annual: Number(e.target.value) }))}
+                          placeholder="Leave 0 for 10-month default"
+                          className="w-full pl-7 pr-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="text-[11px] text-slate-500 font-medium block mb-1">Description</label>
@@ -1264,6 +1289,9 @@ function OrgDetailView({
   const [trialEndsAt, setTrialEndsAt] = useState(
     org?.trial_ends_at ? org.trial_ends_at.slice(0, 10) : ''
   );
+  const [seatCountInput, setSeatCountInput] = useState<string>(
+    (org as any)?.seat_count != null ? String((org as any).seat_count) : ''
+  );
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsMsg, setSettingsMsg]       = useState('');
 
@@ -1286,6 +1314,29 @@ function OrgDetailView({
   const [regForm, setRegForm]       = useState<Record<RegKey, string>>(emptyReg());
   const [regSaving, setRegSaving]   = useState(false);
   const [regMsg, setRegMsg]         = useState('');
+
+  // ── Seat count adjustment state ──
+  const [seatAdjustInput, setSeatAdjustInput] = useState<string>('');
+  const [seatSaving, setSeatSaving]           = useState(false);
+  const [seatMsg, setSeatMsg]                 = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const handleSetSeats = async (newCount: number | null) => {
+    setSeatSaving(true); setSeatMsg(null);
+    try {
+      const res = await apiFetch(`/api/platform/orgs/${orgId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seat_count: newCount }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Update failed');
+      setSeatMsg({ type: 'ok', text: newCount === null ? 'Seat limit removed' : `Seat limit set to ${newCount}` });
+      setSeatAdjustInput('');
+      onOrgUpdated();
+      setTimeout(() => setSeatMsg(null), 3000);
+    } catch (e: any) {
+      setSeatMsg({ type: 'err', text: e.message || 'Failed to update seat limit' });
+    } finally { setSeatSaving(false); }
+  };
 
   // ── Extend expiry state ──
   const [extendDate, setExtendDate]   = useState('');
@@ -1323,6 +1374,7 @@ function OrgDetailView({
     setPauseReason(detail.paused_reason || '');
     setNotes(detail.platform_notes || '');
     setTrialEndsAt(detail.trial_ends_at ? detail.trial_ends_at.slice(0, 10) : '');
+    setSeatCountInput((detail as any).seat_count != null ? String((detail as any).seat_count) : '');
     setEditingPlan(false);
     setRegForm(Object.fromEntries(
       REG_FIELDS.map(f => [f.key, (detail as any)[f.key] || ''])
@@ -1449,6 +1501,7 @@ function OrgDetailView({
           paused_reason: status === 'paused' ? pauseReason : undefined,
           platform_notes: notes,
           trial_ends_at: trialEndsAt ? new Date(trialEndsAt).toISOString() : null,
+          seat_count: seatCountInput.trim() === '' ? null : Number(seatCountInput),
         }),
       });
       const data = await res.json();
@@ -1926,6 +1979,22 @@ function OrgDetailView({
                     <p className="text-xs text-slate-400 mt-1">Leave blank for no expiry</p>
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                      Seat Limit <span className="normal-case font-normal text-slate-400">(billed seats override)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={seatCountInput}
+                      onChange={e => setSeatCountInput(e.target.value)}
+                      placeholder="e.g. 15"
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Leave blank for no limit. Set to override billed seat count.</p>
+                  </div>
+
                   {status === 'paused' && (
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Pause Reason</label>
@@ -2039,6 +2108,104 @@ function OrgDetailView({
                 </span>
               )}
             </div>
+          </div>
+
+          {/* ── Seat Limit Management ── */}
+          <div className="bg-white border border-slate-200 rounded-xl p-6">
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-1">
+              <Users className="w-4 h-4 text-blue-500" /> Seat Limit
+            </h3>
+            {(() => {
+              const currentSeats = (org as any).seat_count as number | null ?? null;
+              const members = org.memberCount;
+              const atLimit  = currentSeats !== null && members >= currentSeats;
+              return (
+                <>
+                  <p className="text-xs text-slate-400 mb-4">
+                    Current usage:&nbsp;
+                    <span className={`font-semibold ${atLimit ? 'text-red-600' : 'text-slate-700'}`}>
+                      {members} member{members !== 1 ? 's' : ''}
+                    </span>
+                    {currentSeats !== null
+                      ? <> / <span className={`font-semibold ${atLimit ? 'text-red-600' : 'text-slate-700'}`}>{currentSeats} seats</span> {atLimit && <span className="text-red-500">(full)</span>}</>
+                      : <span className="text-slate-400"> / no limit set</span>
+                    }
+                  </p>
+
+                  {/* Quick delta presets */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {(currentSeats !== null ? [
+                      { label: '−5',  delta: -5  },
+                      { label: '−1',  delta: -1  },
+                      { label: '+1',  delta: +1  },
+                      { label: '+5',  delta: +5  },
+                      { label: '+10', delta: +10 },
+                    ] : [
+                      { label: '5',   abs: 5   },
+                      { label: '10',  abs: 10  },
+                      { label: '20',  abs: 20  },
+                      { label: '50',  abs: 50  },
+                    ]).map((p: any) => {
+                      const next = 'abs' in p ? p.abs : (currentSeats ?? 0) + p.delta;
+                      const disabled = next < 1;
+                      return (
+                        <button
+                          key={p.label}
+                          type="button"
+                          disabled={disabled || seatSaving}
+                          onClick={() => handleSetSeats(Math.max(1, next))}
+                          className={`px-3 py-1.5 text-xs font-semibold border rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed ${
+                            'delta' in p && p.delta < 0
+                              ? 'border-red-200 bg-red-50 hover:bg-red-100 text-red-700'
+                              : 'border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Direct input + apply */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={seatAdjustInput}
+                      onChange={e => setSeatAdjustInput(e.target.value)}
+                      placeholder={currentSeats !== null ? `Current: ${currentSeats}` : 'Set exact number'}
+                      className="w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    />
+                    <button
+                      onClick={() => {
+                        const n = parseInt(seatAdjustInput, 10);
+                        if (!isNaN(n) && n >= 1) handleSetSeats(n);
+                      }}
+                      disabled={!seatAdjustInput || isNaN(parseInt(seatAdjustInput, 10)) || parseInt(seatAdjustInput, 10) < 1 || seatSaving}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-40"
+                    >
+                      {seatSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      {seatSaving ? 'Saving…' : 'Set Limit'}
+                    </button>
+                    {currentSeats !== null && (
+                      <button
+                        onClick={() => handleSetSeats(null)}
+                        disabled={seatSaving}
+                        className="px-3 py-2 border border-slate-200 text-slate-500 text-sm rounded-lg hover:bg-slate-50 transition disabled:opacity-40"
+                      >
+                        Remove limit
+                      </button>
+                    )}
+                    {seatMsg && (
+                      <span className={`text-xs font-medium ${seatMsg.type === 'ok' ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {seatMsg.text}
+                      </span>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* ── Quick Actions ── */}

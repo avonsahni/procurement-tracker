@@ -9,7 +9,7 @@ import {
   ChevronRight, Loader2, Globe, Key, UserPlus, Lock,
   Download, FileSpreadsheet, Package, Layers, Receipt, Activity,
   Clock, FolderOpen, UserCheck, UserMinus, Database, Zap,
-  TrendingUp, TrendingDown, CreditCard, MessageSquare, ClipboardList,
+  TrendingUp, TrendingDown, CreditCard, MessageSquare, ClipboardList, Mail,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
@@ -18,7 +18,6 @@ import {
   UserAccount, CompanyInfo, NewProjectInput,
 } from "@/lib/store";
 import { CURRENCY_LABELS, formatCurrency } from "@/lib/types";
-import BillingUpgradeModal from "@/components/BillingUpgradeModal";
 import { LogoMark } from "@/components/Logo";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -166,9 +165,8 @@ function PlanValidityCard() {
   const plan   = user?.orgPlan   ?? 'trial';
   const status = user?.orgStatus ?? 'trial';
   const expiryStr = user?.trialEndsAt ?? null;
-  const [showUpgrade, setShowUpgrade] = useState(false);
-  const razorpayEnabled = !!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-
+  const [contactFlash, setContactFlash] = useState(false);
+  const showContactMsg = () => { setContactFlash(true); setTimeout(() => setContactFlash(false), 5000); };
   const fmtExpiry = (s: string) =>
     new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -215,9 +213,9 @@ function PlanValidityCard() {
               )}
             </div>
           </div>
-          {canUpgrade && razorpayEnabled && (
+          {canUpgrade && (
             <button
-              onClick={() => setShowUpgrade(true)}
+              onClick={showContactMsg}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition flex-shrink-0"
             >
               <CreditCard className="w-3.5 h-3.5" />
@@ -226,15 +224,11 @@ function PlanValidityCard() {
           )}
         </div>
       </div>
-      {showUpgrade && (
-        <BillingUpgradeModal
-          currentPlan={plan}
-          onClose={() => setShowUpgrade(false)}
-          onSuccess={() => {
-            setShowUpgrade(false);
-            window.location.reload();
-          }}
-        />
+      {contactFlash && (
+        <div className="mt-3 flex items-center gap-2 px-4 py-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+          <Mail className="w-4 h-4 flex-shrink-0 text-blue-500" />
+          <span>Contact ProcureTrack to activate or upgrade — <a href="mailto:admin@procuretrack.in" className="font-semibold underline">admin@procuretrack.in</a></span>
+        </div>
       )}
     </>
   );
@@ -315,10 +309,18 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
   const [form, setForm] = useState({ fullName: "", email: "", password: "", role: "user" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [seatInfo, setSeatInfo] = useState<{ seatCount: number | null; memberCount: number } | null>(null);
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
   const [editForm, setEditForm] = useState({ fullName: "", email: "", password: "" });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+
+  useEffect(() => {
+    fetch('/api/org/seats', { headers: { 'X-Requested-With': 'fetch' } })
+      .then(r => r.json())
+      .then(d => { if (d.seatCount !== undefined) setSeatInfo(d); })
+      .catch(() => {});
+  }, [users.length]);
 
   const openEdit = (u: UserAccount) => {
     setEditingUser(u);
@@ -387,20 +389,52 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
     } catch (e: any) { alert(e.message); }
   };
 
+  const atSeatLimit = seatInfo !== null && seatInfo.seatCount !== null && users.length >= seatInfo.seatCount;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">User Management</h2>
-          <p className="text-sm text-slate-500 mt-0.5">{users.length} account{users.length !== 1 ? "s" : ""} in this organisation</p>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <p className="text-sm text-slate-500">{users.length} account{users.length !== 1 ? "s" : ""} in this organisation</p>
+            {seatInfo?.seatCount !== null && seatInfo?.seatCount !== undefined && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                atSeatLimit
+                  ? "bg-red-50 text-red-700 border-red-200"
+                  : users.length >= (seatInfo.seatCount ?? 0) * 0.8
+                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                  : "bg-slate-100 text-slate-600 border-slate-200"
+              }`}>
+                {users.length} / {seatInfo.seatCount} seats
+              </span>
+            )}
+          </div>
         </div>
         <button
-          onClick={() => { setShowAdd(true); setError(""); }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition"
+          onClick={() => { if (atSeatLimit) return; setShowAdd(true); setError(""); }}
+          disabled={atSeatLimit}
+          title={atSeatLimit ? `Seat limit reached (${users.length}/${seatInfo?.seatCount}). Upgrade your subscription to add more users.` : undefined}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+            atSeatLimit
+              ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700 text-white"
+          }`}
         >
           <UserPlus className="w-4 h-4" /> New User
         </button>
       </div>
+
+      {/* Seat limit warning */}
+      {atSeatLimit && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-red-700">
+            <span className="font-semibold">Seat limit reached</span> — your plan allows {seatInfo?.seatCount} seat{seatInfo?.seatCount !== 1 ? 's' : ''} and all are in use.
+            Go to <strong>Subscription</strong> to purchase more seats.
+          </div>
+        </div>
+      )}
 
       {/* Plan usage */}
       <PlanUsageCard userCount={users.length} />
@@ -2323,24 +2357,199 @@ function ProjectsSection() {
   );
 }
 
+// ─────────────────────── subscription section ────────────────────────
+
+function SubscriptionSection({ users }: { users: UserAccount[] }) {
+  const { user } = useAuth();
+  const plan      = user?.orgPlan   ?? 'trial';
+  const status    = user?.orgStatus ?? 'trial';
+  const expiryStr = user?.trialEndsAt ?? null;
+  const [contactFlash, setContactFlash] = useState(false);
+  const showContactMsg = () => { setContactFlash(true); setTimeout(() => setContactFlash(false), 5000); };
+  const daysLeft = expiryStr
+    ? Math.ceil((new Date(expiryStr).getTime() - Date.now()) / 86_400_000)
+    : null;
+  const expired = daysLeft !== null && daysLeft < 0;
+  const urgent  = !expired && daysLeft !== null && daysLeft <= 7;
+
+  const fmtDate = (s: string) =>
+    new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const PLAN_COLORS: Record<string, string> = {
+    trial:      'bg-slate-100 text-slate-600 border-slate-200',
+    starter:    'bg-blue-50 text-blue-700 border-blue-200',
+    pro:        'bg-violet-50 text-violet-700 border-violet-200',
+    enterprise: 'bg-amber-50 text-amber-700 border-amber-200',
+  };
+  const STATUS_COLORS: Record<string, string> = {
+    trial:    'bg-amber-50 text-amber-700 border-amber-200',
+    active:   'bg-emerald-50 text-emerald-700 border-emerald-200',
+    paused:   'bg-red-50 text-red-700 border-red-200',
+    canceled: 'bg-slate-100 text-slate-500 border-slate-200',
+  };
+
+  const isTrial    = plan === 'trial'   || status === 'trial';
+  const isActive   = status === 'active';
+  const isStarter  = plan === 'starter' && isActive;
+  const isPaused   = status === 'paused' || status === 'canceled';
+
+  const primaryBtn = (() => {
+    if (isTrial || isPaused) return { label: 'Activate Subscription', color: 'bg-blue-600 hover:bg-blue-700' };
+    if (isStarter)           return { label: 'Upgrade to Pro',        color: 'bg-violet-600 hover:bg-violet-700' };
+    return                          { label: 'Renew Plan',            color: 'bg-emerald-600 hover:bg-emerald-700' };
+  })();
+
+  const showRenew   = isActive && !isTrial;
+  const showUpgradeBtn = isStarter;
+
+  return (
+    <div className="space-y-8 max-w-2xl">
+      <div>
+        <h2 className="text-xl font-semibold text-slate-900 mb-1">Subscription</h2>
+        <p className="text-sm text-slate-500">Manage your plan, seats, and billing.</p>
+      </div>
+
+      {/* Current plan card */}
+      <div className={`rounded-xl border px-6 py-5 ${expired ? 'bg-red-50 border-red-200' : urgent ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Shield className={`w-5 h-5 ${expired ? 'text-red-500' : urgent ? 'text-amber-500' : 'text-slate-400'}`} />
+              <p className="text-sm font-semibold text-slate-800">Current Plan</p>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${PLAN_COLORS[plan] ?? PLAN_COLORS.trial}`}>
+                {plan.charAt(0).toUpperCase() + plan.slice(1)}
+              </span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${STATUS_COLORS[status] ?? STATUS_COLORS.trial}`}>
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </span>
+            </div>
+            {expiryStr ? (
+              <p className={`text-xs ${expired ? 'text-red-600 font-semibold' : urgent ? 'text-amber-600 font-medium' : 'text-slate-500'}`}>
+                {expired
+                  ? `Expired ${fmtDate(expiryStr)} — activate a plan to restore access`
+                  : `Valid until ${fmtDate(expiryStr)} · ${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining`}
+              </p>
+            ) : (
+              <p className="text-xs text-slate-400">No expiry date on this plan</p>
+            )}
+            <p className="text-xs text-slate-500">
+              {users.length} team member{users.length !== 1 ? 's' : ''} in your organisation
+            </p>
+          </div>
+          <button
+              onClick={showContactMsg}
+              className={`flex items-center gap-1.5 px-4 py-2 text-white text-sm font-semibold rounded-lg transition flex-shrink-0 ${primaryBtn.color}`}
+            >
+              <CreditCard className="w-4 h-4" />
+              {primaryBtn.label}
+            </button>
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Activate / Renew */}
+          <button
+            onClick={showContactMsg}
+            className="flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 transition group text-center"
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center group-hover:scale-105 transition">
+              <CreditCard className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-blue-900">
+                {isTrial || isPaused ? 'Activate Subscription' : 'Renew Plan'}
+              </p>
+              <p className="text-[11px] text-blue-600 mt-0.5 leading-snug">
+                {isTrial ? 'Start your paid plan' : isPaused ? 'Restore access' : 'Extend for next cycle'}
+              </p>
+            </div>
+          </button>
+
+          {/* Upgrade Plan */}
+          <button
+            onClick={showContactMsg}
+            disabled={plan === 'pro' || plan === 'enterprise'}
+            className="flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-violet-200 bg-violet-50 hover:bg-violet-100 transition group text-center disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <div className="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center group-hover:scale-105 transition group-disabled:scale-100">
+              <Crown className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-violet-900">Upgrade Plan</p>
+              <p className="text-[11px] text-violet-600 mt-0.5 leading-snug">
+                {plan === 'starter' ? 'Move to Pro' : plan === 'pro' ? 'Already on Pro' : 'Upgrade from trial'}
+              </p>
+            </div>
+          </button>
+
+          {/* Plan details */}
+          <div className="flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-slate-200 bg-slate-50 text-center">
+            <div className="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center">
+              <Users className="w-5 h-5 text-slate-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Seat Limits</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                {plan === 'starter' ? '5–10 seats' : plan === 'pro' ? '10–50 seats' : 'Billed per seat'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+      {/* Pricing summary */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl px-6 py-5">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Seat Billing Details</p>
+        <div className="space-y-2 text-sm text-slate-700">
+          <div className="flex justify-between">
+            <span>Starter plan</span>
+            <span className="font-medium text-slate-900">Min 5 seats · Max 10 seats</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Pro plan</span>
+            <span className="font-medium text-slate-900">Min 10 seats · Max 50 seats</span>
+          </div>
+          <div className="flex justify-between border-t border-slate-200 pt-2 mt-2 text-xs text-slate-500">
+            <span>Pricing set by platform admin</span>
+            <span>Charged per seat / per billing cycle</span>
+          </div>
+        </div>
+      </div>
+
+      {contactFlash && (
+        <div className="flex items-center gap-3 px-5 py-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+          <Mail className="w-5 h-5 flex-shrink-0 text-blue-500" />
+          <span>
+            To subscribe, renew, or upgrade your plan, please contact ProcureTrack at{' '}
+            <a href="mailto:admin@procuretrack.in" className="font-semibold underline hover:text-blue-900">
+              admin@procuretrack.in
+            </a>
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────────── main component ───────────────────────
 
-type Tab = "overview" | "projects" | "users" | "branding" | "organisation" | "categories" | "audit" | "export" | "danger";
+type Tab = "overview" | "projects" | "users" | "branding" | "organisation" | "categories" | "audit" | "export" | "danger" | "subscription";
 
 const NAV: { id: Tab; icon: any; label: string }[] = [
-  { id: "overview",     icon: BarChart3,     label: "Overview" },
-  { id: "projects",     icon: FolderOpen,    label: "Projects" },
-  { id: "users",        icon: Users,         label: "Users" },
-  { id: "branding",     icon: Globe,         label: "Branding" },
-  { id: "organisation", icon: Building2,     label: "Organisation" },
-  { id: "categories",   icon: Tag,           label: "Categories" },
-  { id: "audit",        icon: Clock,         label: "Audit Log" },
-  { id: "export",       icon: Download,      label: "Export Data" },
-  { id: "danger",       icon: AlertTriangle, label: "Danger Zone" },
+  { id: "overview",      icon: BarChart3,     label: "Overview" },
+  { id: "subscription",  icon: CreditCard,    label: "Subscription" },
+  { id: "projects",      icon: FolderOpen,    label: "Projects" },
+  { id: "users",         icon: Users,         label: "Users" },
+  { id: "branding",      icon: Globe,         label: "Branding" },
+  { id: "organisation",  icon: Building2,     label: "Organisation" },
+  { id: "categories",    icon: Tag,           label: "Categories" },
+  { id: "audit",         icon: Clock,         label: "Audit Log" },
+  { id: "export",        icon: Download,      label: "Export Data" },
+  { id: "danger",        icon: AlertTriangle, label: "Danger Zone" },
 ];
 
 // Tabs available when the org is expired/paused — read-only + export only.
-const BLOCKED_TABS: Tab[] = ["overview", "projects", "audit", "export"];
+const BLOCKED_TABS: Tab[] = ["overview", "subscription", "projects", "audit", "export"];
 
 export default function AdminPanel({ onBack, initialTab }: { onBack: () => void; initialTab?: Tab }) {
   const { isOrgBlocked } = useAuth();
@@ -2441,15 +2650,16 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto p-8">
-          {tab === "overview"   && <OverviewSection  users={users} orgName={orgName} />}
-          {tab === "projects"   && <ProjectsSection />}
-          {tab === "users"      && <UsersSection     users={users} onRefresh={loadUsers} onUserAdded={(u) => setUsers(prev => [...prev, u])} />}
-          {tab === "branding"   && <BrandingSection  onSaved={loadBranding} />}
-          {tab === "organisation" && <OrgDetailsSection />}
-          {tab === "categories" && <CategoriesSection />}
-          {tab === "audit"      && <AuditLogSection />}
-          {tab === "export"     && <ExportSection    orgName={orgName} />}
-          {tab === "danger"     && <DangerSection    onReset={() => { loadUsers(); loadSampleCount(); }} sampleCount={sampleCount} />}
+          {tab === "overview"      && <OverviewSection  users={users} orgName={orgName} />}
+          {tab === "subscription"  && <SubscriptionSection users={users} />}
+          {tab === "projects"      && <ProjectsSection />}
+          {tab === "users"         && <UsersSection     users={users} onRefresh={loadUsers} onUserAdded={(u) => setUsers(prev => [...prev, u])} />}
+          {tab === "branding"      && <BrandingSection  onSaved={loadBranding} />}
+          {tab === "organisation"  && <OrgDetailsSection />}
+          {tab === "categories"    && <CategoriesSection />}
+          {tab === "audit"         && <AuditLogSection />}
+          {tab === "export"        && <ExportSection    orgName={orgName} />}
+          {tab === "danger"        && <DangerSection    onReset={() => { loadUsers(); loadSampleCount(); }} sampleCount={sampleCount} />}
         </main>
       </div>
       <SiteFooter />

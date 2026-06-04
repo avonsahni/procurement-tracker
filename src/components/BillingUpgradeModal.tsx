@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Check, Zap, Crown, Loader2, AlertTriangle } from "lucide-react";
+import { X, Check, Zap, Crown, Loader2, AlertTriangle, Plus, Minus } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 
 interface PricingRow {
@@ -24,9 +24,14 @@ declare global {
   }
 }
 
+const PLAN_SEATS: Record<"starter" | "pro", { min: number; max: number }> = {
+  starter: { min: 5,  max: 10 },
+  pro:     { min: 10, max: 50 },
+};
+
 const PLAN_FEATURES: Record<string, string[]> = {
   starter: [
-    "Up to 10 team members",
+    "5–10 seats (min 5 billed)",
     "Unlimited packages",
     "Budget analytics",
     "Document storage",
@@ -34,7 +39,7 @@ const PLAN_FEATURES: Record<string, string[]> = {
     "Email support",
   ],
   pro: [
-    "Up to 50 team members",
+    "10–50 seats (min 10 billed)",
     "Everything in Starter",
     "GDPR data export",
     "Priority support",
@@ -59,12 +64,15 @@ export default function BillingUpgradeModal({
   onClose,
   onSuccess,
 }: BillingUpgradeModalProps) {
-  const [period, setPeriod]       = useState<"monthly" | "annual">("monthly");
-  const [pricing, setPricing]     = useState<PricingRow[]>([]);
-  const [userCount, setUserCount] = useState(1);
-  const [loading, setLoading]     = useState(true);
+  const [period, setPeriod]   = useState<"monthly" | "annual">("monthly");
+  const [pricing, setPricing] = useState<PricingRow[]>([]);
+  const [seats, setSeats]     = useState<Record<"starter" | "pro", number>>({
+    starter: PLAN_SEATS.starter.min,
+    pro:     PLAN_SEATS.pro.min,
+  });
+  const [loading, setLoading]         = useState(true);
   const [subscribing, setSubscribing] = useState<string | null>(null);
-  const [error, setError]         = useState("");
+  const [error, setError]             = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -72,7 +80,13 @@ export default function BillingUpgradeModal({
       apiFetch("/api/users").then(r => r.json()),
     ]).then(([prices, users]) => {
       if (Array.isArray(prices)) setPricing(prices);
-      if (Array.isArray(users))  setUserCount(Math.max(1, users.length));
+      if (Array.isArray(users)) {
+        const n = users.length;
+        setSeats({
+          starter: Math.max(PLAN_SEATS.starter.min, Math.min(PLAN_SEATS.starter.max, n)),
+          pro:     Math.max(PLAN_SEATS.pro.min,     Math.min(PLAN_SEATS.pro.max,     n)),
+        });
+      }
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -91,7 +105,7 @@ export default function BillingUpgradeModal({
       const res  = await apiFetch("/api/billing/subscribe", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ plan, period, quantity: userCount }),
+        body:    JSON.stringify({ plan, period, quantity: seats[plan] }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not initiate subscription");
@@ -200,10 +214,14 @@ export default function BillingUpgradeModal({
               <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
             </div>
           ) : plans.map(({ key, label, color, icon: Icon, highlight }) => {
-            const row   = pricing.find(p => p.tier === key);
-            const price = row ? getPrice(row) : null;
+            const row       = pricing.find(p => p.tier === key);
+            const price     = row ? getPrice(row) : null;
             const isCurrent = currentPlan === key;
             const isBusy    = subscribing === key;
+            const bounds    = PLAN_SEATS[key];
+            const planSeats = seats[key];
+            const setSeatCount = (n: number) =>
+              setSeats(prev => ({ ...prev, [key]: n }));
 
             return (
               <div
@@ -241,14 +259,14 @@ export default function BillingUpgradeModal({
                         <span className="text-2xl font-extrabold text-slate-900">
                           ₹{Math.round(price).toLocaleString("en-IN")}
                         </span>
-                        <span className="text-sm text-slate-500">/ user / {period === "annual" ? "year" : "month"}</span>
+                        <span className="text-sm text-slate-500">/ seat / {period === "annual" ? "year" : "month"}</span>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {userCount} user{userCount !== 1 ? 's' : ''} = ₹{Math.round(price * userCount).toLocaleString("en-IN")}/{period === "annual" ? "yr" : "mo"}
+                        {planSeats} seat{planSeats !== 1 ? 's' : ''} = ₹{Math.round(price * planSeats).toLocaleString("en-IN")}/{period === "annual" ? "yr" : "mo"}
                       </p>
                       {period === "annual" && row && (
                         <p className="text-xs text-emerald-600 mt-0.5">
-                          Saves ₹{Math.round(row.price_inr * 2 * userCount).toLocaleString("en-IN")} vs monthly
+                          Saves ₹{Math.round(row.price_inr * 2 * planSeats).toLocaleString("en-IN")} vs monthly
                         </p>
                       )}
                     </>
@@ -258,6 +276,31 @@ export default function BillingUpgradeModal({
                   {row?.description && (
                     <p className="text-xs text-slate-500 mt-1">{row.description}</p>
                   )}
+                </div>
+
+                {/* Seat selector */}
+                <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">Seats</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Min {bounds.min} · Max {bounds.max}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSeatCount(Math.max(bounds.min, planSeats - 1))}
+                      disabled={planSeats <= bounds.min}
+                      className="w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-100 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="w-8 text-center text-sm font-bold text-slate-900">{planSeats}</span>
+                    <button
+                      onClick={() => setSeatCount(Math.min(bounds.max, planSeats + 1))}
+                      disabled={planSeats >= bounds.max}
+                      className="w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-100 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <ul className="space-y-2 flex-1">

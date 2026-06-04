@@ -13,7 +13,8 @@ export async function GET(
   const { id: orgId } = await params;
   const admin = createAdminSupabase();
 
-  const [orgRes, membersRes, projectsRes, storageRes, authRes] = await Promise.all([
+  // Core fields must not include optional-migration columns (e.g. seat_count).
+  const [orgRes, membersRes, projectsRes, storageRes, authRes, seatRes] = await Promise.all([
     admin.from('organizations')
       .select(`id, name, plan, subscription_status, trial_ends_at,
                paused_at, paused_reason, platform_notes, created_at,
@@ -25,6 +26,10 @@ export async function GET(
     admin.from('projects').select('id').eq('org_id', orgId),
     admin.from('org_storage_bytes').select('used_bytes').eq('org_id', orgId).maybeSingle(),
     admin.auth.admin.listUsers({ perPage: 1000 }),
+    (async () => {
+      try { return await admin.from('organizations').select('seat_count').eq('id', orgId).maybeSingle(); }
+      catch { return { data: null, error: null }; }
+    })(),
   ]);
 
   if (orgRes.error) return NextResponse.json({ error: orgRes.error.message }, { status: 500 });
@@ -40,6 +45,7 @@ export async function GET(
 
   return NextResponse.json({
     ...orgRes.data,
+    seat_count:   (seatRes as any).data?.seat_count ?? null,
     memberCount:  (membersRes.data || []).length,
     projectCount: (projectsRes.data || []).length,
     usedBytes:    Number((storageRes.data as any)?.used_bytes ?? 0),
@@ -57,7 +63,7 @@ export async function PUT(
 
   const { id: orgId } = await params;
   const body = await req.json();
-  const { plan, subscription_status, paused_reason, platform_notes, trial_ends_at } = body;
+  const { plan, subscription_status, paused_reason, platform_notes, trial_ends_at, seat_count } = body;
 
   const admin = createAdminSupabase();
   const updates: Record<string, any> = {};
@@ -65,6 +71,10 @@ export async function PUT(
   if (plan !== undefined) updates.plan = plan;
   if (platform_notes !== undefined) updates.platform_notes = platform_notes;
   if (trial_ends_at !== undefined) updates.trial_ends_at = trial_ends_at || null;
+  if (seat_count !== undefined) {
+    const n = seat_count === null || seat_count === '' ? null : Number(seat_count);
+    updates.seat_count = (!n || isNaN(n) || n < 1) ? null : n;
+  }
 
   // Registration / contact details — platform admins can edit these too.
   const REG_FIELDS = [
