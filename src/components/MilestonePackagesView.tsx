@@ -86,8 +86,8 @@ export default function MilestonePackagesView({
                 <h1 className="text-sm font-semibold text-slate-900 leading-none truncate">{data.milestone}</h1>
                 <p className="text-xs text-slate-500 mt-1 truncate">
                   <span className={statusColors[data.status] || "text-slate-500"}>{data.status}</span>
-                  {" · "}{data.projectName}
-                  {data.client ? <span className="hidden sm:inline"> · {data.client}</span> : null}
+                  {" · "}<span className="font-semibold text-slate-700">{data.projectName}</span>
+                  {data.client ? <span className="hidden sm:inline text-slate-400"> · {data.client}</span> : null}
                 </p>
               </div>
             </div>

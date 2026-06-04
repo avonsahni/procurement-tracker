@@ -530,7 +530,7 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
                       <span className={`text-xs font-medium px-2 py-0.5 rounded bg-slate-50 border border-slate-200 flex-shrink-0 ${statusColors[p.status]}`}>
                         {p.status}
                       </span>
-                      <span className="text-sm font-semibold text-slate-900 truncate">{p.name}</span>
+                      <span className="text-sm font-bold text-slate-900 truncate">{p.name}</span>
                       <span className="text-xs text-slate-400 hidden md:inline truncate">{p.client}</span>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0 ml-4">
@@ -562,7 +562,7 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
                           type="button"
                           onClick={() => router.push(`/projects/${p.id}/milestones/${encodeURIComponent(m.name)}`)}
                           title={`View ${m.name} across all packages`}
-                          className="text-left bg-slate-50 border border-slate-100 rounded-xl p-3 hover:border-blue-300 hover:bg-white hover:shadow-sm transition cursor-pointer"
+                          className="text-left bg-slate-50 border border-slate-100 rounded-xl p-3 hover:border-blue-300 hover:bg-white hover:shadow-md hover:shadow-blue-100 active:scale-95 active:shadow-lg active:shadow-blue-200 active:border-blue-400 active:bg-blue-50 transition-all duration-150 cursor-pointer"
                         >
                           <div className="flex items-center gap-1.5 mb-2">
                             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
