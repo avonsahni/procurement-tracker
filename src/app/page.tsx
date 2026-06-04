@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthContext";
 import Dashboard from "@/components/Dashboard";
@@ -18,14 +18,12 @@ function HomeInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Initialise from the URL so that browser back/forward restores the right panel.
-  const [view, setView] = useState<View>(() => {
-    const v = searchParams.get("view") ?? "";
-    return PANEL_VIEWS.has(v) ? (v as View) : "dashboard";
-  });
+  // Derive view from URL so router.back() / router.forward() always sync correctly.
+  // useState would only init once and go stale when the URL changes without a remount.
+  const vParam = searchParams.get("view") ?? "";
+  const view: View = PANEL_VIEWS.has(vParam) ? (vParam as View) : "dashboard";
 
   const goTo = (v: View) => {
-    setView(v);
     // Push a real history entry so browser back returns here from child pages.
     router.push(v === "dashboard" ? "/" : `/?view=${v}`);
   };
