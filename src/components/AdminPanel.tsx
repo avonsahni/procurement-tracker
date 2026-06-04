@@ -167,8 +167,6 @@ function PlanValidityCard() {
   const status = user?.orgStatus ?? 'trial';
   const expiryStr = user?.trialEndsAt ?? null;
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const razorpayEnabled = !!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-
   const fmtExpiry = (s: string) =>
     new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -215,7 +213,7 @@ function PlanValidityCard() {
               )}
             </div>
           </div>
-          {canUpgrade && razorpayEnabled && (
+          {canUpgrade && (
             <button
               onClick={() => setShowUpgrade(true)}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition flex-shrink-0"
@@ -2371,8 +2369,6 @@ function SubscriptionSection({ users }: { users: UserAccount[] }) {
   const status    = user?.orgStatus ?? 'trial';
   const expiryStr = user?.trialEndsAt ?? null;
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const razorpayEnabled = !!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-
   const daysLeft = expiryStr
     ? Math.ceil((new Date(expiryStr).getTime() - Date.now()) / 86_400_000)
     : null;
@@ -2443,21 +2439,18 @@ function SubscriptionSection({ users }: { users: UserAccount[] }) {
               {users.length} team member{users.length !== 1 ? 's' : ''} in your organisation
             </p>
           </div>
-          {razorpayEnabled && (
-            <button
+          <button
               onClick={() => setShowUpgrade(true)}
               className={`flex items-center gap-1.5 px-4 py-2 text-white text-sm font-semibold rounded-lg transition flex-shrink-0 ${primaryBtn.color}`}
             >
               <CreditCard className="w-4 h-4" />
               {primaryBtn.label}
             </button>
-          )}
         </div>
       </div>
 
       {/* Action buttons */}
-      {razorpayEnabled && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Activate / Renew */}
           <button
             onClick={() => setShowUpgrade(true)}
@@ -2506,7 +2499,6 @@ function SubscriptionSection({ users }: { users: UserAccount[] }) {
             </div>
           </div>
         </div>
-      )}
 
       {/* Pricing summary */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl px-6 py-5">
