@@ -12,7 +12,7 @@ export async function GET() {
   // All organisations (admin client bypasses RLS)
   const { data: orgs, error: orgsErr } = await admin
     .from('organizations')
-    .select('id, name, plan, subscription_status, trial_ends_at, paused_at, paused_reason, platform_notes, created_at')
+    .select('id, name, plan, subscription_status, trial_ends_at, paused_at, paused_reason, platform_notes, created_at, seat_count')
     .order('created_at', { ascending: false });
 
   if (orgsErr) return NextResponse.json({ error: orgsErr.message }, { status: 500 });

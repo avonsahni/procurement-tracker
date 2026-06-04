@@ -37,6 +37,7 @@ interface OrgRow {
   projectCount: number;
   ownerEmails: string[];
   usedBytes: number;
+  seat_count: number | null;
 }
 
 interface OrgDetail extends OrgRow {
@@ -351,9 +352,18 @@ function OrgsSection({
                       </div>
                     </td>
 
-                    {/* Members */}
+                    {/* Members / Seats */}
                     <td className="px-4 py-3.5 text-center">
-                      <span className="text-sm font-semibold text-slate-700">{org.memberCount}</span>
+                      {org.seat_count != null ? (
+                        <div className="flex flex-col items-center">
+                          <span className={`text-sm font-semibold ${org.memberCount >= org.seat_count ? 'text-red-600' : 'text-slate-700'}`}>
+                            {org.memberCount} / {org.seat_count}
+                          </span>
+                          <span className="text-[10px] text-slate-400">seats</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm font-semibold text-slate-700">{org.memberCount}</span>
+                      )}
                     </td>
 
                     {/* Projects */}
@@ -1279,6 +1289,9 @@ function OrgDetailView({
   const [trialEndsAt, setTrialEndsAt] = useState(
     org?.trial_ends_at ? org.trial_ends_at.slice(0, 10) : ''
   );
+  const [seatCountInput, setSeatCountInput] = useState<string>(
+    (org as any)?.seat_count != null ? String((org as any).seat_count) : ''
+  );
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsMsg, setSettingsMsg]       = useState('');
 
@@ -1338,6 +1351,7 @@ function OrgDetailView({
     setPauseReason(detail.paused_reason || '');
     setNotes(detail.platform_notes || '');
     setTrialEndsAt(detail.trial_ends_at ? detail.trial_ends_at.slice(0, 10) : '');
+    setSeatCountInput((detail as any).seat_count != null ? String((detail as any).seat_count) : '');
     setEditingPlan(false);
     setRegForm(Object.fromEntries(
       REG_FIELDS.map(f => [f.key, (detail as any)[f.key] || ''])
@@ -1464,6 +1478,7 @@ function OrgDetailView({
           paused_reason: status === 'paused' ? pauseReason : undefined,
           platform_notes: notes,
           trial_ends_at: trialEndsAt ? new Date(trialEndsAt).toISOString() : null,
+          seat_count: seatCountInput.trim() === '' ? null : Number(seatCountInput),
         }),
       });
       const data = await res.json();
@@ -1939,6 +1954,22 @@ function OrgDetailView({
                       className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
                     />
                     <p className="text-xs text-slate-400 mt-1">Leave blank for no expiry</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                      Seat Limit <span className="normal-case font-normal text-slate-400">(billed seats override)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={seatCountInput}
+                      onChange={e => setSeatCountInput(e.target.value)}
+                      placeholder="e.g. 15"
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Leave blank for no limit. Set to override billed seat count.</p>
                   </div>
 
                   {status === 'paused' && (

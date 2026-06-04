@@ -71,6 +71,21 @@ export const POST = withRoute(async (req: NextRequest) => {
 
   const admin = createAdminSupabase();
 
+  // ── Seat limit enforcement ────────────────────────────────────────────────
+  const [orgRes, memberCountRes] = await Promise.all([
+    admin.from('organizations').select('seat_count').eq('id', auth.orgId).single(),
+    admin.from('organization_members').select('*', { count: 'exact', head: true }).eq('org_id', auth.orgId),
+  ]);
+  const seatLimit   = (orgRes.data as any)?.seat_count as number | null ?? null;
+  const memberCount = memberCountRes.count ?? 0;
+  if (seatLimit !== null && memberCount >= seatLimit) {
+    return NextResponse.json(
+      { error: `Seat limit reached (${memberCount}/${seatLimit} seats used). Purchase additional seats via Subscription to add more users.` },
+      { status: 403 }
+    );
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // ── Uniqueness guard ─────────────────────────────────────────────────────
   // Supabase Auth enforces a project-wide unique constraint on email, but the
   // error it returns is generic. We check first so the message is actionable.

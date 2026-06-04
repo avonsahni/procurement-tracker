@@ -16,7 +16,7 @@ export async function GET(
   const [orgRes, membersRes, projectsRes, storageRes, authRes] = await Promise.all([
     admin.from('organizations')
       .select(`id, name, plan, subscription_status, trial_ends_at,
-               paused_at, paused_reason, platform_notes, created_at,
+               paused_at, paused_reason, platform_notes, created_at, seat_count,
                org_type, website, address_line1, city, state_region, country,
                phone, contact_name, contact_title, contact_email, coupon_code`)
       .eq('id', orgId)
@@ -57,7 +57,7 @@ export async function PUT(
 
   const { id: orgId } = await params;
   const body = await req.json();
-  const { plan, subscription_status, paused_reason, platform_notes, trial_ends_at } = body;
+  const { plan, subscription_status, paused_reason, platform_notes, trial_ends_at, seat_count } = body;
 
   const admin = createAdminSupabase();
   const updates: Record<string, any> = {};
@@ -65,6 +65,10 @@ export async function PUT(
   if (plan !== undefined) updates.plan = plan;
   if (platform_notes !== undefined) updates.platform_notes = platform_notes;
   if (trial_ends_at !== undefined) updates.trial_ends_at = trial_ends_at || null;
+  if (seat_count !== undefined) {
+    const n = seat_count === null || seat_count === '' ? null : Number(seat_count);
+    updates.seat_count = (!n || isNaN(n) || n < 1) ? null : n;
+  }
 
   // Registration / contact details — platform admins can edit these too.
   const REG_FIELDS = [

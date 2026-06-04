@@ -315,10 +315,18 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
   const [form, setForm] = useState({ fullName: "", email: "", password: "", role: "user" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [seatInfo, setSeatInfo] = useState<{ seatCount: number | null; memberCount: number } | null>(null);
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
   const [editForm, setEditForm] = useState({ fullName: "", email: "", password: "" });
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+
+  useEffect(() => {
+    fetch('/api/org/seats', { headers: { 'X-Requested-With': 'fetch' } })
+      .then(r => r.json())
+      .then(d => { if (d.seatCount !== undefined) setSeatInfo(d); })
+      .catch(() => {});
+  }, [users.length]);
 
   const openEdit = (u: UserAccount) => {
     setEditingUser(u);
@@ -387,20 +395,52 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
     } catch (e: any) { alert(e.message); }
   };
 
+  const atSeatLimit = seatInfo !== null && seatInfo.seatCount !== null && users.length >= seatInfo.seatCount;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">User Management</h2>
-          <p className="text-sm text-slate-500 mt-0.5">{users.length} account{users.length !== 1 ? "s" : ""} in this organisation</p>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <p className="text-sm text-slate-500">{users.length} account{users.length !== 1 ? "s" : ""} in this organisation</p>
+            {seatInfo?.seatCount !== null && seatInfo?.seatCount !== undefined && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                atSeatLimit
+                  ? "bg-red-50 text-red-700 border-red-200"
+                  : users.length >= (seatInfo.seatCount ?? 0) * 0.8
+                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                  : "bg-slate-100 text-slate-600 border-slate-200"
+              }`}>
+                {users.length} / {seatInfo.seatCount} seats
+              </span>
+            )}
+          </div>
         </div>
         <button
-          onClick={() => { setShowAdd(true); setError(""); }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition"
+          onClick={() => { if (atSeatLimit) return; setShowAdd(true); setError(""); }}
+          disabled={atSeatLimit}
+          title={atSeatLimit ? `Seat limit reached (${users.length}/${seatInfo?.seatCount}). Upgrade your subscription to add more users.` : undefined}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+            atSeatLimit
+              ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700 text-white"
+          }`}
         >
           <UserPlus className="w-4 h-4" /> New User
         </button>
       </div>
+
+      {/* Seat limit warning */}
+      {atSeatLimit && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-red-700">
+            <span className="font-semibold">Seat limit reached</span> — your plan allows {seatInfo?.seatCount} seat{seatInfo?.seatCount !== 1 ? 's' : ''} and all are in use.
+            Go to <strong>Subscription</strong> to purchase more seats.
+          </div>
+        </div>
+      )}
 
       {/* Plan usage */}
       <PlanUsageCard userCount={users.length} />
