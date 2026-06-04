@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { fetchProjects } from "@/lib/store";
+import { fetchProjects, prefetchProjectMilestone } from "@/lib/store";
 import { formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
 import { ArrowLeft, BarChart3, TrendingUp, DollarSign, Layers, AlertTriangle, CheckCircle2, Clock, Receipt, Flag } from "lucide-react";
 
@@ -560,6 +560,12 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
                         <button
                           key={m.name}
                           type="button"
+                          onMouseEnter={() => {
+                            // Begin fetching data + page bundle on hover so both
+                            // are ready (or in-flight) by the time the user clicks.
+                            prefetchProjectMilestone(p.id, m.name);
+                            router.prefetch(`/projects/${p.id}/milestones/${encodeURIComponent(m.name)}`);
+                          }}
                           onClick={() => router.push(`/projects/${p.id}/milestones/${encodeURIComponent(m.name)}`)}
                           title={`View ${m.name} across all packages`}
                           className="text-left bg-slate-50 border border-slate-100 rounded-xl p-3 hover:border-blue-300 hover:bg-white hover:shadow-md hover:shadow-blue-100 active:scale-95 active:shadow-lg active:shadow-blue-200 active:border-blue-400 active:bg-blue-50 transition-all duration-150 cursor-pointer"

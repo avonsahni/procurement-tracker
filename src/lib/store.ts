@@ -100,7 +100,36 @@ export interface ProjectMilestoneView {
   packages: ProjectMilestonePackage[];
 }
 export async function fetchProjectMilestone(projectId: string, milestone: string): Promise<ProjectMilestoneView> {
-  return api(`/api/projects/${projectId}/milestones/${encodeURIComponent(milestone)}`);
+  const key = `${projectId}|${milestone}`;
+  const cached = _milestoneCache.get(key);
+  if (cached) return cached;
+  // Reuse an in-flight request (e.g. started by prefetchProjectMilestone on hover)
+  const pending = _milestonePending.get(key);
+  if (pending) return pending;
+  return _startMilestoneFetch(key, projectId, milestone);
+}
+
+/**
+ * Fire-and-forget prefetch — call on hover so data is ready by the time
+ * the user clicks. Safe to call multiple times; deduplicates automatically.
+ */
+export function prefetchProjectMilestone(projectId: string, milestone: string): void {
+  const key = `${projectId}|${milestone}`;
+  if (!_milestoneCache.has(key) && !_milestonePending.has(key)) {
+    _startMilestoneFetch(key, projectId, milestone).catch(() => {});
+  }
+}
+
+// ── internal helpers ────────────────────────────────────────────────────────
+const _milestoneCache  = new Map<string, ProjectMilestoneView>();
+const _milestonePending = new Map<string, Promise<ProjectMilestoneView>>();
+
+function _startMilestoneFetch(key: string, projectId: string, milestone: string) {
+  const p = api(`/api/projects/${projectId}/milestones/${encodeURIComponent(milestone)}`)
+    .then((d: ProjectMilestoneView) => { _milestoneCache.set(key, d); _milestonePending.delete(key); return d; })
+    .catch((e: unknown) => { _milestonePending.delete(key); throw e; });
+  _milestonePending.set(key, p);
+  return p;
 }
 export interface NewProjectInput {
   name: string;

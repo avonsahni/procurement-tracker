@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { guard } from '@/lib/auth';
 import { EXECUTION_MILESTONES, milestoneProgressFromTasks } from '@/lib/types';
@@ -17,38 +16,40 @@ export async function GET(
   const { id: projectId, milestone: rawMilestone } = await params;
   const milestone = decodeURIComponent(rawMilestone);
 
-  // Validate the milestone name against the known set so we never run an
-  // unbounded query on arbitrary input.
   if (!(EXECUTION_MILESTONES as readonly string[]).includes(milestone)) {
     return NextResponse.json({ error: 'Unknown milestone' }, { status: 400 });
   }
 
-  // Project visibility is enforced by RLS on the user's own client.
-  const supabase = await createServerSupabase();
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, name, client, status')
-    .eq('id', projectId)
-    .maybeSingle();
-  if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+  // Use the admin client throughout — guard() already validated auth and gave us
+  // auth.orgId, so we authorise by filtering on org_id rather than relying on
+  // RLS (which requires a user-session client and adds JWT-parse overhead).
+  const admin = createAdminSupabase();
 
-  const { data: pkgRows } = await supabase
-    .from('packages')
-    .select('id, name, category, current_stage')
-    .eq('project_id', projectId)
-    .order('created_at');
-  const packages = pkgRows || [];
+  // Project visibility check and packages list run in parallel.
+  const [projectRes, pkgRes] = await Promise.all([
+    admin.from('projects')
+      .select('id, name, client, status')
+      .eq('id', projectId)
+      .eq('org_id', auth.orgId)
+      .maybeSingle(),
+    admin.from('packages')
+      .select('id, name, category, current_stage')
+      .eq('project_id', projectId)
+      .order('created_at'),
+  ]);
 
-  // milestone_tasks RLS keys off the project owner (not org members), so read
-  // them with the admin client — same pattern as assembleProjectSummary.
+  if (!projectRes.data) {
+    return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+  }
+  const packages = pkgRes.data || [];
+
+  // Tasks for this specific milestone across all packages in the project.
   let tasksByPkg: Record<string, any[]> = {};
   if (packages.length > 0) {
-    const ids = packages.map(p => p.id);
-    const admin = createAdminSupabase();
     const { data: tasks } = await admin
       .from('milestone_tasks')
       .select('id, package_id, name, description, progress, start_date, end_date, sort_order, created_by, created_at')
-      .in('package_id', ids)
+      .in('package_id', packages.map(p => p.id))
       .eq('milestone_name', milestone)
       .order('sort_order')
       .order('created_at');
@@ -79,10 +80,10 @@ export async function GET(
   });
 
   return NextResponse.json({
-    projectId: project.id,
-    projectName: project.name,
-    client: project.client || '',
-    status: project.status,
+    projectId: projectRes.data.id,
+    projectName: projectRes.data.name,
+    client: projectRes.data.client || '',
+    status: projectRes.data.status,
     milestone,
     packages: result,
   });
