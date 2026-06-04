@@ -3,6 +3,11 @@ import { guard } from '@/lib/auth';
 import { createSubscription, getPlanId } from '@/lib/razorpay';
 import { z } from 'zod';
 
+const SEAT_LIMITS: Record<string, { min: number; max: number }> = {
+  starter: { min: 5,  max: 10 },
+  pro:     { min: 10, max: 50 },
+};
+
 const Schema = z.object({
   plan:     z.enum(['starter', 'pro']),
   period:   z.enum(['monthly', 'annual']),
@@ -20,6 +25,9 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
 
   const { plan, period, quantity } = parsed.data;
+  const limits = SEAT_LIMITS[plan];
+  if (quantity < limits.min) return NextResponse.json({ error: `Minimum ${limits.min} seats required for ${plan} plan` }, { status: 400 });
+  if (quantity > limits.max) return NextResponse.json({ error: `Maximum ${limits.max} seats allowed for ${plan} plan` },  { status: 400 });
 
   try {
     const planId       = getPlanId(plan, period);

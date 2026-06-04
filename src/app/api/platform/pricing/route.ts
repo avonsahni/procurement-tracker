@@ -14,10 +14,11 @@ export const GET = withRoute(async () => {
 }, { route: '/api/platform/pricing' });
 
 const PricingUpdateSchema = z.object({
-  tier:        z.enum(['trial','starter','pro','enterprise']),
-  price_inr:   z.number().min(0),
-  period:      z.string().max(50).optional(),
-  description: z.string().max(300).optional(),
+  tier:             z.enum(['trial','starter','pro','enterprise']),
+  price_inr:        z.number().min(0),
+  price_inr_annual: z.number().min(0).nullable().optional(),
+  period:           z.string().max(50).optional(),
+  description:      z.string().max(300).optional(),
 });
 
 export const PUT = withRoute(async (req: NextRequest) => {
@@ -27,11 +28,17 @@ export const PUT = withRoute(async (req: NextRequest) => {
   try { raw = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
   const result = PricingUpdateSchema.safeParse(raw);
   if (!result.success) return NextResponse.json({ error: result.error.issues[0]?.message || 'Invalid' }, { status: 400 });
-  const { tier, price_inr, period, description } = result.data;
+  const { tier, price_inr, price_inr_annual, period, description } = result.data;
   const admin = createAdminSupabase();
+  const updatePayload: Record<string, unknown> = {
+    price_inr, period, description,
+    updated_at: new Date().toISOString(),
+    updated_by: auth.fullName,
+  };
+  if (price_inr_annual !== undefined) updatePayload.price_inr_annual = price_inr_annual;
   const { data, error } = await admin
     .from('plan_pricing')
-    .update({ price_inr, period, description, updated_at: new Date().toISOString(), updated_by: auth.fullName })
+    .update(updatePayload)
     .eq('tier', tier)
     .select()
     .single();

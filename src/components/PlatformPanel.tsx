@@ -586,12 +586,12 @@ function ErrorLogSection() {
 // ─── Plans & Coupons Section ──────────────────────────────────────────────────
 
 function PlansSection() {
-  type PricingRow = { tier: string; price_inr: number; period: string; description: string | null; updated_by: string | null; updated_at: string };
+  type PricingRow = { tier: string; price_inr: number; price_inr_annual: number | null; period: string; description: string | null; updated_by: string | null; updated_at: string };
   type CouponRow  = { id: string; code: string; type: 'free' | 'discount'; discount_pct: number | null; free_plan: string | null; valid_days: number; max_uses: number | null; used_count: number; is_active: boolean; expires_at: string | null; notes: string | null };
 
   const [pricing, setPricing]           = useState<PricingRow[]>([]);
   const [editTier, setEditTier]         = useState<string | null>(null);
-  const [editForm, setEditForm]         = useState({ price_inr: 0, period: 'month', description: '' });
+  const [editForm, setEditForm]         = useState({ price_inr: 0, price_inr_annual: 0, period: 'month', description: '' });
   const [savingPrice, setSavingPrice]   = useState(false);
   const [priceMsg, setPriceMsg]         = useState('');
 
@@ -622,7 +622,7 @@ function PlansSection() {
 
   const startEditPrice = (p: PricingRow) => {
     setEditTier(p.tier);
-    setEditForm({ price_inr: p.price_inr, period: p.period, description: p.description ?? '' });
+    setEditForm({ price_inr: p.price_inr, price_inr_annual: p.price_inr_annual ?? 0, period: p.period, description: p.description ?? '' });
     setPriceMsg('');
   };
 
@@ -632,7 +632,11 @@ function PlansSection() {
       const res = await apiFetch('/api/platform/pricing', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier, ...editForm, price_inr: Number(editForm.price_inr) }),
+        body: JSON.stringify({
+          tier, ...editForm,
+          price_inr:        Number(editForm.price_inr),
+          price_inr_annual: Number(editForm.price_inr_annual) || null,
+        }),
       });
       const body = await res.json();
       if (!res.ok) { setPriceMsg(body.error || 'Save failed'); return; }
@@ -752,10 +756,17 @@ function PlansSection() {
 
                 {editTier !== p.tier ? (
                   <>
-                    <p className={`text-2xl font-extrabold ${TIER_TEXT[p.tier]}`}>
-                      {Number(p.price_inr) === 0 ? 'Free' : `₹${Number(p.price_inr).toLocaleString('en-US')}`}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">per {p.period}</p>
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <p className={`text-2xl font-extrabold ${TIER_TEXT[p.tier]}`}>
+                        {Number(p.price_inr) === 0 ? 'Free' : `₹${Number(p.price_inr).toLocaleString('en-IN')}`}
+                      </p>
+                      <span className="text-xs text-slate-500">/ seat / month</span>
+                    </div>
+                    {p.price_inr_annual != null && p.price_inr_annual > 0 && (
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        ₹{Number(p.price_inr_annual).toLocaleString('en-IN')} / seat / year (annual)
+                      </p>
+                    )}
                     {p.description && <p className="text-xs text-slate-400 mt-1">{p.description}</p>}
                     {p.updated_by && (
                       <p className="text-[10px] text-slate-400 mt-2">Updated by {p.updated_by} · {fmtDate(p.updated_at)}</p>
@@ -764,7 +775,7 @@ function PlansSection() {
                 ) : (
                   <div className="space-y-2.5 mt-1">
                     <div>
-                      <label className="text-[11px] text-slate-500 font-medium block mb-1">Price (₹)</label>
+                      <label className="text-[11px] text-slate-500 font-medium block mb-1">Monthly price / seat (₹)</label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">₹</span>
                         <input type="number" min="0" step="1"
@@ -775,12 +786,16 @@ function PlansSection() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-[11px] text-slate-500 font-medium block mb-1">Period</label>
-                      <select value={editForm.period}
-                        onChange={e => setEditForm(f => ({ ...f, period: e.target.value }))}
-                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 bg-white">
-                        {['14 days','month','3 months','6 months','year'].map(o => <option key={o}>{o}</option>)}
-                      </select>
+                      <label className="text-[11px] text-slate-500 font-medium block mb-1">Annual price / seat (₹) <span className="text-slate-400 font-normal">optional</span></label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">₹</span>
+                        <input type="number" min="0" step="1"
+                          value={editForm.price_inr_annual}
+                          onChange={e => setEditForm(f => ({ ...f, price_inr_annual: Number(e.target.value) }))}
+                          placeholder="Leave 0 for 10-month default"
+                          className="w-full pl-7 pr-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="text-[11px] text-slate-500 font-medium block mb-1">Description</label>
