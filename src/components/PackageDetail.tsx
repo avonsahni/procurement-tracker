@@ -485,7 +485,14 @@ export default function PackageDetail({
               onSelectWinner={(v: any) => {
                 setAwardHint(null);
                 setAwardVendor(v.name);
-                setAwardVal(v.revisedAmount.toString());
+                // Use the last visible figure in the matrix: last revision round if any exist,
+                // otherwise the quoted amount. revisedAmount is a DB-internal field that can
+                // silently differ from what the user sees in the table (e.g. an "Initial Revised"
+                // value set on vendor creation but never shown as an R-column).
+                const latestVisible = v.revisions?.length > 0
+                  ? v.revisions[v.revisions.length - 1].amount
+                  : v.quotedAmount;
+                setAwardVal(latestVisible.toString());
                 setPunchingAward(true);
               }}
             />
