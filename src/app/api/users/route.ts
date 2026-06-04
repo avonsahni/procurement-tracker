@@ -72,11 +72,15 @@ export const POST = withRoute(async (req: NextRequest) => {
   const admin = createAdminSupabase();
 
   // ── Seat limit enforcement ────────────────────────────────────────────────
-  const [orgRes, memberCountRes] = await Promise.all([
-    admin.from('organizations').select('seat_count').eq('id', auth.orgId).single(),
+  // seat_count is an optional-migration column; if missing, skip enforcement.
+  const [seatRes, memberCountRes] = await Promise.all([
+    (async () => {
+      try { return await admin.from('organizations').select('seat_count').eq('id', auth.orgId).single(); }
+      catch { return { data: null, error: null }; }
+    })(),
     admin.from('organization_members').select('*', { count: 'exact', head: true }).eq('org_id', auth.orgId),
   ]);
-  const seatLimit   = (orgRes.data as any)?.seat_count as number | null ?? null;
+  const seatLimit   = (seatRes as any).data?.seat_count as number | null ?? null;
   const memberCount = memberCountRes.count ?? 0;
   if (seatLimit !== null && memberCount >= seatLimit) {
     return NextResponse.json(

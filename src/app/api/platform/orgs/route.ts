@@ -9,10 +9,11 @@ export async function GET() {
 
   const admin = createAdminSupabase();
 
-  // All organisations (admin client bypasses RLS)
+  // Core org fields — must not include columns added by optional migrations
+  // (e.g. seat_count) so a missing migration never silently breaks this route.
   const { data: orgs, error: orgsErr } = await admin
     .from('organizations')
-    .select('id, name, plan, subscription_status, trial_ends_at, paused_at, paused_reason, platform_notes, created_at, seat_count')
+    .select('id, name, plan, subscription_status, trial_ends_at, paused_at, paused_reason, platform_notes, created_at')
     .order('created_at', { ascending: false });
 
   if (orgsErr) return NextResponse.json({ error: orgsErr.message }, { status: 500 });
@@ -20,12 +21,17 @@ export async function GET() {
 
   const orgIds = orgs.map((o: any) => o.id);
 
-  // Members, projects, storage, and all auth users — fetch in parallel
-  const [membersRes, projectsRes, storageRes, authRes] = await Promise.all([
+  // Members, projects, storage, all auth users, and optional seat_count — in parallel.
+  // seat_count is fetched separately so a missing migration column never breaks the list.
+  const [membersRes, projectsRes, storageRes, authRes, seatRes] = await Promise.all([
     admin.from('organization_members').select('org_id, user_id, role').in('org_id', orgIds),
     admin.from('projects').select('id, org_id').in('org_id', orgIds),
     admin.from('org_storage_bytes').select('org_id, used_bytes').in('org_id', orgIds),
     admin.auth.admin.listUsers({ perPage: 1000 }),
+    (async () => {
+      try { return await admin.from('organizations').select('id, seat_count').in('id', orgIds); }
+      catch { return { data: null, error: null }; }
+    })(),
   ]);
 
   // Build email lookup
@@ -58,12 +64,19 @@ export async function GET() {
     storageByOrg[(s as any).org_id] = Number((s as any).used_bytes) || 0;
   }
 
+  // Seat count per org — null if migration hasn't been applied yet
+  const seatCountByOrg: Record<string, number | null> = {};
+  for (const s of (seatRes as any).data || []) {
+    seatCountByOrg[s.id] = (s as any).seat_count ?? null;
+  }
+
   const result = orgs.map((org: any) => ({
     ...org,
     memberCount:  memberCountByOrg[org.id]  || 0,
     projectCount: projectCountByOrg[org.id] || 0,
     ownerEmails:  ownerEmailsByOrg[org.id]  || [],
     usedBytes:    storageByOrg[org.id]      || 0,
+    seat_count:   seatCountByOrg[org.id]    ?? null,
   }));
 
   return NextResponse.json(result);

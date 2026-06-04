@@ -13,10 +13,11 @@ export async function GET(
   const { id: orgId } = await params;
   const admin = createAdminSupabase();
 
-  const [orgRes, membersRes, projectsRes, storageRes, authRes] = await Promise.all([
+  // Core fields must not include optional-migration columns (e.g. seat_count).
+  const [orgRes, membersRes, projectsRes, storageRes, authRes, seatRes] = await Promise.all([
     admin.from('organizations')
       .select(`id, name, plan, subscription_status, trial_ends_at,
-               paused_at, paused_reason, platform_notes, created_at, seat_count,
+               paused_at, paused_reason, platform_notes, created_at,
                org_type, website, address_line1, city, state_region, country,
                phone, contact_name, contact_title, contact_email, coupon_code`)
       .eq('id', orgId)
@@ -25,6 +26,10 @@ export async function GET(
     admin.from('projects').select('id').eq('org_id', orgId),
     admin.from('org_storage_bytes').select('used_bytes').eq('org_id', orgId).maybeSingle(),
     admin.auth.admin.listUsers({ perPage: 1000 }),
+    (async () => {
+      try { return await admin.from('organizations').select('seat_count').eq('id', orgId).maybeSingle(); }
+      catch { return { data: null, error: null }; }
+    })(),
   ]);
 
   if (orgRes.error) return NextResponse.json({ error: orgRes.error.message }, { status: 500 });
@@ -40,6 +45,7 @@ export async function GET(
 
   return NextResponse.json({
     ...orgRes.data,
+    seat_count:   (seatRes as any).data?.seat_count ?? null,
     memberCount:  (membersRes.data || []).length,
     projectCount: (projectsRes.data || []).length,
     usedBytes:    Number((storageRes.data as any)?.used_bytes ?? 0),

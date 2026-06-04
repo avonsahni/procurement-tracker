@@ -8,12 +8,15 @@ export const GET = withRoute(async () => {
   if (auth instanceof NextResponse) return auth;
 
   const admin = createAdminSupabase();
-  const [orgRes, countRes] = await Promise.all([
-    admin.from('organizations').select('seat_count, plan').eq('id', auth.orgId).single(),
+  const [seatRes, countRes] = await Promise.all([
+    (async () => {
+      try { return await admin.from('organizations').select('seat_count').eq('id', auth.orgId).single(); }
+      catch { return { data: null, error: null }; }
+    })(),
     admin.from('organization_members').select('*', { count: 'exact', head: true }).eq('org_id', auth.orgId),
   ]);
 
-  const seatCount   = (orgRes.data as any)?.seat_count as number | null ?? null;
+  const seatCount   = (seatRes as any).data?.seat_count as number | null ?? null;
   const memberCount = countRes.count ?? 0;
 
   return NextResponse.json({ seatCount, memberCount });
