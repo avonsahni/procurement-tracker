@@ -1093,6 +1093,14 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                                 <p className="text-[10px] text-slate-400">Billed</p>
                                 <p className="text-sm font-mono font-semibold text-violet-700">{formatCurrency(pkg.billedAmount || 0, pkg.currency)}</p>
                               </div>
+                              <div className="text-right hidden md:block">
+                                <p className="text-[10px] text-slate-400">Cash In</p>
+                                <p className="text-sm font-mono font-semibold text-emerald-600">{formatCurrency(pkg.totalInflowAmount || 0, pkg.currency)}</p>
+                              </div>
+                              <div className="text-right hidden md:block">
+                                <p className="text-[10px] text-slate-400">Cash Out</p>
+                                <p className="text-sm font-mono font-semibold text-red-600">{formatCurrency(pkg.totalOutflowAmount || 0, pkg.currency)}</p>
+                              </div>
                               <div className="text-right">
                                 <p className="text-[10px] text-slate-400">Financial</p>
                                 <p className={`text-sm font-mono font-semibold ${finPct >= 100 ? "text-emerald-600" : "text-violet-700"}`}>{finPct.toFixed(0)}%</p>
