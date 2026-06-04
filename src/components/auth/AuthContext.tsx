@@ -4,6 +4,12 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { UserAccount } from "@/lib/store";
 import { apiFetch } from "@/lib/apiFetch";
 
+// Marks the current browser tab as having an active login.
+// sessionStorage is per-tab and is cleared automatically when the tab closes,
+// so if this key is absent on mount but the server still has a session cookie,
+// the user closed (or crashed) the tab and must log in again.
+const TAB_KEY = 'ps_tab_active';
+
 interface AuthContextType {
   user: UserAccount | null;
   loading: boolean;
@@ -25,11 +31,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/auth/me', { credentials: 'same-origin' })
-      .then(r => r.ok ? r.json() : { user: null })
-      .then(data => { if (!cancelled) setUser(data.user ?? null); })
-      .catch(() => { if (!cancelled) setUser(null); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+
+    (async () => {
+      try {
+        const r = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        const data = r.ok ? await r.json() : { user: null };
+        if (cancelled) return;
+
+        if (data.user) {
+          if (!sessionStorage.getItem(TAB_KEY)) {
+            // Server session cookie exists but this tab never saw a login —
+            // the user closed the previous tab and came back. Invalidate the
+            // server session so they are forced to log in again.
+            await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+            setUser(null);
+          } else {
+            setUser(data.user);
+          }
+        } else {
+          setUser(null);
+        }
+      } catch {
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
     return () => { cancelled = true; };
   }, []);
 
@@ -64,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw err;
     }
     const userData: UserAccount = await res.json();
+    sessionStorage.setItem(TAB_KEY, '1');
     setUser(userData);
   };
 
@@ -78,12 +107,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (body.needsConfirmation) {
       return { needsConfirmation: true };
     }
+    sessionStorage.setItem(TAB_KEY, '1');
     setUser(body as UserAccount);
     return { needsConfirmation: false };
   };
 
   const logout = async () => {
     await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    sessionStorage.removeItem(TAB_KEY);
     setUser(null);
     setEditMode(false);
   };
