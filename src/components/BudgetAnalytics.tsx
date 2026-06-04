@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { fetchProjects, prefetchProjectMilestone } from "@/lib/store";
 import { formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
 import { ArrowLeft, BarChart3, TrendingUp, DollarSign, Layers, AlertTriangle, CheckCircle2, Clock, Receipt, Flag } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
+import SiteFooter from "@/components/SiteFooter";
 
 interface MilestoneStat {
   name: string;
@@ -119,6 +121,9 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
             <button onClick={onBack} className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition">
               <ArrowLeft className="w-4 h-4" />
             </button>
+            <a href="/" className="hover:opacity-80 transition flex-shrink-0" title="Home">
+              <LogoMark size={36} />
+            </a>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-amber-500 rounded-lg flex items-center justify-center">
                 <BarChart3 className="w-5 h-5 text-white" />
@@ -599,6 +604,7 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
         </div>
 
       </main>
+      <SiteFooter />
     </div>
   );
 }

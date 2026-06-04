@@ -10,6 +10,7 @@ import {
   AlertTriangle, Clock,
 } from "lucide-react";
 import { LogoFull } from "@/components/Logo";
+import SiteFooter from "@/components/SiteFooter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -704,11 +705,7 @@ export default function RegisterPage() {
         </div>
       </main>
 
-      <footer className="py-5 px-6 border-t border-slate-200 bg-white text-center">
-        <p className="text-xs text-slate-400">
-          © {new Date().getFullYear()} ProcureTrack · GDPR compliant · Your data is private and isolated
-        </p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

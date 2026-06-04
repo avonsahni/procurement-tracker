@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { LogoFull } from "@/components/Logo";
 
 export const metadata: Metadata = {
   title: 'Terms of Use — ProcureTrack',
@@ -28,11 +29,17 @@ const css = `
   .legal-topbar {
     background: #fff;
     border-bottom: 1px solid var(--rule);
-    padding: 14px 28px;
+    padding: 12px 28px;
     font-family: "Helvetica Neue", Arial, sans-serif;
     font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
   }
   .legal-topbar a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .legal-topbar .logo-link { display: flex; align-items: center; margin-right: 4px; }
+  .legal-topbar .logo-link:hover { opacity: 0.8; }
+  .legal-topbar .sep { color: #d4d4d4; }
   .legal-topbar a:hover { text-decoration: underline; }
   .wrap {
     max-width: 760px;
@@ -136,9 +143,11 @@ export default function TermsPage() {
       <style dangerouslySetInnerHTML={{ __html: css }} />
 
       <div className="legal-topbar">
-        <a href="/">← Back to ProcureTrack</a>
-        &nbsp;&nbsp;·&nbsp;&nbsp;
+        <a href="/" className="logo-link"><LogoFull height={28} /></a>
+        <span className="sep">·</span>
         <a href="/privacy">Privacy Policy</a>
+        <span className="sep">·</span>
+        <a href="/">Home</a>
       </div>
 
       <div className="wrap">

@@ -7,6 +7,8 @@ import { STAGES, CURRENCY_SYMBOLS, CURRENCY_LABELS, formatCurrency, EXECUTION_MI
 import { useAuth } from "@/components/auth/AuthContext";
 import { useConfirm } from "@/components/ConfirmDialog";
 import UserMenu from "@/components/UserMenu";
+import { LogoMark } from "@/components/Logo";
+import SiteFooter from "@/components/SiteFooter";
 import {
   ArrowLeft, Plus, Briefcase, Package, Trash2, X,
   Clock, CheckCircle2, Lock, Unlock, Search,
@@ -245,8 +247,8 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
             <button onClick={goBack} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition flex-shrink-0">
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <button onClick={() => router.push("/")} className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-700 transition flex-shrink-0" title="Home">
-              <Briefcase className="w-5 h-5 text-white" />
+            <button onClick={() => router.push("/")} className="hover:opacity-80 transition flex-shrink-0" title="Home">
+              <LogoMark size={36} />
             </button>
             <nav className="flex items-center gap-1.5 text-sm min-w-0">
               <span className="font-semibold text-slate-900 truncate">{project.name}</span>
@@ -1200,6 +1202,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
           </div>
         </div>
       )}
+      <SiteFooter />
     </div>
   );
 }

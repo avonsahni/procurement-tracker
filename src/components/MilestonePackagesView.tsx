@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { fetchProjectMilestone, type ProjectMilestoneView } from "@/lib/store";
 import { ArrowLeft, Flag, CheckCircle2, Clock, Circle, CalendarDays, User } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
+import SiteFooter from "@/components/SiteFooter";
 
 const statusColors: Record<string, string> = {
   Active: "text-blue-700",
@@ -75,13 +77,18 @@ export default function MilestonePackagesView({
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-[68px] relative flex items-center">
 
-          {/* Left — back button */}
-          <button
-            onClick={onBack}
-            className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition flex-shrink-0 z-10"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
+          {/* Left — back button + home logo */}
+          <div className="flex items-center gap-2 z-10">
+            <button
+              onClick={onBack}
+              className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition flex-shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <a href="/" className="hover:opacity-80 transition flex-shrink-0" title="Home">
+              <LogoMark size={32} />
+            </a>
+          </div>
 
           {/* Center — project name large + milestone subtitle, absolutely centred */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-20">
@@ -206,6 +213,7 @@ export default function MilestonePackagesView({
           </div>
         )}
       </main>
+      <SiteFooter />
     </div>
   );
 }

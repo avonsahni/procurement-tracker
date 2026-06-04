@@ -20,6 +20,7 @@ import {
 import { CURRENCY_LABELS, formatCurrency } from "@/lib/types";
 import BillingUpgradeModal from "@/components/BillingUpgradeModal";
 import { LogoMark } from "@/components/Logo";
+import SiteFooter from "@/components/SiteFooter";
 
 const API = (path: string, opts?: RequestInit) => {
   const headers = new Headers(opts?.headers);
@@ -2400,7 +2401,9 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
         </button>
         <div className="h-5 w-px bg-slate-200" />
         <div className="flex items-center gap-2.5">
-          <LogoMark size={28} />
+          <a href="/" className="hover:opacity-80 transition" title="Home">
+            <LogoMark size={28} />
+          </a>
           <div>
             <span className="text-sm font-semibold text-slate-900">Admin Panel</span>
             <span className="text-xs text-slate-400 ml-2">{orgName}</span>
@@ -2449,6 +2452,7 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
           {tab === "danger"     && <DangerSection    onReset={() => { loadUsers(); loadSampleCount(); }} sampleCount={sampleCount} />}
         </main>
       </div>
+      <SiteFooter />
     </div>
   );
 }

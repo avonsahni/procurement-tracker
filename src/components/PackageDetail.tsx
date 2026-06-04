@@ -31,6 +31,8 @@ import { STAGES, CURRENCY_SYMBOLS, formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useConfirm } from "@/components/ConfirmDialog";
 import UserMenu from "@/components/UserMenu";
+import { LogoMark } from "@/components/Logo";
+import SiteFooter from "@/components/SiteFooter";
 import StageStepper from "@/components/StageStepper";
 import VendorMatrix from "@/components/VendorMatrix";
 import AuditTrail from "@/components/AuditTrail";
@@ -300,10 +302,10 @@ export default function PackageDetail({
             </button>
             <button
               onClick={() => router.push("/")}
-              className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-700 transition flex-shrink-0"
+              className="hover:opacity-80 transition flex-shrink-0"
               title="Home"
             >
-              <Package className="w-5 h-5 text-white" />
+              <LogoMark size={36} />
             </button>
             {/* Breadcrumb */}
             <nav className="flex items-center gap-1.5 text-sm min-w-0 overflow-hidden">
@@ -1032,6 +1034,7 @@ export default function PackageDetail({
           </div>
         </div>
       )}
+      <SiteFooter />
     </div>
   );
 }

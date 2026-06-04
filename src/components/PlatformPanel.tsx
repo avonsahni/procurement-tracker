@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/apiFetch";
 import {
   ArrowLeft, Shield, BarChart3, Building2, Users, FolderOpen,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { humanBytes, storagePct, PLAN_STORAGE_LIMITS } from "@/lib/storageLimit";
 import { LogoMark } from "@/components/Logo";
+import SiteFooter from "@/components/SiteFooter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2454,6 +2456,7 @@ const NAV: { id: PlatformTab; icon: any; label: string }[] = [
 ];
 
 export default function PlatformPanel({ onBack }: { onBack: () => void }) {
+  const router = useRouter();
   const [tab, setTab] = useState<PlatformTab>('overview');
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2500,7 +2503,9 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
         </button>
         <div className="h-5 w-px bg-slate-200" />
         <div className="flex items-center gap-2.5">
-          <LogoMark size={28} />
+          <button onClick={() => router.push("/")} className="hover:opacity-80 transition" title="Home">
+            <LogoMark size={28} />
+          </button>
           <div>
             <span className="text-sm font-semibold text-slate-900">Platform Control</span>
             <span className="text-xs text-slate-400 ml-2">Super Admin</span>
@@ -2578,6 +2583,7 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
           )}
         </main>
       </div>
+      <SiteFooter />
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
   Building2, FolderOpen, Activity, Settings, Shield, Box, Layers, Search, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown, TrendingUp, TrendingDown,
 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
+import SiteFooter from "@/components/SiteFooter";
 
 const statusColors: Record<string, string> = {
   Active:    "bg-blue-50 text-blue-700 ring-blue-200",
@@ -646,6 +647,7 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
 
       {/* ── HELP GUIDE ─────────────────────────────────────────────────────── */}
       {showHelp && <HelpGuide onClose={() => setShowHelp(false)} />}
+      <SiteFooter />
     </div>
   );
 }
