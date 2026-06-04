@@ -6,8 +6,9 @@ import {
   Users, Receipt, BarChart3, Settings, Lock, ChevronRight,
   CheckCircle2, AlertCircle, Info, Lightbulb, ArrowRight,
   Shield, Building2, Tag, Zap, ClipboardList, Crown, CalendarDays,
-  TrendingUp, TrendingDown,
+  TrendingUp, TrendingDown, Flag,
 } from "lucide-react";
+import { LogoMark } from "@/components/Logo";
 
 // ─── Section types ────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ const SECTIONS: Section[] = [
   { id: "vendors",     label: "Vendors",                icon: Users },
   { id: "billing",     label: "Billing & Invoices",     icon: Receipt },
   { id: "analytics",   label: "Director Dashboard",     icon: BarChart3 },
+  { id: "milestones",  label: "Milestone Detail Page",  icon: Flag },
   { id: "editmode",    label: "Edit Mode",              icon: Lock },
   { id: "users",       label: "User Management",        icon: Shield },
   { id: "settings",    label: "Settings",               icon: Settings },
@@ -149,6 +151,13 @@ function SectionOverview() {
         ))}
       </div>
 
+      <H3>Brand logo navigation</H3>
+      <P>
+        The <strong>ProcureTrack logo</strong> appears in the header of every page and in the
+        footer. Clicking the logo in the header always returns you to the main dashboard.
+        The footer also links to Terms and Privacy pages.
+      </P>
+
       <H3>Sessions</H3>
       <P>
         For security, login sessions are <strong>not persisted</strong> after the browser is closed.
@@ -254,13 +263,13 @@ function SectionProjects() {
         Inside a project you'll see three summary cards stacked on the right:
       </P>
       <ul className="space-y-2 mt-1">
-        <Li><strong>Purchasing Dashboard</strong> — package stage distribution, budget vs awarded</Li>
+        <Li><strong>Purchasing Dashboard</strong> — package stage distribution, budget vs awarded. Click <em>Open Purchasing Dashboard</em> to see all packages as cards.</Li>
         <Li><strong>Execution Dashboard</strong> — weighted milestone completion plus a cumulative Financial Progress breakdown (Billing, Cash Inflow, Cash Outflow as % of total awarded) across awarded packages</Li>
         <Li><strong>Cashflow Dashboard</strong> — total cash in and out with per-package breakdown (read-only)</Li>
       </ul>
       <P>
         The main area shows the <strong>Categories grid</strong>. Click any category card to open
-        its package list, or click the stat chips to see cross-category filtered lists.
+        its package cards, or click the stat chips to see cross-category filtered views.
       </P>
 
       <H3>Deleting a project (two-step confirmation)</H3>
@@ -316,7 +325,7 @@ function SectionCategories() {
         <Li><strong>Progress bar</strong> — visual % of packages that are awarded</Li>
       </ul>
       <Tip>
-        Click a category card to open the package table filtered to that discipline.
+        Click a category card to open its packages as a filterable card grid.
       </Tip>
     </div>
   );
@@ -348,6 +357,14 @@ function SectionPackages() {
           </li>
         ))}
       </ol>
+
+      <H3>Package card grid (Purchasing Dashboard)</H3>
+      <P>
+        Packages in the Purchasing Dashboard are displayed as a <strong>two-column card grid</strong>.
+        Each card shows the package name, origin/currency/category tags, current procurement stage
+        with a progress bar and percentage, vendor count, lead time, and award value (once awarded).
+        Click any card to open that package's detail page.
+      </P>
 
       <H3>Two views per package</H3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
@@ -823,6 +840,67 @@ function SectionBilling() {
   );
 }
 
+function SectionMilestones() {
+  return (
+    <div>
+      <H2>Milestone Detail Page</H2>
+      <p className="text-xs text-slate-400 mb-4">Cross-package milestone view — opened from the Director Dashboard</p>
+      <P>
+        The Milestone Detail page shows how a <strong>single milestone</strong> (e.g. Installation)
+        is progressing across <strong>every package</strong> in a project — all on one screen. It is
+        opened by clicking a milestone tile in the Director Dashboard.
+      </P>
+
+      <H3>Header</H3>
+      <P>
+        The sticky header shows:
+      </P>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Back arrow (←)</strong> — returns you to the Director Dashboard</Li>
+        <Li><strong>ProcureTrack logo</strong> — click it to return to the main dashboard at any time</Li>
+        <Li><strong>Project name</strong> (large, centred) — with the milestone name and status beneath</Li>
+        <Li><strong>Avg %</strong> chip (right) — portfolio average completion for this milestone</Li>
+      </ul>
+
+      <H3>Summary chips</H3>
+      <P>Four chips at the top of the content area summarise package status at a glance:</P>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Packages</strong> — total packages in the project</Li>
+        <Li><strong>Completed</strong> (green) — packages where this milestone is at 100 %</Li>
+        <Li><strong>In Progress</strong> (amber) — packages where the milestone has started but is not yet done</Li>
+        <Li><strong>Not Started</strong> (slate) — packages with 0 % on this milestone</Li>
+      </ul>
+
+      <H3>Package cards</H3>
+      <P>Each awarded package appears as a card showing:</P>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Package name</strong> and category · progress bar · completion % badge</Li>
+        <Li><strong>Task list</strong> — every subtask for this milestone, with start/end dates and the user who added it</Li>
+        <Li><strong>Open in Execution view</strong> button — navigates directly to that package in Execution mode so you can add or update tasks</Li>
+      </ul>
+
+      <H3>Navigation</H3>
+      <ol className="space-y-2 mt-1">
+        {[
+          "Director Dashboard → click any milestone tile → Milestone Detail page.",
+          "From the detail page, click a package card's 'Open in Execution view' to go directly to that package.",
+          "Use the back arrow to return to the Director Dashboard (browser history is preserved).",
+        ].map((s, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
+            <StepBadge n={i + 1} />
+            <span>{s}</span>
+          </li>
+        ))}
+      </ol>
+
+      <Tip>
+        Hover over a milestone tile in the Director Dashboard before clicking — the page data
+        starts pre-loading in the background so the detail page appears faster.
+      </Tip>
+    </div>
+  );
+}
+
 function SectionAnalytics() {
   return (
     <div>
@@ -872,6 +950,22 @@ function SectionAnalytics() {
         <Li><strong>Colour indicator</strong> — green (100 %), amber (in progress), grey (not started)</Li>
       </ul>
       <P>An overall weighted completion % for each project is shown in the project header row.</P>
+
+      <H3>Milestone Detail page</H3>
+      <P>
+        Every milestone tile is <strong>clickable</strong>. Clicking one opens a dedicated
+        <strong> Milestone Detail page</strong> for that milestone across all packages in the project.
+      </P>
+      <ul className="space-y-2 mt-1">
+        <Li>The sticky header shows the project name, milestone name, current status, and average completion % across all packages.</Li>
+        <Li>Summary chips at the top show how many packages are Completed, In Progress, or Not Started for that milestone.</Li>
+        <Li>Each package appears as a card showing its individual progress bar, task list with dates and assigned author, and a link to open that package in Execution view.</Li>
+        <Li>Use the back arrow (←) to return to the Director Dashboard.</Li>
+      </ul>
+      <Tip>
+        Hover over a milestone tile before clicking — data starts loading in the background so the
+        detail page opens faster.
+      </Tip>
 
       <Tip>
         The Director Dashboard always reflects live data — awards, invoices, cash records, and
@@ -1101,6 +1195,7 @@ const SECTION_CONTENT: Record<string, React.ReactNode> = {
   vendors:    <SectionVendors />,
   billing:    <SectionBilling />,
   analytics:  <SectionAnalytics />,
+  milestones: <SectionMilestones />,
   editmode:   <SectionEditMode />,
   users:      <SectionUsers />,
   settings:   <SectionSettings />,
@@ -1123,9 +1218,7 @@ export default function HelpGuide({ onClose }: { onClose: () => void }) {
           {/* Sidebar header */}
           <div className="px-4 py-4 border-b border-slate-200">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
-                <BookOpen className="w-4 h-4 text-white" />
-              </div>
+              <LogoMark size={28} />
               <div>
                 <p className="text-xs font-semibold text-slate-900 leading-none">User Guide</p>
                 <p className="text-[10px] text-slate-400 mt-0.5">{SECTIONS.length} sections</p>
