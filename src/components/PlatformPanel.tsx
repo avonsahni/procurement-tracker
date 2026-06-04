@@ -1315,6 +1315,29 @@ function OrgDetailView({
   const [regSaving, setRegSaving]   = useState(false);
   const [regMsg, setRegMsg]         = useState('');
 
+  // ── Seat count adjustment state ──
+  const [seatAdjustInput, setSeatAdjustInput] = useState<string>('');
+  const [seatSaving, setSeatSaving]           = useState(false);
+  const [seatMsg, setSeatMsg]                 = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const handleSetSeats = async (newCount: number | null) => {
+    setSeatSaving(true); setSeatMsg(null);
+    try {
+      const res = await apiFetch(`/api/platform/orgs/${orgId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seat_count: newCount }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Update failed');
+      setSeatMsg({ type: 'ok', text: newCount === null ? 'Seat limit removed' : `Seat limit set to ${newCount}` });
+      setSeatAdjustInput('');
+      onOrgUpdated();
+      setTimeout(() => setSeatMsg(null), 3000);
+    } catch (e: any) {
+      setSeatMsg({ type: 'err', text: e.message || 'Failed to update seat limit' });
+    } finally { setSeatSaving(false); }
+  };
+
   // ── Extend expiry state ──
   const [extendDate, setExtendDate]   = useState('');
   const [extendSaving, setExtendSaving] = useState(false);
@@ -2085,6 +2108,104 @@ function OrgDetailView({
                 </span>
               )}
             </div>
+          </div>
+
+          {/* ── Seat Limit Management ── */}
+          <div className="bg-white border border-slate-200 rounded-xl p-6">
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-1">
+              <Users className="w-4 h-4 text-blue-500" /> Seat Limit
+            </h3>
+            {(() => {
+              const currentSeats = (org as any).seat_count as number | null ?? null;
+              const members = org.memberCount;
+              const atLimit  = currentSeats !== null && members >= currentSeats;
+              return (
+                <>
+                  <p className="text-xs text-slate-400 mb-4">
+                    Current usage:&nbsp;
+                    <span className={`font-semibold ${atLimit ? 'text-red-600' : 'text-slate-700'}`}>
+                      {members} member{members !== 1 ? 's' : ''}
+                    </span>
+                    {currentSeats !== null
+                      ? <> / <span className={`font-semibold ${atLimit ? 'text-red-600' : 'text-slate-700'}`}>{currentSeats} seats</span> {atLimit && <span className="text-red-500">(full)</span>}</>
+                      : <span className="text-slate-400"> / no limit set</span>
+                    }
+                  </p>
+
+                  {/* Quick delta presets */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {(currentSeats !== null ? [
+                      { label: '−5',  delta: -5  },
+                      { label: '−1',  delta: -1  },
+                      { label: '+1',  delta: +1  },
+                      { label: '+5',  delta: +5  },
+                      { label: '+10', delta: +10 },
+                    ] : [
+                      { label: '5',   abs: 5   },
+                      { label: '10',  abs: 10  },
+                      { label: '20',  abs: 20  },
+                      { label: '50',  abs: 50  },
+                    ]).map((p: any) => {
+                      const next = 'abs' in p ? p.abs : (currentSeats ?? 0) + p.delta;
+                      const disabled = next < 1;
+                      return (
+                        <button
+                          key={p.label}
+                          type="button"
+                          disabled={disabled || seatSaving}
+                          onClick={() => handleSetSeats(Math.max(1, next))}
+                          className={`px-3 py-1.5 text-xs font-semibold border rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed ${
+                            'delta' in p && p.delta < 0
+                              ? 'border-red-200 bg-red-50 hover:bg-red-100 text-red-700'
+                              : 'border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Direct input + apply */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={seatAdjustInput}
+                      onChange={e => setSeatAdjustInput(e.target.value)}
+                      placeholder={currentSeats !== null ? `Current: ${currentSeats}` : 'Set exact number'}
+                      className="w-40 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    />
+                    <button
+                      onClick={() => {
+                        const n = parseInt(seatAdjustInput, 10);
+                        if (!isNaN(n) && n >= 1) handleSetSeats(n);
+                      }}
+                      disabled={!seatAdjustInput || isNaN(parseInt(seatAdjustInput, 10)) || parseInt(seatAdjustInput, 10) < 1 || seatSaving}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition disabled:opacity-40"
+                    >
+                      {seatSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      {seatSaving ? 'Saving…' : 'Set Limit'}
+                    </button>
+                    {currentSeats !== null && (
+                      <button
+                        onClick={() => handleSetSeats(null)}
+                        disabled={seatSaving}
+                        className="px-3 py-2 border border-slate-200 text-slate-500 text-sm rounded-lg hover:bg-slate-50 transition disabled:opacity-40"
+                      >
+                        Remove limit
+                      </button>
+                    )}
+                    {seatMsg && (
+                      <span className={`text-xs font-medium ${seatMsg.type === 'ok' ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {seatMsg.text}
+                      </span>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* ── Quick Actions ── */}
