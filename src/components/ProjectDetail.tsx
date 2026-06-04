@@ -1048,7 +1048,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                         <div
                           key={pkg.id}
                           onClick={() => openPackage(pkg.id, "execution")}
-                          className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group"
+                          className="pressable bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group"
                         >
                           {/* Package header — click navigates to package detail */}
                           <div className="px-5 py-4 bg-slate-50/60 border-b border-slate-200 flex items-center gap-4">

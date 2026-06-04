@@ -251,7 +251,7 @@ function ProjectCard({ project: p, onOpen }: ProjectCardProps) {
 
   return (
     <div
-      className="group bg-white rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col"
+      className="pressable group bg-white rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col"
       onClick={() => onOpen(p.id)}
     >
       {/* Card header */}

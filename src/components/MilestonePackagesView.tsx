@@ -132,7 +132,7 @@ export default function MilestonePackagesView({
               <div
                 key={pkg.id}
                 onClick={() => onOpenPackage(pkg.id)}
-                className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-blue-300 hover:shadow-sm transition cursor-pointer flex flex-col"
+                className="pressable bg-white border border-slate-200 rounded-2xl p-5 hover:border-blue-300 hover:shadow-sm transition cursor-pointer flex flex-col"
               >
                 {/* Package header */}
                 <div className="flex items-start justify-between gap-2 mb-3">
