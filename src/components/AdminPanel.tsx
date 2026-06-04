@@ -9,7 +9,7 @@ import {
   ChevronRight, Loader2, Globe, Key, UserPlus, Lock,
   Download, FileSpreadsheet, Package, Layers, Receipt, Activity,
   Clock, FolderOpen, UserCheck, UserMinus, Database, Zap,
-  TrendingUp, TrendingDown, CreditCard, MessageSquare, ClipboardList,
+  TrendingUp, TrendingDown, CreditCard, MessageSquare, ClipboardList, Mail,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import {
@@ -18,7 +18,6 @@ import {
   UserAccount, CompanyInfo, NewProjectInput,
 } from "@/lib/store";
 import { CURRENCY_LABELS, formatCurrency } from "@/lib/types";
-import BillingUpgradeModal from "@/components/BillingUpgradeModal";
 import { LogoMark } from "@/components/Logo";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -166,7 +165,8 @@ function PlanValidityCard() {
   const plan   = user?.orgPlan   ?? 'trial';
   const status = user?.orgStatus ?? 'trial';
   const expiryStr = user?.trialEndsAt ?? null;
-  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [contactFlash, setContactFlash] = useState(false);
+  const showContactMsg = () => { setContactFlash(true); setTimeout(() => setContactFlash(false), 5000); };
   const fmtExpiry = (s: string) =>
     new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -215,7 +215,7 @@ function PlanValidityCard() {
           </div>
           {canUpgrade && (
             <button
-              onClick={() => setShowUpgrade(true)}
+              onClick={showContactMsg}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition flex-shrink-0"
             >
               <CreditCard className="w-3.5 h-3.5" />
@@ -224,15 +224,11 @@ function PlanValidityCard() {
           )}
         </div>
       </div>
-      {showUpgrade && (
-        <BillingUpgradeModal
-          currentPlan={plan}
-          onClose={() => setShowUpgrade(false)}
-          onSuccess={() => {
-            setShowUpgrade(false);
-            window.location.reload();
-          }}
-        />
+      {contactFlash && (
+        <div className="mt-3 flex items-center gap-2 px-4 py-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+          <Mail className="w-4 h-4 flex-shrink-0 text-blue-500" />
+          <span>Contact ProcureTrack to activate or upgrade — <a href="mailto:admin@procuretrack.in" className="font-semibold underline">admin@procuretrack.in</a></span>
+        </div>
       )}
     </>
   );
@@ -2368,7 +2364,8 @@ function SubscriptionSection({ users }: { users: UserAccount[] }) {
   const plan      = user?.orgPlan   ?? 'trial';
   const status    = user?.orgStatus ?? 'trial';
   const expiryStr = user?.trialEndsAt ?? null;
-  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [contactFlash, setContactFlash] = useState(false);
+  const showContactMsg = () => { setContactFlash(true); setTimeout(() => setContactFlash(false), 5000); };
   const daysLeft = expiryStr
     ? Math.ceil((new Date(expiryStr).getTime() - Date.now()) / 86_400_000)
     : null;
@@ -2440,7 +2437,7 @@ function SubscriptionSection({ users }: { users: UserAccount[] }) {
             </p>
           </div>
           <button
-              onClick={() => setShowUpgrade(true)}
+              onClick={showContactMsg}
               className={`flex items-center gap-1.5 px-4 py-2 text-white text-sm font-semibold rounded-lg transition flex-shrink-0 ${primaryBtn.color}`}
             >
               <CreditCard className="w-4 h-4" />
@@ -2453,7 +2450,7 @@ function SubscriptionSection({ users }: { users: UserAccount[] }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Activate / Renew */}
           <button
-            onClick={() => setShowUpgrade(true)}
+            onClick={showContactMsg}
             className="flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 transition group text-center"
           >
             <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center group-hover:scale-105 transition">
@@ -2471,7 +2468,7 @@ function SubscriptionSection({ users }: { users: UserAccount[] }) {
 
           {/* Upgrade Plan */}
           <button
-            onClick={() => setShowUpgrade(true)}
+            onClick={showContactMsg}
             disabled={plan === 'pro' || plan === 'enterprise'}
             className="flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-violet-200 bg-violet-50 hover:bg-violet-100 transition group text-center disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -2519,12 +2516,16 @@ function SubscriptionSection({ users }: { users: UserAccount[] }) {
         </div>
       </div>
 
-      {showUpgrade && (
-        <BillingUpgradeModal
-          currentPlan={plan}
-          onClose={() => setShowUpgrade(false)}
-          onSuccess={() => { setShowUpgrade(false); window.location.reload(); }}
-        />
+      {contactFlash && (
+        <div className="flex items-center gap-3 px-5 py-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+          <Mail className="w-5 h-5 flex-shrink-0 text-blue-500" />
+          <span>
+            To subscribe, renew, or upgrade your plan, please contact ProcureTrack at{' '}
+            <a href="mailto:admin@procuretrack.in" className="font-semibold underline hover:text-blue-900">
+              admin@procuretrack.in
+            </a>
+          </span>
+        </div>
       )}
     </div>
   );
