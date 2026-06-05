@@ -217,7 +217,7 @@ export default function AccountingLedger({ onBack }: { onBack: () => void }) {
     : project ? `${project.name}${project.client ? ` · ${project.client}` : ""}` : "";
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       {/* HEADER */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -252,7 +252,7 @@ export default function AccountingLedger({ onBack }: { onBack: () => void }) {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
 
         {/* LEVEL 1 — Statement type cards */}
         {level === "cards" && (
