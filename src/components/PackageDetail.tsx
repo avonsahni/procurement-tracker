@@ -104,6 +104,12 @@ export default function PackageDetail({
     setPkg(data);
   }, [packageId]);
 
+  /** Re-fetch project summary (for award budget constraint — keeps modal fresh). */
+  const reloadProject = useCallback(async () => {
+    const data = await fetchProject(projectId);
+    setProject(data);
+  }, [projectId]);
+
   /** Full load on mount: package + project summary (for budget constraint). */
   useEffect(() => {
     (async () => {
@@ -485,14 +491,13 @@ export default function PackageDetail({
               onSelectWinner={(v: any) => {
                 setAwardHint(null);
                 setAwardVendor(v.name);
-                // Use the last visible figure in the matrix: last revision round if any exist,
-                // otherwise the quoted amount. revisedAmount is a DB-internal field that can
-                // silently differ from what the user sees in the table (e.g. an "Initial Revised"
-                // value set on vendor creation but never shown as an R-column).
                 const latestVisible = v.revisions?.length > 0
                   ? v.revisions[v.revisions.length - 1].amount
                   : v.quotedAmount;
                 setAwardVal(latestVisible.toString());
+                // Refresh project data so "Available Budget" in the modal reflects
+                // any awards made by other users since this page loaded.
+                reloadProject();
                 setPunchingAward(true);
               }}
             />

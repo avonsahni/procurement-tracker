@@ -73,6 +73,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (error || !row) return NextResponse.json({ error: error?.message || 'Award failed' }, { status: 500 });
 
+  // ── POST-UPDATE RACE CHECK ────────────────────────────────────────────────
+  // Re-verify the budget constraint immediately after the write. Catches the
+  // rare case where two concurrent award requests both passed the pre-check
+  // (read-check-write gap). If violated, revert this package to its prior state.
+  if (project) {
+    const { data: recheckPkgs } = await supabase
+      .from('packages')
+      .select('award_value')
+      .eq('project_id', pkg.project_id)
+      .eq('current_stage', 'Award');
+
+    const totalNow = (recheckPkgs || []).reduce((s, p) => s + Number(p.award_value || 0), 0);
+    if (totalNow > Number(project.budget)) {
+      // Rollback to previous state
+      await supabase
+        .from('packages')
+        .update({ current_stage: pkg.current_stage, award_value: pkg.award_value ?? null, awarded_vendor_id: null, award_date: null })
+        .eq('id', pkgId);
+      return NextResponse.json(
+        { error: 'Award failed: another package was awarded simultaneously and the budget is now fully committed. Please refresh and try again.' },
+        { status: 409 }
+      );
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Grab package name for audit label
   const { data: pkgInfo } = await supabase.from('packages').select('name').eq('id', pkgId).maybeSingle();
 
