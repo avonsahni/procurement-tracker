@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { fetchProjects, prefetchProjectMilestone } from "@/lib/store";
 import { formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
-import { ArrowLeft, BarChart3, TrendingUp, DollarSign, Layers, AlertTriangle, CheckCircle2, Clock, Receipt, Flag } from "lucide-react";
+import { ArrowLeft, BarChart3, TrendingUp, DollarSign, Layers, AlertTriangle, CheckCircle2, Clock, Receipt, Flag, BookOpen } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -37,7 +37,7 @@ const statusColors: Record<string, string> = {
   Completed: "text-slate-500",
 };
 
-export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
+export default function BudgetAnalytics({ onBack, onShowLedger }: { onBack: () => void; onShowLedger?: () => void }) {
   const router = useRouter();
   const [data, setData] = useState<ProjectBudgetData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,9 +134,19 @@ export default function BudgetAnalytics({ onBack }: { onBack: () => void }) {
               </div>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-xs text-slate-600">Live</span>
+          <div className="flex items-center gap-3">
+            {onShowLedger && (
+              <button
+                onClick={onShowLedger}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white transition shadow-sm"
+              >
+                <BookOpen className="w-4 h-4" /> Accounting Ledger
+              </button>
+            )}
+            <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              <span className="text-xs text-slate-600">Live</span>
+            </div>
           </div>
         </div>
       </header>

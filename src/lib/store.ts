@@ -73,6 +73,44 @@ export async function fetchProject(id: string): Promise<ProjectSummary | undefin
   try { return await api(`/api/projects/${id}`); } catch { return undefined; }
 }
 
+// Accounting Ledger
+export type LedgerType = 'billing' | 'inflow' | 'outflow';
+
+export interface LedgerProjectRow {
+  id: string;
+  name: string;
+  client: string;
+  entryCount: number;
+  total: number;
+}
+export interface LedgerEntry {
+  id: string;
+  package: string;
+  currency: string;
+  amount: number;
+  date: string;
+  user: string;
+  // billing
+  invoiceNumber?: string;
+  notes?: string;
+  // inflow
+  onAccount?: string;
+  fromParty?: string;
+  // outflow
+  toWhom?: string;
+  onAccountOf?: string;
+  // inflow + outflow
+  remarks?: string;
+}
+
+export async function fetchLedgerProjects(type: LedgerType): Promise<LedgerProjectRow[]> {
+  const data = await api(`/api/ledger?type=${type}`);
+  return data.projects || [];
+}
+export async function fetchLedgerStatement(type: LedgerType, projectId: string): Promise<{ project: { id: string; name: string; client: string }; entries: LedgerEntry[] }> {
+  return api(`/api/ledger?type=${type}&projectId=${encodeURIComponent(projectId)}`);
+}
+
 export interface MilestoneTaskDetail {
   id: string;
   name: string;

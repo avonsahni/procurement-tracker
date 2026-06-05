@@ -5,13 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthContext";
 import Dashboard from "@/components/Dashboard";
 import BudgetAnalytics from "@/components/BudgetAnalytics";
+import AccountingLedger from "@/components/AccountingLedger";
 import AdminPanel from "@/components/AdminPanel";
 import PlatformPanel from "@/components/PlatformPanel";
 import LandingPage from "@/components/LandingPage";
 import ExpiryBanner from "@/components/ExpiryBanner";
 
-type View = "dashboard" | "budget-analytics" | "admin" | "platform";
-const PANEL_VIEWS = new Set<string>(["budget-analytics", "admin", "platform"]);
+type View = "dashboard" | "budget-analytics" | "accounting-ledger" | "admin" | "platform";
+const PANEL_VIEWS = new Set<string>(["budget-analytics", "accounting-ledger", "admin", "platform"]);
 
 function HomeInner() {
   const { user, loading, isOrgBlocked } = useAuth();
@@ -39,7 +40,16 @@ function HomeInner() {
     return (
       <main className="min-h-screen bg-slate-50">
         {isOrgBlocked && <ExpiryBanner onExport={handleBannerExport} />}
-        <BudgetAnalytics onBack={() => router.back()} />
+        <BudgetAnalytics onBack={() => router.back()} onShowLedger={() => goTo("accounting-ledger")} />
+      </main>
+    );
+  }
+
+  if (view === "accounting-ledger") {
+    return (
+      <main className="min-h-screen bg-slate-50">
+        {isOrgBlocked && <ExpiryBanner onExport={handleBannerExport} />}
+        <AccountingLedger onBack={() => router.back()} />
       </main>
     );
   }
