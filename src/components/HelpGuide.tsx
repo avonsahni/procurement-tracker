@@ -6,7 +6,7 @@ import {
   Users, Receipt, BarChart3, Settings, Lock, ChevronRight,
   CheckCircle2, AlertCircle, Info, Lightbulb, ArrowRight,
   Shield, Building2, Tag, Zap, ClipboardList, Crown, CalendarDays,
-  TrendingUp, TrendingDown, Flag,
+  TrendingUp, TrendingDown, Flag, Library, Download,
 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 
@@ -30,6 +30,7 @@ const SECTIONS: Section[] = [
   { id: "vendors",     label: "Vendors",                icon: Users },
   { id: "billing",     label: "Billing & Invoices",     icon: Receipt },
   { id: "analytics",   label: "Director Dashboard",     icon: BarChart3 },
+  { id: "ledger",      label: "Accounting Ledger",      icon: Library },
   { id: "milestones",  label: "Milestone Detail Page",  icon: Flag },
   { id: "editmode",    label: "Edit Mode",              icon: Lock },
   { id: "users",       label: "User Management",        icon: Shield },
@@ -967,10 +968,128 @@ function SectionAnalytics() {
         detail page opens faster.
       </Tip>
 
+      <H3>Accounting Ledger button</H3>
+      <P>
+        At the top of the Director Dashboard, the <strong>Accounting Ledger</strong> button opens a
+        consolidated, exportable statement of every billing, cash inflow, and cash outflow entry
+        across the portfolio — drilled down by project. See the <strong>Accounting Ledger</strong>
+        section for the full walkthrough.
+      </P>
+
       <Tip>
         The Director Dashboard always reflects live data — awards, invoices, cash records, and
         milestone updates appear the next time you open it.
       </Tip>
+    </div>
+  );
+}
+
+function SectionLedger() {
+  const types = [
+    {
+      name: "Billing",
+      icon: Receipt,
+      color: "bg-violet-50 border-violet-200",
+      tint: "text-violet-700",
+      desc: "Every invoice raised against awarded packages — the same entries logged in the Billing section of each package.",
+      cols: "Package · Invoice # · Date · Amount · Notes · User",
+    },
+    {
+      name: "Cash Inflow",
+      icon: TrendingUp,
+      color: "bg-emerald-50 border-emerald-200",
+      tint: "text-emerald-700",
+      desc: "Every receipt recorded in the Cash Inflow card of each package's Execution view.",
+      cols: "Package · On Account Of · From Party · Date Received · Amount · Remarks · User",
+    },
+    {
+      name: "Cash Outflow",
+      icon: TrendingDown,
+      color: "bg-red-50 border-red-200",
+      tint: "text-red-700",
+      desc: "Every payment recorded in the Cash Outflow card of each package's Execution view.",
+      cols: "Package · To Whom · On Account Of · Date Paid · Amount · Remarks · User",
+    },
+  ];
+
+  return (
+    <div>
+      <H2>Accounting Ledger</H2>
+      <p className="text-xs text-slate-400 mb-4">A consolidated, exportable statement of every financial entry — opened from the Director Dashboard</p>
+      <P>
+        The <strong>Accounting Ledger</strong> collects every financial entry made anywhere in the
+        app into one place, grouped by type and broken down by project. It is a read-only,
+        accountant-friendly view — nothing is created or edited here; it simply mirrors the entries
+        your team logged in each package.
+      </P>
+
+      <H3>Opening the ledger</H3>
+      <P>
+        Open the <strong>Director Dashboard</strong> (amber button in the main dashboard header),
+        then click the <strong>Accounting Ledger</strong> button at the top of that page. The ledger
+        opens as its own full page.
+      </P>
+
+      <H3>Three statement types</H3>
+      <P>The ledger opens on a three-card landing screen. Each card is one statement type:</P>
+      <div className="space-y-3 mt-2">
+        {types.map(t => {
+          const Icon = t.icon;
+          return (
+            <div key={t.name} className={`rounded-xl border p-3.5 ${t.color}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <Icon className={`w-4 h-4 ${t.tint}`} />
+                <p className={`text-xs font-semibold ${t.tint}`}>{t.name} Statement</p>
+              </div>
+              <p className="text-[12px] text-slate-600 leading-relaxed">{t.desc}</p>
+              <p className="text-[11px] text-slate-400 mt-1.5"><strong>Columns:</strong> # · {t.cols}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <H3>Three-level drill-down</H3>
+      <ol className="space-y-2 mt-1">
+        {[
+          "Statement type — click Billing, Cash Inflow, or Cash Outflow on the landing screen.",
+          "Project list — a grid of project cards opens, each showing that project's entry count and running total for the chosen statement type. Projects with no entries show zero.",
+          "Statement table — click a project card to open the full line-item statement, one row per entry, sorted oldest-to-newest by date.",
+        ].map((s, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
+            <StepBadge n={i + 1} />
+            <span>{s}</span>
+          </li>
+        ))}
+      </ol>
+
+      <H3>The statement table</H3>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Page header</strong> — always shows what you are viewing (the statement type) and the project name, so any exported or printed view is self-describing.</Li>
+        <Li><strong>User column</strong> — every row names the team member who entered that record, for traceability.</Li>
+        <Li><strong>Date column</strong> — rows are ordered by their entry date (invoice date, date received, or date paid).</Li>
+        <Li><strong>Sticky total footer</strong> — the column total stays pinned to the bottom of the table as you scroll.</Li>
+        <Li><strong>Scrolls in its own window</strong> — long statements scroll within the table area while the header and footer stay in view.</Li>
+      </ul>
+
+      <H3>Exporting</H3>
+      <div className="flex gap-2.5 bg-slate-50 border border-slate-200 rounded-xl p-3.5 mt-2">
+        <Download className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-slate-600 leading-relaxed">
+          On any statement table, the <strong>Export</strong> button in the page header downloads the
+          full statement — every column and row, including the User and Date columns — as an Excel
+          (XLSX) spreadsheet for sharing with your finance team or auditors.
+        </p>
+      </div>
+
+      <Tip>
+        The ledger always reflects live data. Any invoice, receipt, or payment logged in a package
+        appears here the next time you open the relevant statement — there is nothing extra to sync.
+      </Tip>
+
+      <Note>
+        The Accounting Ledger is read-only and scoped to your organisation. To add or correct an
+        entry, go to the relevant package's Billing or Cash Flow section in Edit Mode.
+      </Note>
     </div>
   );
 }
@@ -1195,6 +1314,7 @@ const SECTION_CONTENT: Record<string, React.ReactNode> = {
   vendors:    <SectionVendors />,
   billing:    <SectionBilling />,
   analytics:  <SectionAnalytics />,
+  ledger:     <SectionLedger />,
   milestones: <SectionMilestones />,
   editmode:   <SectionEditMode />,
   users:      <SectionUsers />,
