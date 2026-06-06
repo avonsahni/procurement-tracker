@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthContext";
 import { ConfirmProvider } from "@/components/ConfirmDialog";
+import GlobalHelp from "@/components/GlobalHelp";
 import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
@@ -168,6 +169,7 @@ export default function RootLayout({
         <AuthProvider>
           <ConfirmProvider>
             {children}
+            <GlobalHelp />
           </ConfirmProvider>
         </AuthProvider>
         <Analytics />
