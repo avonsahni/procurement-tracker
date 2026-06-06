@@ -10,9 +10,8 @@ import {
 import { formatCurrency, EXECUTION_MILESTONES, MILESTONE_WEIGHTS, TOTAL_MILESTONE_WEIGHT } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
-import HelpGuide from "@/components/HelpGuide";
 import {
-  Building2, FolderOpen, Activity, Settings, Shield, Box, Layers, Search, BarChart3, ArrowRight, Receipt, HelpCircle, CheckCircle2, Target, Crown, TrendingUp, TrendingDown,
+  Building2, FolderOpen, Activity, Settings, Shield, Box, Layers, Search, BarChart3, ArrowRight, Receipt, CheckCircle2, Target, Crown, TrendingUp, TrendingDown,
 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import SiteFooter from "@/components/SiteFooter";
@@ -357,7 +356,6 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
   const router = useRouter();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showHelp, setShowHelp] = useState(false);
   const [company, setCompany] = useState<CompanyInfo>({ name: "", tagline: "" });
   const [search, setSearch] = useState("");
 
@@ -469,14 +467,6 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
                 <Crown className="w-4 h-4" /> Platform
               </button>
             )}
-
-            <button
-              onClick={() => setShowHelp(true)}
-              className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition"
-              title="Help & User Guide"
-            >
-              <HelpCircle className="w-4 h-4" />
-            </button>
 
             <UserMenu />
           </div>
@@ -645,8 +635,6 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
         </div>
       </main>
 
-      {/* ── HELP GUIDE ─────────────────────────────────────────────────────── */}
-      {showHelp && <HelpGuide onClose={() => setShowHelp(false)} />}
       <SiteFooter />
     </div>
   );
