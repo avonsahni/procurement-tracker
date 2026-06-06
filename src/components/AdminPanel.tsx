@@ -19,6 +19,7 @@ import {
 } from "@/lib/store";
 import { CURRENCY_LABELS, formatCurrency } from "@/lib/types";
 import { LogoMark } from "@/components/Logo";
+import HelpButton from "@/components/HelpButton";
 import SiteFooter from "@/components/SiteFooter";
 
 const API = (path: string, opts?: RequestInit) => {
@@ -2618,11 +2619,14 @@ export default function AdminPanel({ onBack, initialTab }: { onBack: () => void;
             <span className="text-xs text-slate-400 ml-2">{orgName}</span>
           </div>
         </div>
-        {isOrgBlocked && (
-          <span className="ml-auto inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
-            <Lock className="w-3 h-3" /> Read-only mode
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-3">
+          {isOrgBlocked && (
+            <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+              <Lock className="w-3 h-3" /> Read-only mode
+            </span>
+          )}
+          <HelpButton />
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { humanBytes, storagePct, PLAN_STORAGE_LIMITS } from "@/lib/storageLimit";
 import { LogoMark } from "@/components/Logo";
+import HelpButton from "@/components/HelpButton";
 import SiteFooter from "@/components/SiteFooter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -2678,10 +2679,11 @@ export default function PlatformPanel({ onBack }: { onBack: () => void }) {
             <span className="text-xs text-slate-400 ml-2">Super Admin</span>
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-3">
           <span className="text-xs bg-orange-50 border border-orange-200 text-orange-700 px-2.5 py-1 rounded-full font-medium">
             🔑 Platform Admin — handle with care
           </span>
+          <HelpButton />
         </div>
       </header>
 

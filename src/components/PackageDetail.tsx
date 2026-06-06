@@ -31,6 +31,7 @@ import { STAGES, CURRENCY_SYMBOLS, formatCurrency } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useConfirm } from "@/components/ConfirmDialog";
 import UserMenu from "@/components/UserMenu";
+import HelpButton from "@/components/HelpButton";
 import { LogoMark } from "@/components/Logo";
 import SiteFooter from "@/components/SiteFooter";
 import StageStepper from "@/components/StageStepper";
@@ -337,6 +338,7 @@ export default function PackageDetail({
                 <span className="hidden sm:inline">{editMode ? "Edit ON" : "Edit Mode"}</span>
               </button>
             )}
+            <HelpButton />
             <UserMenu />
           </div>
         </div>

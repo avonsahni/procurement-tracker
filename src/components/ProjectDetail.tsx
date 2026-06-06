@@ -7,6 +7,7 @@ import { STAGES, CURRENCY_SYMBOLS, CURRENCY_LABELS, formatCurrency, EXECUTION_MI
 import { useAuth } from "@/components/auth/AuthContext";
 import { useConfirm } from "@/components/ConfirmDialog";
 import UserMenu from "@/components/UserMenu";
+import HelpButton from "@/components/HelpButton";
 import { LogoMark } from "@/components/Logo";
 import SiteFooter from "@/components/SiteFooter";
 import {
@@ -276,6 +277,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                 <span className="hidden sm:inline">{editMode ? "Edit ON" : "Edit Mode"}</span>
               </button>
             )}
+            <HelpButton />
             <UserMenu />
           </div>
         </div>
