@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { fetchProjectMilestone, type ProjectMilestoneView } from "@/lib/store";
 import { ArrowLeft, Flag, CheckCircle2, Clock, Circle, CalendarDays, User } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
+import HelpButton from "@/components/HelpButton";
 import SiteFooter from "@/components/SiteFooter";
 
 const statusColors: Record<string, string> = {
@@ -103,10 +104,13 @@ export default function MilestonePackagesView({
             </p>
           </div>
 
-          {/* Right — avg progress chip */}
-          <div className="ml-auto flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex-shrink-0 z-10">
-            <span className="text-xs font-mono font-semibold text-slate-700">{avgProgress}%</span>
-            <span className="text-xs text-slate-500">avg</span>
+          {/* Right — help + avg progress chip */}
+          <div className="ml-auto flex items-center gap-2 flex-shrink-0 z-10">
+            <HelpButton />
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+              <span className="text-xs font-mono font-semibold text-slate-700">{avgProgress}%</span>
+              <span className="text-xs text-slate-500">avg</span>
+            </div>
           </div>
 
         </div>

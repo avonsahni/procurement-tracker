@@ -11,6 +11,7 @@ import {
   LedgerType, LedgerProjectRow, LedgerEntry,
 } from "@/lib/store";
 import { LogoMark } from "@/components/Logo";
+import HelpButton from "@/components/HelpButton";
 import SiteFooter from "@/components/SiteFooter";
 
 // ── Statement type metadata ──────────────────────────────────────────────────
@@ -239,16 +240,19 @@ export default function AccountingLedger({ onBack }: { onBack: () => void }) {
             </div>
           </div>
 
-          {level === "statement" && entries.length > 0 && (
-            <button
-              onClick={handleExport}
-              disabled={exporting}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white transition flex-shrink-0 disabled:opacity-50"
-            >
-              {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              Export
-            </button>
-          )}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {level === "statement" && entries.length > 0 && (
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white transition disabled:opacity-50"
+              >
+                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Export
+              </button>
+            )}
+            <HelpButton />
+          </div>
         </div>
       </header>
 

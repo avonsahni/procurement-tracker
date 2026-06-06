@@ -6,6 +6,7 @@ import { fetchProjects, prefetchProjectMilestone } from "@/lib/store";
 import { formatCurrency, EXECUTION_MILESTONES } from "@/lib/types";
 import { ArrowLeft, BarChart3, TrendingUp, DollarSign, Layers, AlertTriangle, CheckCircle2, Clock, Receipt, Flag, BookOpen } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
+import HelpButton from "@/components/HelpButton";
 import SiteFooter from "@/components/SiteFooter";
 
 interface MilestoneStat {
@@ -147,6 +148,7 @@ export default function BudgetAnalytics({ onBack, onShowLedger }: { onBack: () =
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
               <span className="text-xs text-slate-600">Live</span>
             </div>
+            <HelpButton />
           </div>
         </div>
       </header>

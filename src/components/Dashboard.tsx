@@ -10,6 +10,7 @@ import {
 import { formatCurrency, EXECUTION_MILESTONES, MILESTONE_WEIGHTS, TOTAL_MILESTONE_WEIGHT } from "@/lib/types";
 import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
+import HelpButton from "@/components/HelpButton";
 import {
   Building2, FolderOpen, Activity, Settings, Shield, Box, Layers, Search, BarChart3, ArrowRight, Receipt, CheckCircle2, Target, Crown, TrendingUp, TrendingDown,
 } from "lucide-react";
@@ -467,6 +468,8 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
                 <Crown className="w-4 h-4" /> Platform
               </button>
             )}
+
+            <HelpButton />
 
             <UserMenu />
           </div>
