@@ -231,6 +231,14 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
     stage === "Award" ? "bg-emerald-500" : stage === "Commercial Negotiation" ? "bg-blue-700"
     : stage === "Technical Negotiation" ? "bg-blue-500" : stage === "RFQ Float" ? "bg-blue-400" : "bg-slate-400";
 
+  const stageCardColors: Record<string, { card: string; text: string; badge: string; chevron: string; dot: string }> = {
+    "Spec Received":          { card: "bg-slate-100 border-slate-300 hover:bg-slate-200",      text: "text-slate-700",   badge: "bg-slate-200 text-slate-600",     chevron: "text-slate-500",   dot: "bg-slate-400 border-slate-400" },
+    "RFQ Float":              { card: "bg-blue-50 border-blue-200 hover:bg-blue-100",           text: "text-blue-700",    badge: "bg-blue-100 text-blue-700",       chevron: "text-blue-400",    dot: "bg-blue-400 border-blue-400" },
+    "Technical Negotiation":  { card: "bg-indigo-50 border-indigo-200 hover:bg-indigo-100",    text: "text-indigo-700",  badge: "bg-indigo-100 text-indigo-700",   chevron: "text-indigo-400",  dot: "bg-indigo-500 border-indigo-500" },
+    "Commercial Negotiation": { card: "bg-violet-50 border-violet-200 hover:bg-violet-100",    text: "text-violet-700",  badge: "bg-violet-100 text-violet-700",   chevron: "text-violet-400",  dot: "bg-violet-600 border-violet-600" },
+    "Award":                  { card: "bg-emerald-50 border-emerald-200 hover:bg-emerald-100", text: "text-emerald-700", badge: "bg-emerald-100 text-emerald-700", chevron: "text-emerald-500", dot: "bg-emerald-500 border-emerald-500" },
+  };
+
   const calculateLeadTime = (p: PackageSummary) => {
     if (!p.rfqFloatDate) return null;
     const diff = Math.floor((p.awardDate ? new Date(p.awardDate).getTime() : Date.now()) - new Date(p.rfqFloatDate).getTime()) / 86400000;
@@ -768,18 +776,15 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                     return next;
                   });
 
+                  const sc = stageCardColors[stage] ?? stageCardColors["Spec Received"];
                   return (
                     <div key={stage} className="flex gap-5">
 
                       {/* ── Timeline column ─────────────────────────────────── */}
                       <div className="flex-shrink-0 w-8 flex flex-col items-center">
                         {/* Node */}
-                        <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all mt-2 ${
-                          hasItems
-                            ? isAward
-                              ? "bg-emerald-500 border-emerald-500"
-                              : "bg-blue-600 border-blue-600"
-                            : "bg-white border-slate-300"
+                        <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all mt-3 ${
+                          hasItems ? sc.dot : "bg-white border-slate-300"
                         }`} />
                         {/* Connector line to next stage */}
                         {!isLast && (
@@ -789,27 +794,25 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
 
                       {/* ── Content column ──────────────────────────────────── */}
                       <div className="flex-1 min-w-0 pb-6">
-                        {/* Stage label row — clickable to collapse/expand */}
+                        {/* Stage card — coloured, clickable to collapse/expand */}
                         <button
                           onClick={hasItems ? toggleCollapse : undefined}
-                          className={`flex items-center gap-2 h-8 mb-3 w-full text-left ${hasItems ? "cursor-pointer group/hdr" : "cursor-default"}`}
+                          className={`flex items-center gap-3 w-full text-left px-4 py-2.5 rounded-xl border mb-3 transition ${
+                            hasItems ? `${sc.card} cursor-pointer` : "bg-slate-50 border-slate-100 cursor-default opacity-50"
+                          }`}
                         >
-                          <span className={`text-sm font-semibold leading-none ${
-                            hasItems ? (isAward ? "text-emerald-700" : "text-slate-800") : "text-slate-300"
-                          }`}>
+                          <span className={`text-sm font-semibold leading-none ${hasItems ? sc.text : "text-slate-300"}`}>
                             {stage}
                           </span>
                           {hasItems && (
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                              isAward ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
-                            }`}>
-                              {stagePkgs.length}
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${sc.badge}`}>
+                              {stagePkgs.length} package{stagePkgs.length !== 1 ? "s" : ""}
                             </span>
                           )}
                           {hasItems && (
                             isCollapsed
-                              ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 ml-auto group-hover/hdr:text-slate-600 transition" />
-                              : <ChevronDown  className="w-3.5 h-3.5 text-slate-400 ml-auto group-hover/hdr:text-slate-600 transition" />
+                              ? <ChevronRight className={`w-3.5 h-3.5 ml-auto ${sc.chevron} transition`} />
+                              : <ChevronDown  className={`w-3.5 h-3.5 ml-auto ${sc.chevron} transition`} />
                           )}
                         </button>
 
