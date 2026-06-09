@@ -774,15 +774,13 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                       {/* ── Timeline column ─────────────────────────────────── */}
                       <div className="flex-shrink-0 w-8 flex flex-col items-center">
                         {/* Node */}
-                        <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all ${
+                        <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all mt-2 ${
                           hasItems
                             ? isAward
-                              ? "bg-emerald-500 border-emerald-500 text-white"
-                              : "bg-blue-600 border-blue-600 text-white"
-                            : "bg-white border-slate-200 text-slate-300"
-                        }`}>
-                          {hasItems ? stagePkgs.length : ""}
-                        </div>
+                              ? "bg-emerald-500 border-emerald-500"
+                              : "bg-blue-600 border-blue-600"
+                            : "bg-white border-slate-300"
+                        }`} />
                         {/* Connector line to next stage */}
                         {!isLast && (
                           <div className={`w-0.5 flex-1 min-h-[32px] my-1 rounded-full ${hasItems ? "bg-slate-300" : "bg-slate-100"}`} />
