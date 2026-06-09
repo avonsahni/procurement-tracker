@@ -3,26 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthContext";
-import { LogOut, User, Shield, ChevronDown, Download, Loader2 } from "lucide-react";
-import { apiFetch } from "@/lib/apiFetch";
+import { LogOut, User, Shield, ChevronDown } from "lucide-react";
 
-/**
- * User avatar button + dropdown menu.
- * Shows user name, username/role badge, Sign Out, and Download My Data (GDPR).
- */
 export default function UserMenu() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -32,28 +23,6 @@ export default function UserMenu() {
     setOpen(false);
     await logout();
     router.push("/");
-  };
-
-  const handleDownloadData = async () => {
-    setDownloading(true);
-    try {
-      const res = await apiFetch('/api/user/data-export');
-      if (!res.ok) throw new Error('Export failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `my-data-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      setOpen(false);
-    } catch (e) {
-      alert('Failed to download your data. Please try again.');
-    } finally {
-      setDownloading(false);
-    }
   };
 
   const initial = user?.fullName?.charAt(0)?.toUpperCase() ?? "?";
@@ -103,19 +72,6 @@ export default function UserMenu() {
 
           {/* Actions */}
           <div className="p-1.5 space-y-0.5">
-            {/* GDPR: Download My Data */}
-            <button
-              onClick={handleDownloadData}
-              disabled={downloading}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition text-left disabled:opacity-50"
-            >
-              {downloading
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Download className="w-4 h-4" />
-              }
-              {downloading ? 'Preparing…' : 'Download My Data'}
-            </button>
-
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition text-left"
@@ -123,13 +79,6 @@ export default function UserMenu() {
               <LogOut className="w-4 h-4" />
               Sign Out
             </button>
-          </div>
-
-          {/* GDPR note */}
-          <div className="px-4 py-2 border-t border-slate-100 bg-slate-50">
-            <p className="text-[10px] text-slate-400 leading-relaxed">
-              "Download My Data" exports all personal data we hold for your account (GDPR Art. 20).
-            </p>
           </div>
         </div>
       )}
