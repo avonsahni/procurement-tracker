@@ -77,9 +77,19 @@ export async function postMessageAction(formData: FormData) {
     }
   }
 
-  // Optional file attachment
+  // Optional file attachment — images and PDF only (mirrored from client-side guard)
+  const ALLOWED_ATTACHMENT_MIME = new Set([
+    "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf",
+  ]);
+  const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB server-side hard cap
+
   const file = formData.get("attachment") as File | null;
-  if (file && file.size > 0 && file.size <= 10 * 1024 * 1024) {
+  if (
+    file &&
+    file.size > 0 &&
+    file.size <= MAX_ATTACHMENT_BYTES &&
+    ALLOWED_ATTACHMENT_MIME.has(file.type)
+  ) {
     try {
       // Ensure the public storage bucket exists
       await admin.storage.createBucket("attachments", { public: true }).catch(() => {});
