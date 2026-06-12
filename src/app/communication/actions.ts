@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { sendPushToUsers } from "@/lib/push";
 
 // ── Post a message ─────────────────────────────────────────────────────────────
 
@@ -73,6 +74,16 @@ export async function postMessageAction(
             mentioned_user_id: uid,
           }))
         );
+
+        // Push-notify each mentioned user (no-op if push isn't configured or
+        // the user has no registered devices). Awaited for serverless reliability.
+        const snippet = body.length > 120 ? `${body.slice(0, 117)}…` : body;
+        await sendPushToUsers(mentionedUserIds, {
+          title: `${user.fullName} mentioned you`,
+          body: snippet,
+          url: `/communication/${channelId}/${threadId}`,
+          tag: `thread-${threadId}`,
+        });
       }
     } catch {
       // ignore malformed JSON — message is already saved

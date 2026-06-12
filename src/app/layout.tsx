@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthContext";
 import { ConfirmProvider } from "@/components/ConfirmDialog";
 import { Analytics } from "@vercel/analytics/next";
+import ServiceWorkerRegistrar from "@/components/pwa/ServiceWorkerRegistrar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -85,6 +86,16 @@ export const metadata: Metadata = {
 
   manifest: "/manifest.webmanifest",
 
+  appleWebApp: {
+    capable: true,
+    title: "ProcureTrack",
+    statusBarStyle: "default",
+  },
+
+  formatDetection: {
+    telephone: false,
+  },
+
   alternates: {
     canonical: "/",
   },
@@ -94,6 +105,13 @@ export const metadata: Metadata = {
       google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
     },
   }),
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0B1B2B",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 const jsonLd = {
@@ -170,6 +188,7 @@ export default function RootLayout({
             {children}
           </ConfirmProvider>
         </AuthProvider>
+        <ServiceWorkerRegistrar />
         <Analytics />
       </body>
     </html>

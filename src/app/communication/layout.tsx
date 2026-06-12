@@ -8,6 +8,7 @@ import UserMenu from "@/components/UserMenu";
 import HelpButton from "@/components/HelpButton";
 import { LogoMark } from "@/components/Logo";
 import MentionBadgeLive from "./mention-badge-live";
+import NotificationToggle from "@/components/pwa/NotificationToggle";
 import type { ChannelRow } from "@/lib/communication/queries";
 
 // ── Channel icon by type / privacy ────────────────────────────────────────────
@@ -155,6 +156,11 @@ export default async function HubLayout({
               </p>
             )}
           </nav>
+
+          {/* Push notifications toggle (per device) */}
+          <div className="px-3 pt-2 border-t border-slate-100">
+            <NotificationToggle variant="row" />
+          </div>
 
           {/* New channel (admins only) */}
           {isAdmin && (
