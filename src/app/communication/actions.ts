@@ -8,14 +8,16 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 
 // ── Post a message ─────────────────────────────────────────────────────────────
 
-export async function postMessageAction(formData: FormData) {
+export async function postMessageAction(
+  formData: FormData
+): Promise<{ messageId: string } | { error: string }> {
   const user = await getCurrentUser();
   if (!user) redirect("/");
 
   const threadId = formData.get("threadId") as string;
   const channelId = formData.get("channelId") as string;
   const body = (formData.get("body") as string | null)?.trim() ?? "";
-  if (!body) return;
+  if (!body) return { error: "empty" };
 
   // Guard against double-send: same body from same author in same thread within 5 s
   const admin = createAdminSupabase();
@@ -30,7 +32,7 @@ export async function postMessageAction(formData: FormData) {
     .maybeSingle();
 
   if (recentDup) {
-    redirect(`/communication/${channelId}/${threadId}`);
+    return { messageId: recentDup.id };
   }
 
   // Use the RLS-scoped client so all message INSERT policies enforce naturally.
@@ -49,7 +51,7 @@ export async function postMessageAction(formData: FormData) {
 
   if (error || !inserted) {
     console.error("[postMessage]", error?.message);
-    redirect(`/communication/${channelId}/${threadId}?error=${encodeURIComponent(error?.message ?? "unknown")}`);
+    return { error: error?.message ?? "unknown" };
   }
 
   // Create mention records for @-mentioned users (body_rich is null in Phase 2 so the
@@ -119,7 +121,7 @@ export async function postMessageAction(formData: FormData) {
   }
 
   revalidatePath(`/communication/${channelId}/${threadId}`);
-  redirect(`/communication/${channelId}/${threadId}`);
+  return { messageId: inserted.id };
 }
 
 // ── Create a thread ───────────────────────────────────────────────────────────

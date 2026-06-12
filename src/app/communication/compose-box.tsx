@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useTransition } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Paperclip, X, Loader2 } from "lucide-react";
-import { postMessageAction } from "./actions";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import type { OrgMember } from "@/lib/communication/queries";
 
@@ -13,21 +12,19 @@ export type { OrgMember };
 const MAX_DROPDOWN = 6;
 const TYPING_THROTTLE_MS = 1500;
 
-// Only images and PDF — enforced here and mirrored server-side in actions.ts
 const ACCEPT = "image/jpeg,image/png,image/gif,image/webp,application/pdf";
 const ALLOWED_MIME = new Set([
   "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf",
 ]);
-const MAX_PDF_BYTES  = 10 * 1024 * 1024; // 10 MB
-const MAX_IMG_BYTES  =  5 * 1024 * 1024; //  5 MB (before compression)
-const COMPRESS_SKIP  =       200 * 1024; // don't compress images already <200 KB
+const MAX_PDF_BYTES  = 10 * 1024 * 1024;
+const MAX_IMG_BYTES  =  5 * 1024 * 1024;
+const COMPRESS_SKIP  =       200 * 1024;
 const MAX_IMG_WIDTH  = 1920;
 const JPEG_QUALITY   = 0.82;
 
-// ── Image compression (canvas → JPEG) ────────────────────────────────────────
+// ── Image compression ─────────────────────────────────────────────────────────
 
 async function compressImage(file: File): Promise<File> {
-  // Skip tiny images — compression won't help and costs time
   if (file.size < COMPRESS_SKIP) return file;
 
   return new Promise<File>((resolve) => {
@@ -36,34 +33,22 @@ async function compressImage(file: File): Promise<File> {
 
     img.onload = () => {
       URL.revokeObjectURL(url);
-
       let w = img.naturalWidth;
       let h = img.naturalHeight;
-
-      // Scale down to max width while keeping aspect ratio
-      if (w > MAX_IMG_WIDTH) {
-        h = Math.round(h * (MAX_IMG_WIDTH / w));
-        w = MAX_IMG_WIDTH;
-      }
+      if (w > MAX_IMG_WIDTH) { h = Math.round(h * (MAX_IMG_WIDTH / w)); w = MAX_IMG_WIDTH; }
 
       const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext("2d");
       if (!ctx) { resolve(file); return; }
 
-      // White background for transparent PNGs before converting to JPEG
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, w, h);
       ctx.drawImage(img, 0, 0, w, h);
 
       canvas.toBlob(
         (blob) => {
-          if (!blob || blob.size >= file.size) {
-            // Compression made it bigger or failed — keep original
-            resolve(file);
-            return;
-          }
+          if (!blob || blob.size >= file.size) { resolve(file); return; }
           const name = file.name.replace(/\.[^.]+$/, ".jpg");
           resolve(new File([blob], name, { type: "image/jpeg", lastModified: Date.now() }));
         },
@@ -72,11 +57,7 @@ async function compressImage(file: File): Promise<File> {
       );
     };
 
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve(file); // fallback: send original
-    };
-
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
     img.src = url;
   });
 }
@@ -84,17 +65,17 @@ async function compressImage(file: File): Promise<File> {
 // ── ComposeBox ────────────────────────────────────────────────────────────────
 
 export default function ComposeBox({
-  threadId,
-  channelId,
-  members,
+  onSend,
   currentUserId,
   currentUserName,
+  members,
+  threadId,
 }: {
-  threadId: string;
-  channelId: string;
-  members: OrgMember[];
+  onSend: (body: string, mentionedIds: string[], file: File | null) => Promise<void>;
   currentUserId: string;
   currentUserName: string;
+  members: OrgMember[];
+  threadId: string;
 }) {
   const [body, setBody]               = useState("");
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
@@ -102,15 +83,14 @@ export default function ComposeBox({
   const [dropIdx, setDropIdx]         = useState(0);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [compressing, setCompressing] = useState(false);
+  const [sending, setSending]         = useState(false);
 
-  const [isPending, startTransition]  = useTransition();
+  const textareaRef  = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastTypingTs = useRef(0);
+  const typingChRef  = useRef<ReturnType<ReturnType<typeof createBrowserSupabase>["channel"]> | null>(null);
 
-  const textareaRef   = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef  = useRef<HTMLInputElement>(null);
-  const lastTypingTs  = useRef(0);
-  const typingChRef   = useRef<ReturnType<ReturnType<typeof createBrowserSupabase>["channel"]> | null>(null);
-
-  // ── Typing broadcast channel ────────────────────────────────────────────────
+  // ── Typing broadcast ────────────────────────────────────────────────────────
   useEffect(() => {
     const sb = createBrowserSupabase();
     const ch = sb.channel(`typing:${threadId}`);
@@ -133,9 +113,7 @@ export default function ComposeBox({
   // ── @mention ────────────────────────────────────────────────────────────────
   const filtered =
     query !== null
-      ? members
-          .filter((m) => m.full_name.toLowerCase().includes(query.toLowerCase()))
-          .slice(0, MAX_DROPDOWN)
+      ? members.filter((m) => m.full_name.toLowerCase().includes(query.toLowerCase())).slice(0, MAX_DROPDOWN)
       : [];
 
   function syncQuery(val: string, pos: number) {
@@ -183,14 +161,12 @@ export default function ComposeBox({
     const f = e.target.files?.[0] ?? null;
     if (!f) { setAttachedFile(null); return; }
 
-    // Type gate — only images and PDF
     if (!ALLOWED_MIME.has(f.type)) {
       alert("Only images (JPG, PNG, GIF, WebP) and PDFs are allowed.");
       e.target.value = "";
       return;
     }
 
-    // Size gate before compression
     const isPdf = f.type === "application/pdf";
     const limit = isPdf ? MAX_PDF_BYTES : MAX_IMG_BYTES;
     if (f.size > limit) {
@@ -199,12 +175,8 @@ export default function ComposeBox({
       return;
     }
 
-    if (isPdf) {
-      setAttachedFile(f);
-      return;
-    }
+    if (isPdf) { setAttachedFile(f); return; }
 
-    // Compress images
     setCompressing(true);
     try {
       const compressed = await compressImage(f);
@@ -221,38 +193,39 @@ export default function ComposeBox({
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  // ── Form submit — programmatic so compressed File reaches the server action ─
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  // ── Submit ──────────────────────────────────────────────────────────────────
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!body.trim() || isPending || compressing) return;
+    const trimmed = body.trim();
+    if (!trimmed || sending || compressing) return;
 
-    const fd = new FormData();
-    fd.set("threadId", threadId);
-    fd.set("channelId", channelId);
-    fd.set("body", body);
-    fd.set("mentionedUserIds", JSON.stringify(mentionedIds));
-    if (attachedFile) fd.set("attachment", attachedFile, attachedFile.name);
+    // Snapshot & clear immediately for instant feedback
+    const bodySnap       = trimmed;
+    const mentionsSnap   = mentionedIds;
+    const fileSnap       = attachedFile;
 
-    startTransition(async () => {
-      await postMessageAction(fd);
-    });
+    setBody("");
+    setMentionedIds([]);
+    setAttachedFile(null);
+    setQuery(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    textareaRef.current?.focus();
+
+    setSending(true);
+    try {
+      await onSend(bodySnap, mentionsSnap, fileSnap);
+    } finally {
+      setSending(false);
+    }
   }
 
-  const busy = isPending || compressing;
+  const busy = sending || compressing;
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        accept={ACCEPT}
-        onChange={handleFileChange}
-      />
+      <input ref={fileInputRef} type="file" className="hidden" accept={ACCEPT} onChange={handleFileChange} />
 
-      {/* Attachment preview */}
       {(attachedFile || compressing) && (
         <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs">
           {compressing ? (
@@ -264,11 +237,8 @@ export default function ComposeBox({
             <>
               <Paperclip className="w-3.5 h-3.5 text-blue-500 shrink-0" />
               <span className="flex-1 truncate text-blue-700">{attachedFile.name}</span>
-              <span className="text-blue-400 shrink-0">
-                {(attachedFile.size / 1024).toFixed(0)} KB
-              </span>
-              <button type="button" onClick={clearAttachment}
-                className="text-blue-400 hover:text-blue-600 transition">
+              <span className="text-blue-400 shrink-0">{(attachedFile.size / 1024).toFixed(0)} KB</span>
+              <button type="button" onClick={clearAttachment} className="text-blue-400 hover:text-blue-600 transition">
                 <X className="w-3.5 h-3.5" />
               </button>
             </>
@@ -289,9 +259,7 @@ export default function ComposeBox({
                 className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition ${
                   idx === dropIdx ? "bg-blue-50" : "hover:bg-slate-50"}`}>
                 <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-bold text-blue-700">
-                    {m.full_name[0].toUpperCase()}
-                  </span>
+                  <span className="text-xs font-bold text-blue-700">{m.full_name[0].toUpperCase()}</span>
                 </div>
                 <span className="text-sm text-slate-800 truncate">{m.full_name}</span>
               </button>
@@ -307,17 +275,17 @@ export default function ComposeBox({
           <Paperclip className="w-4 h-4" />
         </button>
 
-        <textarea ref={textareaRef} name="body" value={body}
+        <textarea ref={textareaRef} value={body}
           onChange={handleChange} onKeyDown={handleKeyDown}
-          required rows={2}
+          rows={2}
           placeholder="Write a message… type @ to mention someone"
           className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none" />
 
-        <button type="submit" disabled={busy}
-          className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition shrink-0">
+        <button type="submit" disabled={busy || !body.trim()}
+          className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition shrink-0">
           {compressing ? (
             <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Compressing…</>
-          ) : isPending ? (
+          ) : sending ? (
             <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending…</>
           ) : (
             <><Send className="w-3.5 h-3.5" /> Send</>

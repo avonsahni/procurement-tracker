@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Pencil, ArchiveX } from "lucide-react";
+import { ChevronLeft, ArchiveX } from "lucide-react";
 import { requireUser } from "../../shell";
 import {
   getChannel,
@@ -10,9 +10,7 @@ import {
   listOrgMembers,
   listAttachmentsByMessages,
 } from "@/lib/communication/queries";
-import ComposeBox from "../../compose-box";
-import MessagesLive from "./messages-live";
-import TypingIndicator from "./typing-indicator";
+import ThreadClient from "./thread-client";
 
 export default async function ThreadPage({
   params,
@@ -34,7 +32,7 @@ export default async function ThreadPage({
   if (!channel || !thread) notFound();
 
   const messageIds = messages.map((m) => m.id);
-  const authorIds = [...new Set(messages.map((m) => m.author_id))];
+  const authorIds  = [...new Set(messages.map((m) => m.author_id))];
 
   const [profiles, orgMembers, attachmentsMap] = await Promise.all([
     getProfiles(authorIds),
@@ -49,17 +47,13 @@ export default async function ThreadPage({
       {/* ── Thread header ──────────────────────────────────────────── */}
       <div className="bg-white border-b border-slate-200 px-6 py-3.5 shrink-0">
         <div className="flex items-start gap-3">
-          <Link
-            href={`/communication/${channelId}`}
-            className="mt-0.5 text-slate-400 hover:text-slate-700 transition shrink-0"
-          >
+          <Link href={`/communication/${channelId}`}
+            className="mt-0.5 text-slate-400 hover:text-slate-700 transition shrink-0">
             <ChevronLeft className="w-4 h-4" />
           </Link>
           <div className="flex-1 min-w-0">
             <p className="text-[11px] text-slate-400 mb-0.5">#{channel.name}</p>
-            <h1 className="text-sm font-semibold text-slate-900 leading-snug">
-              {thread.title}
-            </h1>
+            <h1 className="text-sm font-semibold text-slate-900 leading-snug">{thread.title}</h1>
           </div>
           {thread.status !== "open" && (
             <span className="text-[10px] text-slate-500 bg-slate-100 border border-slate-200 rounded px-2 py-0.5 shrink-0">
@@ -85,35 +79,18 @@ export default async function ThreadPage({
         </div>
       )}
 
-      {/* ── Live message list (client component) ───────────────────── */}
-      <MessagesLive
+      {/* ── ThreadClient handles messages + compose + typing ────────── */}
+      <ThreadClient
         threadId={threadId}
+        channelId={channelId}
         initialMessages={messages}
         initialProfiles={profiles}
         initialAttachments={attachmentsMap}
         currentUserId={user.id}
+        currentUserName={user.fullName}
+        orgMembers={orgMembers}
+        canPost={canPost}
       />
-
-      {/* ── Compose area ───────────────────────────────────────────── */}
-      {canPost ? (
-        <div className="shrink-0 bg-white border-t border-slate-200 px-6 py-4">
-          <ComposeBox
-            threadId={threadId}
-            channelId={channelId}
-            members={orgMembers}
-            currentUserId={user.id}
-            currentUserName={user.fullName}
-          />
-          <div className="mt-1.5 flex items-center gap-2">
-            <TypingIndicator threadId={threadId} currentUserId={user.id} />
-          </div>
-        </div>
-      ) : (
-        <div className="shrink-0 px-6 py-4 border-t border-slate-200 text-center text-xs text-slate-400">
-          <Pencil className="w-3 h-3 inline mr-1" />
-          Replying is disabled on archived / resolved threads.
-        </div>
-      )}
     </div>
   );
 }
