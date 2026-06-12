@@ -6,6 +6,7 @@ import { rollUpMilestoneTasks, logPackageAudit } from '@/lib/db';
 import { withRoute } from '@/lib/withRoute';
 import { z } from 'zod';
 import { assertProjectActive } from '@/lib/projectGuard';
+import { findRecentDuplicate } from '@/lib/dedupe';
 
 const CreateSchema = z.object({
   milestoneName: z.string().min(1),
@@ -76,6 +77,12 @@ export const POST = withRoute(async (req: NextRequest, ctx) => {
     .eq('id', pkg.project_id)
     .maybeSingle();
   if (!proj?.org_id) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+
+  // Dedup guard: same task name under same milestone within 10 s is a double-submit.
+  const dup = await findRecentDuplicate(admin, 'milestone_tasks', {
+    package_id: pkgId, milestone_name: parsed.data.milestoneName, name: parsed.data.name,
+  });
+  if (dup) return NextResponse.json(dup, { status: 201 });
 
   const { data: task, error } = await admin
     .from('milestone_tasks')

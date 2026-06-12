@@ -216,7 +216,7 @@ export default function PackageDetail({
   };
 
   const handlePunchAward = async () => {
-    if (!awardVal || !awardVendor) return;
+    if (!awardVal || !awardVendor || awarding) return;
     setAwardError(null);
     setAwarding(true);
     try {
@@ -247,6 +247,7 @@ export default function PackageDetail({
   };
 
   const handleAddInflow = async () => {
+    if (inflowSaving) return;
     if (!inflowForm.onAccount.trim() || !inflowForm.fromParty.trim() || !inflowForm.dateReceived || !inflowForm.amount || !inflowForm.remarks.trim()) {
       setInflowError('All fields are required.'); return;
     }
@@ -277,6 +278,7 @@ export default function PackageDetail({
   };
 
   const handleAddOutflow = async () => {
+    if (outflowSaving) return;
     if (!outflowForm.toWhom.trim() || !outflowForm.onAccountOf.trim() || !outflowForm.datePaid || !outflowForm.amount || !outflowForm.remarks.trim()) {
       setOutflowError('All fields are required.'); return;
     }

@@ -5,6 +5,7 @@ import { addAuditEntry, logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { VendorCreateSchema, parseBody } from '@/lib/validation';
 import { assertProjectActive } from '@/lib/projectGuard';
+import { findRecentDuplicate } from '@/lib/dedupe';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
@@ -20,6 +21,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const g = await assertProjectActive(supabase, pkg.project_id, auth);
   if (g) return g;
+
+  // Dedup guard: a second vendor with the same name in one package is always
+  // a double-submit (vendors has no timestamp column, so match is exact).
+  const dup = await findRecentDuplicate(supabase, 'vendors', { package_id: pkgId, name }, { timeColumn: null });
+  if (dup) {
+    return NextResponse.json({
+      id: dup.id, name: dup.name, quotedAmount: Number(dup.quoted_amount), revisedAmount: Number(dup.revised_amount),
+    }, { status: 201 });
+  }
 
   const { data: row, error } = await supabase
     .from('vendors')

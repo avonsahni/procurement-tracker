@@ -825,6 +825,7 @@ export default function LandingPage() {
 
   const handleContact = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (contactSending) return;
     setContactError(''); setContactSending(true);
     try {
       const res = await fetch('/api/contact', {

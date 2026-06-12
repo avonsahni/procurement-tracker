@@ -616,6 +616,7 @@ function PlansSection() {
   });
   const [couponError, setCouponError]   = useState('');
   const [savingCoupon, setSavingCoupon] = useState(false);
+  const [busyCouponId, setBusyCouponId] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoadingData(true);
@@ -660,6 +661,7 @@ function PlansSection() {
   };
 
   const createCoupon = async () => {
+    if (savingCoupon) return;
     setCouponError('');
     if (!couponForm.code.trim()) { setCouponError('Code is required'); return; }
     if (couponForm.valid_days < 1) { setCouponError('Valid days must be ≥ 1'); return; }
@@ -690,6 +692,8 @@ function PlansSection() {
   };
 
   const toggleCoupon = async (c: CouponRow) => {
+    if (busyCouponId) return;
+    setBusyCouponId(c.id);
     try {
       const res = await apiFetch(`/api/platform/coupons/${encodeURIComponent(c.code)}`, {
         method: 'PATCH',
@@ -699,14 +703,18 @@ function PlansSection() {
       const body = await res.json();
       if (res.ok) setCoupons(prev => prev.map(x => x.id === c.id ? body : x));
     } catch { /* silent */ }
+    finally { setBusyCouponId(null); }
   };
 
   const deleteCoupon = async (c: CouponRow) => {
+    if (busyCouponId) return;
     if (!confirm(`Delete coupon "${c.code}"? This cannot be undone.`)) return;
+    setBusyCouponId(c.id);
     try {
       await apiFetch(`/api/platform/coupons/${encodeURIComponent(c.code)}`, { method: 'DELETE' });
       setCoupons(prev => prev.filter(x => x.id !== c.id));
     } catch { /* silent */ }
+    finally { setBusyCouponId(null); }
   };
 
   const TIER_LABELS: Record<string, string> = { trial: 'Trial', starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
@@ -1013,12 +1021,14 @@ function PlansSection() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={() => toggleCoupon(c)}
+                            disabled={busyCouponId === c.id}
                             title={c.is_active ? 'Deactivate' : 'Activate'}
-                            className={`p-1.5 rounded-lg transition ${c.is_active ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}`}>
+                            className={`p-1.5 rounded-lg transition disabled:opacity-50 ${c.is_active ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}`}>
                             {c.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                           </button>
                           <button onClick={() => deleteCoupon(c)} title="Delete"
-                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
+                            disabled={busyCouponId === c.id}
+                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>

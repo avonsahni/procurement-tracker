@@ -37,6 +37,7 @@ function LoginFormBody({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || transferring) return;
     setError("");
     setConfirmMessage("");
     setShowTransfer(false);
@@ -67,6 +68,7 @@ function LoginFormBody({
   };
 
   const handleTransfer = async () => {
+    if (transferring) return;
     setTransferring(true);
     setShowTransfer(false);
     try {

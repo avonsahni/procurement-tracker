@@ -64,6 +64,7 @@ function UserModal({ user, onClose, onSave }: UserModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     setError("");
     if (!fullName.trim()) { setError("Full name required"); return; }
     if (!isEdit && !username.trim()) { setError("Username required"); return; }

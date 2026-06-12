@@ -43,6 +43,7 @@ export default function BillingSection({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) { setInvoiceError("Amount must be greater than 0."); return; }
     if (!invoiceNumber.trim() || !invoiceDate || !notes.trim()) {

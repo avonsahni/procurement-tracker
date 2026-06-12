@@ -5,6 +5,7 @@ import { logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { RemarkCreateSchema, parseBody } from '@/lib/validation';
 import { assertProjectActive } from '@/lib/projectGuard';
+import { findRecentDuplicate } from '@/lib/dedupe';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('user');
@@ -20,6 +21,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const g = await assertProjectActive(supabase, pkg.project_id, auth);
   if (g) return g;
+
+  // Dedup guard: same text from same user within 10 s is a double-submit.
+  const dup = await findRecentDuplicate(
+    supabase, 'remarks',
+    { package_id: pkgId, user_id: auth.id, text },
+    { timeColumn: 'timestamp' },
+  );
+  if (dup) {
+    return NextResponse.json({
+      id: dup.id, user: dup.username, text: dup.text, timestamp: dup.timestamp,
+      imageUrls: dup.image_urls ?? [],
+    }, { status: 201 });
+  }
 
   const { data: row, error } = await supabase
     .from('remarks')

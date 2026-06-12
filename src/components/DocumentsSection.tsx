@@ -26,6 +26,7 @@ export default function DocumentsSection({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const confirm = useConfirm();
 
   const humanSize = (bytes: number) =>
@@ -216,11 +217,19 @@ export default function DocumentsSection({
 
               {!readonly && (
                 <button
-                  onClick={async () => { if (await confirm(`Delete "${doc.name}"? This cannot be undone.`)) onDeleteDocument(doc.id); }}
+                  disabled={deletingId === doc.id}
+                  onClick={async () => {
+                    if (deletingId || !await confirm(`Delete "${doc.name}"? This cannot be undone.`)) return;
+                    setDeletingId(doc.id);
+                    try { await onDeleteDocument(doc.id); }
+                    finally { setDeletingId(null); }
+                  }}
                   title="Delete"
-                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  {deletingId === doc.id
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Trash2 className="w-3.5 h-3.5" />}
                 </button>
               )}
             </div>

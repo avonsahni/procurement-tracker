@@ -8,8 +8,8 @@ import { useConfirm } from "@/components/ConfirmDialog";
 interface VendorMatrixProps {
   vendors: Vendor[];
   currency: Currency;
-  onAdd: (v: { name: string; quoted: number; revised: number }) => void;
-  onDelete: (vid: string) => void;
+  onAdd: (v: { name: string; quoted: number; revised: number }) => void | Promise<void>;
+  onDelete: (vid: string) => void | Promise<void>;
   onUpdate: (vid: string, updates: Partial<Pick<Vendor, 'name' | 'quotedAmount' | 'revisedAmount'>>) => void;
   onAddRevision: (vid: string, data: { amount: number; notes: string }) => Promise<VendorRevision>;
   onDeleteRevision: (vid: string, rid: string) => Promise<void>;
@@ -42,11 +42,16 @@ export default function VendorMatrix({
 
   // New-vendor modal
   const [showAdd, setShowAdd] = useState(false);
+  const [addingVendor, setAddingVendor] = useState(false);
   const [newV, setNewV]       = useState({ name: "", quoted: "", revised: "" });
+
+  // Per-row busy flags for vendor / revision deletes
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   const isAwarded = !!awardedVendorId;
 
   const saveCell = async (vid: string, cellKey: string) => {
+    if (savingCells[cellKey]) return;
     const val = parseFloat(cellDrafts[cellKey] || "");
     if (isNaN(val) || val <= 0) return;
     setSavingCells(prev => ({ ...prev, [cellKey]: true }));
@@ -58,15 +63,30 @@ export default function VendorMatrix({
     }
   };
 
-  const handleAdd = () => {
-    if (!newV.name) return;
-    onAdd({
-      name:    newV.name,
-      quoted:  parseFloat(newV.quoted)  || 0,
-      revised: parseFloat(newV.revised) || parseFloat(newV.quoted) || 0,
-    });
-    setNewV({ name: "", quoted: "", revised: "" });
-    setShowAdd(false);
+  const handleAdd = async () => {
+    if (!newV.name || addingVendor) return;
+    setAddingVendor(true);
+    try {
+      await onAdd({
+        name:    newV.name,
+        quoted:  parseFloat(newV.quoted)  || 0,
+        revised: parseFloat(newV.revised) || parseFloat(newV.quoted) || 0,
+      });
+      setNewV({ name: "", quoted: "", revised: "" });
+      setShowAdd(false);
+    } finally {
+      setAddingVendor(false);
+    }
+  };
+
+  const runDelete = async (key: string, fn: () => Promise<void> | void) => {
+    if (deletingIds.has(key)) return;
+    setDeletingIds(prev => new Set(prev).add(key));
+    try {
+      await fn();
+    } finally {
+      setDeletingIds(prev => { const n = new Set(prev); n.delete(key); return n; });
+    }
   };
 
   return (
@@ -176,11 +196,12 @@ export default function VendorMatrix({
                               <button
                                 type="button"
                                 title={`Delete R${colIdx + 1}`}
+                                disabled={deletingIds.has(rev.id)}
                                 onClick={async () => {
                                   if (await confirm(`Delete R${colIdx + 1} for ${v.name}?`))
-                                    await onDeleteRevision(v.id, rev.id);
+                                    await runDelete(rev.id, () => onDeleteRevision(v.id, rev.id));
                                 }}
-                                className="absolute -top-1.5 -right-1.5 opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center bg-red-100 text-red-500 hover:bg-red-500 hover:text-white rounded-full transition"
+                                className="absolute -top-1.5 -right-1.5 opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center bg-red-100 text-red-500 hover:bg-red-500 hover:text-white rounded-full transition disabled:opacity-50"
                               >
                                 <X className="w-2.5 h-2.5" />
                               </button>
@@ -255,10 +276,16 @@ export default function VendorMatrix({
                     {!readonly && (
                       <button
                         type="button"
-                        onClick={async () => { if (await confirm("Delete this vendor?")) onDelete(v.id); }}
-                        className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition"
+                        disabled={deletingIds.has(v.id)}
+                        onClick={async () => {
+                          if (await confirm("Delete this vendor?"))
+                            await runDelete(v.id, () => onDelete(v.id));
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition disabled:opacity-50"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {deletingIds.has(v.id)
+                          ? <span className="block w-4 h-4 border-2 border-slate-200 border-t-red-500 rounded-full animate-spin" />
+                          : <Trash2 className="w-4 h-4" />}
                       </button>
                     )}
                   </td>
@@ -323,9 +350,11 @@ export default function VendorMatrix({
               <button
                 type="button"
                 onClick={handleAdd}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition"
+                disabled={addingVendor || !newV.name}
+                className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition"
               >
-                Add Entry
+                {addingVendor && <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+                {addingVendor ? "Adding…" : "Add Entry"}
               </button>
             </div>
           </div>

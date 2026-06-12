@@ -6,6 +6,7 @@ import { guard } from '@/lib/auth';
 import { DocumentCreateSchema, parseBody } from '@/lib/validation';
 import { storageLimitForPlan, humanBytes } from '@/lib/storageLimit';
 import { assertProjectActive } from '@/lib/projectGuard';
+import { findRecentDuplicate } from '@/lib/dedupe';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
@@ -21,6 +22,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const g = await assertProjectActive(supabase, pkg.project_id, auth);
   if (g) return g;
+
+  // Dedup guard: same filename + size within 10 s is a double-submit.
+  const dup = await findRecentDuplicate(
+    supabase, 'documents',
+    { package_id: pkgId, name, size_bytes: sizeBytes },
+    { timeColumn: 'uploaded_at' },
+  );
+  if (dup) {
+    return NextResponse.json({
+      id: dup.id, name: dup.name, size: dup.size || '', type: dup.type || '',
+      uploadedBy: dup.username, uploadedAt: dup.uploaded_at, storagePath: dup.storage_path || '',
+    }, { status: 201 });
+  }
 
   // ── Storage quota check ──────────────────────────────────────────────────
   if (sizeBytes > 0) {

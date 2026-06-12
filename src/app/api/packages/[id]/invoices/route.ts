@@ -6,6 +6,7 @@ import { guard } from '@/lib/auth';
 import { InvoiceCreateSchema, parseBody } from '@/lib/validation';
 import { formatCurrency } from '@/lib/types';
 import { assertProjectActive } from '@/lib/projectGuard';
+import { findRecentDuplicate } from '@/lib/dedupe';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
@@ -34,6 +35,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { error: 'Billing is only available after a package has been awarded' },
       { status: 400 }
     );
+  }
+
+  // Dedup guard: same invoice (number + amount) within 10 s is a double-submit.
+  // Must run BEFORE the billing constraints, otherwise the duplicate would be
+  // rejected with a misleading "exceeds remaining" error.
+  const dup = await findRecentDuplicate(supabase, 'invoices', {
+    package_id: pkgId, invoice_number: invoiceNumber, amount,
+  });
+  if (dup) {
+    return NextResponse.json({
+      id: dup.id,
+      amount: Number(dup.amount),
+      invoiceNumber: dup.invoice_number || '',
+      invoiceDate: dup.invoice_date,
+      notes: dup.notes || '',
+      user: dup.username,
+      createdAt: dup.created_at,
+    }, { status: 201 });
   }
 
   // ── HARD CONSTRAINT 1: invoice total ≤ package award value ──────────────

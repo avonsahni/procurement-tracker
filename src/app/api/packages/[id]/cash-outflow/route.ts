@@ -5,6 +5,7 @@ import { logPackageAudit } from '@/lib/db';
 import { guard } from '@/lib/auth';
 import { CashOutflowCreateSchema, parseBody } from '@/lib/validation';
 import { assertPackageProjectActive } from '@/lib/projectGuard';
+import { findRecentDuplicate } from '@/lib/dedupe';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guard('editor');
@@ -16,6 +17,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const supabase = await createServerSupabase();
   const g = await assertPackageProjectActive(supabase, pkgId, auth);
   if (g) return g;
+
+  // Dedup guard: identical payment within 10 s is a double-submit.
+  const dup = await findRecentDuplicate(supabase, 'cash_outflow', {
+    package_id: pkgId,
+    to_whom: parsed.data.toWhom,
+    on_account_of: parsed.data.onAccountOf,
+    date_paid: parsed.data.datePaid,
+    amount: parsed.data.amount,
+  });
+  if (dup) {
+    return NextResponse.json({
+      id: dup.id, toWhom: dup.to_whom, onAccountOf: dup.on_account_of,
+      datePaid: dup.date_paid, amount: Number(dup.amount),
+      remarks: dup.remarks || '', createdBy: dup.created_by, createdAt: dup.created_at,
+    }, { status: 201 });
+  }
 
   const { data: row, error } = await supabase
     .from('cash_outflow')

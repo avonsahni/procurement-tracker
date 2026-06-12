@@ -314,6 +314,7 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
   const [editForm, setEditForm] = useState({ fullName: "", email: "", password: "" });
   const [editSaving, setEditSaving] = useState(false);
+  const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [editError, setEditError] = useState("");
 
   useEffect(() => {
@@ -330,7 +331,7 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
   };
 
   const handleSaveEdit = async () => {
-    if (!editingUser) return;
+    if (!editingUser || editSaving) return;
     if (editForm.password && editForm.password.length < 8) { setEditError("Password must be at least 8 characters"); return; }
     setEditSaving(true); setEditError("");
     try {
@@ -358,6 +359,7 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
   });
 
   const handleAdd = async () => {
+    if (saving) return;
     if (!form.email || !form.password) { setError("Email and password required"); return; }
     if (form.password.length < 8) { setError("Password must be at least 8 characters"); return; }
     setSaving(true); setError("");
@@ -374,20 +376,27 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
   };
 
   const handleDelete = async (id: string) => {
+    if (busyUserId) return;
     if (!confirm("Remove this user from the organisation? This cannot be undone.")) return;
+    setBusyUserId(id);
     try {
       await deleteUser(id);
       onRefresh();
     } catch (e: any) {
       alert(e.message || "Delete failed");
+    } finally {
+      setBusyUserId(null);
     }
   };
 
   const handleRoleChange = async (u: UserAccount, newRole: "admin" | "user" | "viewer") => {
+    if (busyUserId) return;
+    setBusyUserId(u.id);
     try {
       await updateUser(u.id, { role: newRole });
       onRefresh();
     } catch (e: any) { alert(e.message); }
+    finally { setBusyUserId(null); }
   };
 
   const atSeatLimit = seatInfo !== null && seatInfo.seatCount !== null && users.length >= seatInfo.seatCount;
@@ -573,8 +582,9 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
                     ) : (
                       <select
                         value={u.role}
+                        disabled={busyUserId === u.id}
                         onChange={e => handleRoleChange(u, e.target.value as "admin" | "user" | "viewer")}
-                        className="px-2 py-1 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-blue-500/30"
+                        className="px-2 py-1 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-blue-500/30 disabled:opacity-50"
                       >
                         <option value="admin">Admin — full control</option>
                         <option value="user">User — edit, no project create</option>
@@ -594,10 +604,13 @@ function UsersSection({ users, onRefresh, onUserAdded }: { users: UserAccount[];
                         </button>
                         <button
                           onClick={() => handleDelete(u.id)}
-                          className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                          disabled={busyUserId === u.id}
+                          className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
                           title="Remove user"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {busyUserId === u.id
+                            ? <span className="block w-4 h-4 border-2 border-slate-200 border-t-red-500 rounded-full animate-spin" />
+                            : <Trash2 className="w-4 h-4" />}
                         </button>
                       </div>
                     )}
@@ -860,7 +873,7 @@ function CategoriesSection() {
   useEffect(() => { load(); }, [load]);
 
   const handleAdd = async () => {
-    if (!newName.trim()) return;
+    if (!newName.trim() || adding) return;
     setAdding(true);
     try {
       await fetch("/api/categories", {
@@ -939,6 +952,7 @@ function DangerSection({ onReset, sampleCount: initialSampleCount }: { onReset: 
   useEffect(() => { setSampleCount(initialSampleCount); }, [initialSampleCount]);
 
   const handleSeed = async () => {
+    if (seeding) return;
     if (!confirm("Load 5 sample projects (21 packages each) into your workspace?")) return;
     setSeeding(true);
     try {
@@ -958,6 +972,7 @@ function DangerSection({ onReset, sampleCount: initialSampleCount }: { onReset: 
 
   // Deletes ONLY sample/demo projects — real user projects are never touched.
   const handleDeleteSampleData = async () => {
+    if (deletingSample) return;
     if (!confirm("Delete the sample/demo projects? Your own projects will not be affected.")) return;
     setDeletingSample(true);
     try {
@@ -973,6 +988,7 @@ function DangerSection({ onReset, sampleCount: initialSampleCount }: { onReset: 
   };
 
   const handleReset = async () => {
+    if (resetting) return;
     const confirmed = prompt('Type "WIPE" to delete all projects and packages permanently:');
     if (confirmed !== "WIPE") return;
     setResetting(true);

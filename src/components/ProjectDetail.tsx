@@ -69,6 +69,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
 
   const [showAddPkg, setShowAddPkg] = useState(false);
   const [savingPkg, setSavingPkg] = useState(false);
+  const [deletingPkgId, setDeletingPkgId] = useState<string | null>(null);
   const [newPkg, setNewPkg] = useState({ name: "", category: "", origin: "Domestic", currency: "INR" });
 
   const hiddenAt = useRef<number>(0);
@@ -209,10 +210,15 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
 
   const handleDeletePkg = async (pkgId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!effectiveEditMode) return;
+    if (!effectiveEditMode || deletingPkgId) return;
     if (!await confirm("Delete this package and all its data? This cannot be undone.")) return;
-    await deletePackage(pkgId);
-    loadData();
+    setDeletingPkgId(pkgId);
+    try {
+      await deletePackage(pkgId);
+      loadData();
+    } finally {
+      setDeletingPkgId(null);
+    }
   };
 
   const openPackage = (pkgId: string, mode: "purchasing" | "execution" = "purchasing") =>
@@ -854,10 +860,13 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
                                       )}
                                       {effectiveEditMode && (
                                         <button
+                                          disabled={deletingPkgId === pkg.id}
                                           onClick={e => handleDeletePkg(pkg.id, e)}
-                                          className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                                          className={`p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition group-hover:opacity-100 disabled:opacity-100 ${deletingPkgId === pkg.id ? "opacity-100" : "opacity-0"}`}
                                         >
-                                          <Trash2 className="w-3.5 h-3.5" />
+                                          {deletingPkgId === pkg.id
+                                            ? <span className="block w-3.5 h-3.5 border-2 border-slate-200 border-t-red-500 rounded-full animate-spin" />
+                                            : <Trash2 className="w-3.5 h-3.5" />}
                                         </button>
                                       )}
                                       <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition" />
