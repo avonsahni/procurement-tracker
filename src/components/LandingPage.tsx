@@ -6,7 +6,7 @@ import {
   CheckCircle2, ArrowRight, BarChart3, FolderOpen, Users,
   Shield, FileText, ChevronRight, Star,
   TrendingUp, Clock, Award, Package, Building2, Zap,
-  Activity, CalendarDays,
+  Activity, CalendarDays, MessageCircle, Hash, Send, AtSign, Paperclip,
 } from "lucide-react";
 import { LoginModal } from "@/components/auth/LoginForm";
 import { LogoFull } from "@/components/Logo";
@@ -539,6 +539,144 @@ function PurchasingMockup() {
   );
 }
 
+function TeamHubMockup() {
+  const channels = [
+    { name: "general",            icon: "hash",   active: false, unread: 0 },
+    { name: "site-updates",       icon: "hash",   active: false, unread: 2 },
+    { name: "pkg-server-racks",   icon: "link",   active: true,  unread: 0 },
+    { name: "Amir K.",            icon: "dm",     active: false, unread: 1 },
+  ];
+  const messages = [
+    {
+      from: "J. Smith", mine: false, time: "10:14",
+      body: "Vendor A confirmed delivery — awaiting customs clearance at port.",
+    },
+    {
+      from: "You", mine: true, time: "10:16",
+      body: "Got it. I've updated the stage to Commercial Negotiation.",
+    },
+    {
+      from: "A. Khan", mine: false, time: "10:18",
+      body: "@J. Smith — site supervisor is here, need sign-off today.",
+      mention: true,
+    },
+    {
+      from: "You", mine: true, time: "10:19",
+      body: "On my way. 15 min.",
+    },
+  ];
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden text-left select-none" style={{ maxHeight: 420 }}>
+      {/* App header */}
+      <div className="bg-white border-b border-slate-200 px-3 py-2.5 flex items-center gap-2.5">
+        <div className="w-5 h-5 bg-blue-600 rounded-md flex items-center justify-center flex-shrink-0">
+          <MessageCircle className="w-3 h-3 text-white" />
+        </div>
+        <span className="text-[11px] font-bold text-slate-800">Team Hub</span>
+        <span className="ml-auto text-[9px] bg-emerald-100 text-emerald-700 rounded-full px-1.5 py-0.5 font-medium">Live</span>
+      </div>
+
+      <div className="flex" style={{ height: 360 }}>
+        {/* Sidebar */}
+        <div className="w-36 bg-slate-50 border-r border-slate-200 flex flex-col shrink-0 overflow-hidden">
+          <div className="px-2.5 pt-2.5 pb-1">
+            <p className="text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Channels</p>
+            {channels.map(ch => (
+              <div key={ch.name}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg mb-0.5 ${ch.active ? "bg-blue-100" : "hover:bg-slate-100"}`}>
+                {ch.icon === "hash"
+                  ? <Hash className={`w-2.5 h-2.5 shrink-0 ${ch.active ? "text-blue-600" : "text-slate-400"}`} />
+                  : ch.icon === "link"
+                  ? <div className={`w-2.5 h-2.5 rounded-sm flex-shrink-0 flex items-center justify-center ${ch.active ? "bg-blue-600" : "bg-violet-300"}`}>
+                      <span className="text-white" style={{ fontSize: 6 }}>P</span>
+                    </div>
+                  : <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                }
+                <span className={`text-[9px] truncate flex-1 ${ch.active ? "font-semibold text-blue-700" : "text-slate-600"}`}>
+                  {ch.name}
+                </span>
+                {ch.unread > 0 && (
+                  <span className="w-3.5 h-3.5 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0" style={{ fontSize: 7 }}>
+                    {ch.unread}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-auto px-2.5 py-2 border-t border-slate-200">
+            <div className="flex items-center gap-1.5">
+              <AtSign className="w-2.5 h-2.5 text-blue-400 flex-shrink-0" />
+              <span className="text-[8px] text-slate-500">Mentions</span>
+              <span className="ml-auto text-[7px] bg-blue-100 text-blue-700 rounded-full px-1 py-0.5 font-bold">3</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Message area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Thread header */}
+          <div className="px-3 py-2 border-b border-slate-100 bg-white flex items-center gap-2">
+            <div className="w-3.5 h-3.5 rounded-sm bg-violet-500 flex items-center justify-center flex-shrink-0">
+              <span className="text-white" style={{ fontSize: 7 }}>P</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-semibold text-slate-800 truncate">pkg-server-racks</p>
+              <p className="text-[8px] text-slate-400 truncate">Delivery & Award discussion</p>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-hidden px-3 py-2 space-y-2">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex flex-col gap-0.5 ${m.mine ? "items-end" : "items-start"}`}>
+                <div className="flex items-baseline gap-1.5">
+                  {!m.mine && <span className="text-[8px] font-semibold text-slate-600">{m.from}</span>}
+                  <span className="text-[7px] text-slate-300">{m.time}</span>
+                </div>
+                <div className={`px-2.5 py-1.5 rounded-xl text-[9px] leading-relaxed max-w-[85%] ${
+                  m.mine
+                    ? "bg-blue-600 text-white rounded-tr-sm"
+                    : "bg-white border border-slate-200 text-slate-700 rounded-tl-sm"
+                }`}>
+                  {m.mention
+                    ? <span>
+                        <span className="text-blue-300 font-semibold">@J. Smith</span>
+                        {" — site supervisor is here, need sign-off today."}
+                      </span>
+                    : m.body
+                  }
+                </div>
+              </div>
+            ))}
+            {/* Typing indicator */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[8px] text-slate-400">A. Khan is typing</span>
+              <div className="flex gap-0.5">
+                {[0, 1, 2].map(d => (
+                  <span key={d} className="w-1 h-1 rounded-full bg-slate-300 animate-bounce"
+                    style={{ animationDelay: `${d * 150}ms`, animationDuration: "0.9s" }} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Compose */}
+          <div className="shrink-0 px-3 pb-2 pt-1 border-t border-slate-100">
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
+              <Paperclip className="w-2.5 h-2.5 text-slate-400 flex-shrink-0" />
+              <span className="flex-1 text-[9px] text-slate-400 truncate">Write a message… @ to mention</span>
+              <div className="w-4 h-4 rounded-md bg-blue-600 flex items-center justify-center flex-shrink-0">
+                <Send className="w-2 h-2 text-white" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Feature cards ────────────────────────────────────────────────────────────
 
 const FEATURES = [
@@ -583,6 +721,13 @@ const FEATURES = [
     title: "Milestone Task Tracking",
     desc: "Break each execution milestone into dated subtasks. Set start and end dates, drag individual progress bars, and watch milestone completion auto-compute from subtask averages.",
     mockup: <MilestoneTaskMockup />,
+  },
+  {
+    icon: MessageCircle,
+    color: "text-emerald-600 bg-emerald-50",
+    title: "Team Hub",
+    desc: "Real-time messaging for every project, package, and milestone. @mention teammates, share files, and keep all conversations in one searchable place.",
+    mockup: <TeamHubMockup />,
   },
 ];
 
@@ -922,6 +1067,48 @@ export default function LandingPage() {
           {/* Mockup */}
           <div className="flex-1 w-full max-w-md">
             <PurchasingMockup />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Team Hub spotlight ──────────────────────────────────────────────── */}
+      <section className="py-20 px-6 bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-900 text-white">
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-12 items-center">
+          {/* Copy */}
+          <div className="flex-1 space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-xs font-medium">
+              <MessageCircle className="w-3.5 h-3.5" /> Team Hub
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-snug">
+              Every conversation,<br />linked to the work
+            </h2>
+            <p className="text-slate-400 leading-relaxed text-base">
+              Stop chasing updates across WhatsApp groups and email threads. Team Hub puts all project communication in one place — instant messaging that attaches directly to the package, milestone, or project being discussed.
+            </p>
+            <ul className="space-y-3">
+              {[
+                "Channels auto-created for every project and package — no setup required",
+                "@mention any teammate; they get a notification and a direct link back to the message",
+                "Messages appear instantly — no page reload, no lag",
+                "Attach images and PDFs directly in the chat (auto-compressed before upload)",
+                "Typing indicators, unread badges, and live Realtime updates",
+              ].map(item => (
+                <li key={item} className="flex items-start gap-3 text-sm text-slate-300">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={openSignup}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white text-sm font-bold rounded-xl hover:bg-emerald-400 transition"
+            >
+              Try Team Hub free <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+          {/* Mockup */}
+          <div className="flex-1 w-full max-w-md">
+            <TeamHubMockup />
           </div>
         </div>
       </section>
