@@ -17,6 +17,22 @@ export async function postMessageAction(formData: FormData) {
   const body = (formData.get("body") as string | null)?.trim() ?? "";
   if (!body) return;
 
+  // Guard against double-send: same body from same author in same thread within 5 s
+  const admin = createAdminSupabase();
+  const dedupeWindow = new Date(Date.now() - 5_000).toISOString();
+  const { data: recentDup } = await admin
+    .from("messages")
+    .select("id")
+    .eq("thread_id", threadId)
+    .eq("author_id", user.id)
+    .eq("body", body)
+    .gte("created_at", dedupeWindow)
+    .maybeSingle();
+
+  if (recentDup) {
+    redirect(`/communication/${channelId}/${threadId}`);
+  }
+
   // Use the RLS-scoped client so all message INSERT policies enforce naturally.
   const supabase = await createServerSupabase();
   const { error } = await supabase.from("messages").insert({
@@ -60,6 +76,22 @@ export async function createThreadAction(formData: FormData) {
   }
 
   const admin = createAdminSupabase();
+
+  // Guard against duplicate submission — same title in same channel within 30 s
+  const windowStart = new Date(Date.now() - 30_000).toISOString();
+  const { data: recentDup } = await admin
+    .from("threads")
+    .select("id")
+    .eq("channel_id", channelId)
+    .eq("org_id", user.orgId)
+    .eq("title", title)
+    .gte("created_at", windowStart)
+    .maybeSingle();
+
+  if (recentDup) {
+    redirect(`/communication/${channelId}/${recentDup.id}`);
+  }
+
   const { data: thread, error } = await admin
     .from("threads")
     .insert({
@@ -155,6 +187,19 @@ export async function createChannelAction(formData: FormData) {
   if (!name) return;
 
   const admin = createAdminSupabase();
+
+  // Guard against duplicate submissions — check for existing channel with same name
+  const { data: existing } = await admin
+    .from("channels")
+    .select("id")
+    .eq("org_id", user.orgId)
+    .eq("name", name)
+    .maybeSingle();
+
+  if (existing) {
+    redirect(`/communication/${existing.id}`);
+  }
+
   const { data: channel, error } = await admin
     .from("channels")
     .insert({

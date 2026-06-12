@@ -3,6 +3,7 @@ import { Plus, Hash, MessageSquarePlus } from "lucide-react";
 import { requireUser } from "./shell";
 import { listAccessibleChannels } from "@/lib/communication/queries";
 import { createChannelAction } from "./actions";
+import SubmitButton from "./submit-button";
 
 export default async function HubPage({
   searchParams,
@@ -82,12 +83,12 @@ export default async function HubPage({
               </label>
             </div>
             <div className="flex gap-2 pt-1">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
+              <SubmitButton
+                pendingLabel="Creating…"
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
               >
                 Create channel
-              </button>
+              </SubmitButton>
               <Link
                 href="/communication"
                 className="px-4 py-2 border border-slate-200 text-slate-700 text-sm rounded-lg hover:bg-slate-50 transition"
