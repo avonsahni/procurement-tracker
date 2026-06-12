@@ -77,6 +77,37 @@ export async function postMessageAction(formData: FormData) {
     }
   }
 
+  // Optional file attachment
+  const file = formData.get("attachment") as File | null;
+  if (file && file.size > 0 && file.size <= 10 * 1024 * 1024) {
+    try {
+      // Ensure the public storage bucket exists
+      await admin.storage.createBucket("attachments", { public: true }).catch(() => {});
+
+      // Encode the original filename in the path (no extra DB column needed)
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+      const path = `${user.orgId}/${inserted.id}/${Date.now()}_${safeName}`;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+
+      const { error: uploadErr } = await admin.storage
+        .from("attachments")
+        .upload(path, bytes, { contentType: file.type || "application/octet-stream" });
+
+      if (!uploadErr) {
+        await admin.from("attachments").insert({
+          message_id: inserted.id,
+          org_id: user.orgId,
+          storage_path: path,
+          mime_type: file.type || "application/octet-stream",
+          file_size: file.size,
+          uploaded_by: user.id,
+        });
+      }
+    } catch {
+      // attachment failure is non-fatal — message is already saved
+    }
+  }
+
   revalidatePath(`/communication/${channelId}/${threadId}`);
   redirect(`/communication/${channelId}/${threadId}`);
 }

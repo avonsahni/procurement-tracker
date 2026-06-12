@@ -44,7 +44,7 @@ import MilestoneTracker from "@/components/MilestoneTracker";
 import ProgressRemarksPanel from "@/components/ProgressRemarksPanel";
 import {
   ArrowLeft, Package, ChevronRight, ChevronDown, Lock, Unlock, CheckCircle2, Clock, AlertTriangle, Activity, CalendarDays,
-  TrendingUp, TrendingDown, Plus, Trash2,
+  TrendingUp, TrendingDown, Plus, Trash2, MessageCircle,
 } from "lucide-react";
 
 export default function PackageDetail({
@@ -76,6 +76,34 @@ export default function PackageDetail({
   const matrixRef = useRef<HTMLDivElement>(null);
 
   // Award modal state — only ever opened (locked) from a vendor row's "Select".
+  const [discussLoading, setDiscussLoading] = useState(false);
+
+  async function handleDiscuss() {
+    if (discussLoading) return;
+    setDiscussLoading(true);
+    try {
+      const res = await apiFetch("/api/communication/discuss", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entity_type: "package",
+          entity_id: packageId,
+          project_id: projectId,
+        }),
+      });
+      const { channelId, error } = await res.json();
+      if (channelId) {
+        router.push(`/communication/${channelId}`);
+      } else {
+        console.error("[discuss]", error);
+      }
+    } catch (e) {
+      console.error("[discuss]", e);
+    } finally {
+      setDiscussLoading(false);
+    }
+  }
+
   const [punchingAward, setPunchingAward] = useState(false);
   const [awardVal, setAwardVal]           = useState("");
   const [awardVendor, setAwardVendor]     = useState("");
@@ -338,6 +366,17 @@ export default function PackageDetail({
                 <span className="hidden sm:inline">{editMode ? "Edit ON" : "Edit Mode"}</span>
               </button>
             )}
+            <button
+              onClick={handleDiscuss}
+              disabled={discussLoading}
+              title="Open Team Hub discussion for this package"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {discussLoading ? "Opening…" : "Discuss"}
+              </span>
+            </button>
             <HelpButton />
             <UserMenu />
           </div>

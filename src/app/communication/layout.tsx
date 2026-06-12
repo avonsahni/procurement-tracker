@@ -7,6 +7,7 @@ import { listAccessibleChannels, countUnreadMentions } from "@/lib/communication
 import UserMenu from "@/components/UserMenu";
 import HelpButton from "@/components/HelpButton";
 import { LogoMark } from "@/components/Logo";
+import MentionBadgeLive from "./mention-badge-live";
 import type { ChannelRow } from "@/lib/communication/queries";
 
 // ── Channel icon by type / privacy ────────────────────────────────────────────
@@ -129,11 +130,7 @@ export default async function HubLayout({
               >
                 <AtSign className="w-3.5 h-3.5 shrink-0 text-blue-400" />
                 <span>Mentions</span>
-                {unread > 0 && (
-                  <span className="ml-auto bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                    {unread > 99 ? "99+" : unread}
-                  </span>
-                )}
+                <MentionBadgeLive initialCount={unread} userId={user.id} />
               </Link>
 
               <Link

@@ -59,6 +59,20 @@ export type MentionRow = {
 
 export type ProfileRow = { id: string; full_name: string | null };
 
+export type AttachmentRow = {
+  id: string;
+  message_id: string;
+  org_id: string;
+  storage_path: string;
+  mime_type: string;
+  file_size: number;
+  uploaded_by: string;
+  created_at: string;
+  // Virtual fields populated at query time
+  original_name?: string;
+  public_url?: string;
+};
+
 // ── Channel queries ───────────────────────────────────────────────────────────
 
 /** All channels the authenticated user can access (RLS filters). */
@@ -241,4 +255,34 @@ export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
     id: p.id as string,
     full_name: (p.full_name as string | null) ?? `User ${(p.id as string).slice(0, 6)}`,
   }));
+}
+
+// ── Attachment queries ────────────────────────────────────────────────────────
+
+/**
+ * Fetch all attachments for a set of message IDs, grouped by message_id.
+ * Uses admin client (service role) — attachments are org-scoped by the caller.
+ */
+export async function listAttachmentsByMessages(
+  messageIds: string[]
+): Promise<Record<string, AttachmentRow[]>> {
+  if (messageIds.length === 0) return {};
+  const admin = createAdminSupabase();
+  const { data } = await admin
+    .from("attachments")
+    .select("*")
+    .in("message_id", messageIds);
+
+  const bucketUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments`;
+  const map: Record<string, AttachmentRow[]> = {};
+  for (const row of data ?? []) {
+    const att = row as AttachmentRow;
+    att.public_url = `${bucketUrl}/${att.storage_path}`;
+    // Recover original filename: path ends with `timestamp_originalname`
+    const segment = att.storage_path.split("/").pop() ?? "";
+    att.original_name = segment.replace(/^\d+_/, "") || segment;
+    if (!map[att.message_id]) map[att.message_id] = [];
+    map[att.message_id].push(att);
+  }
+  return map;
 }
