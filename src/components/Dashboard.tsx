@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   fetchProjects,
   getCompanyInfo,
@@ -12,7 +13,7 @@ import { useAuth } from "@/components/auth/AuthContext";
 import UserMenu from "@/components/UserMenu";
 import HelpButton from "@/components/HelpButton";
 import {
-  Building2, FolderOpen, Activity, Settings, Shield, Box, Layers, Search, BarChart3, ArrowRight, Receipt, CheckCircle2, Target, Crown, TrendingUp, TrendingDown,
+  Building2, FolderOpen, Activity, Settings, Shield, Box, Layers, Search, BarChart3, ArrowRight, Receipt, CheckCircle2, Target, Crown, TrendingUp, TrendingDown, MessageCircle,
 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import SiteFooter from "@/components/SiteFooter";
@@ -443,6 +444,13 @@ export default function Dashboard({ onShowBudgetAnalytics, onShowAdmin, onShowPl
                 className="pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition w-60"
               />
             </div>
+
+            <Link
+              href="/communication"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+            >
+              <MessageCircle className="w-4 h-4" /> Team Hub
+            </Link>
 
             <button
               onClick={onShowBudgetAnalytics}
