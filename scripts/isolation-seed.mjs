@@ -40,6 +40,12 @@ const FX = {
   packageB: '20000000-0000-0000-0000-000000000222',
   vendorA:  '10000000-0000-0000-0000-000011111111',
   vendorB:  '20000000-0000-0000-0000-000022222222',
+  channelA: '10000000-0000-0000-0000-000000001111',
+  channelB: '20000000-0000-0000-0000-000000002222',
+  threadA:  '10000000-0000-0000-0000-000000011111',
+  threadB:  '20000000-0000-0000-0000-000000022222',
+  messageA: '10000000-0000-0000-0000-000000111111',
+  messageB: '20000000-0000-0000-0000-000000222222',
 };
 
 function die(msg, err) {
@@ -191,6 +197,55 @@ async function seed() {
     );
     await soft('categories',
       admin.from('categories').insert({ org_id: orgId, user_id: userId, name: 'ISO Seed Category' })
+    );
+  }
+
+  // ── Team Hub fixtures (migration 039) ────────────────────────────────────
+  // NOTE: the seeded users must exist in auth before this runs (they do — the
+  // user blocks above run first). Org teardown cascades all of these away.
+  for (const [orgId, userId, channelId, threadId, messageId] of [
+    [FX.orgA, FX.userA, FX.channelA, FX.threadA, FX.messageA],
+    [FX.orgB, FX.userB, FX.channelB, FX.threadB, FX.messageB],
+  ]) {
+    await soft('channels',
+      admin.from('channels').upsert(
+        { id: channelId, org_id: orgId, name: 'ISO Seed Channel', type: 'general', created_by: userId },
+        { onConflict: 'id', ignoreDuplicates: true }
+      )
+    );
+    await soft('threads',
+      admin.from('threads').upsert(
+        { id: threadId, channel_id: channelId, org_id: orgId, title: 'ISO Seed Thread', created_by: userId },
+        { onConflict: 'id', ignoreDuplicates: true }
+      )
+    );
+    await soft('messages',
+      admin.from('messages').upsert(
+        { id: messageId, thread_id: threadId, channel_id: channelId, org_id: orgId, author_id: userId, body: 'iso seed message' },
+        { onConflict: 'id', ignoreDuplicates: true }
+      )
+    );
+    await soft('channel_members',
+      admin.from('channel_members').upsert(
+        { channel_id: channelId, user_id: userId, org_id: orgId, role: 'admin' },
+        { onConflict: 'channel_id,user_id', ignoreDuplicates: true }
+      )
+    );
+    await soft('thread_participants',
+      admin.from('thread_participants').upsert(
+        { thread_id: threadId, user_id: userId, org_id: orgId, role: 'owner' },
+        { onConflict: 'thread_id,user_id', ignoreDuplicates: true }
+      )
+    );
+    await soft('mentions',
+      admin.from('mentions').insert(
+        { message_id: messageId, thread_id: threadId, channel_id: channelId, org_id: orgId, mentioned_user_id: userId }
+      )
+    );
+    await soft('attachments',
+      admin.from('attachments').insert(
+        { message_id: messageId, org_id: orgId, storage_path: `communication/${orgId}/iso-seed.txt`, mime_type: 'text/plain', file_size: 1, uploaded_by: userId }
+      )
     );
   }
 

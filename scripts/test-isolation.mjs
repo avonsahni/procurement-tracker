@@ -51,6 +51,12 @@ const FX = {
   packageB: '20000000-0000-0000-0000-000000000222',
   vendorA:  '10000000-0000-0000-0000-000011111111',
   vendorB:  '20000000-0000-0000-0000-000022222222',
+  channelA: '10000000-0000-0000-0000-000000001111',
+  channelB: '20000000-0000-0000-0000-000000002222',
+  threadA:  '10000000-0000-0000-0000-000000011111',
+  threadB:  '20000000-0000-0000-0000-000000022222',
+  messageA: '10000000-0000-0000-0000-000000111111',
+  messageB: '20000000-0000-0000-0000-000000222222',
 };
 
 // ── Env validation ────────────────────────────────────────────────────────────
@@ -193,6 +199,52 @@ function buildManifest(target, attacker) {
       updatePayload: { full_name: '__iso_probe' },
       // profiles_self WITH CHECK (id = auth.uid()) blocks inserting for another user.
       insertPayload: { id: target.userId, full_name: '__iso_probe' },
+    },
+    // ── Team Hub tables (migration 039) ───────────────────────────────────
+    {
+      table:         'channels',
+      filter:        q => q.eq('org_id', target.orgId),
+      updatePayload: { name: '__iso_probe' },
+      insertPayload: { org_id: target.orgId, name: '__iso_probe', type: 'general', created_by: attacker.userId },
+    },
+    {
+      table:         'threads',
+      filter:        q => q.eq('org_id', target.orgId),
+      updatePayload: { title: '__iso_probe' },
+      insertPayload: { channel_id: target.channelId, org_id: target.orgId, title: '__iso_probe', created_by: attacker.userId },
+    },
+    {
+      table:         'messages',
+      filter:        q => q.eq('org_id', target.orgId),
+      updatePayload: { body: '__iso_probe' },
+      insertPayload: { thread_id: target.threadId, channel_id: target.channelId, org_id: target.orgId, author_id: attacker.userId, body: '__iso_probe' },
+    },
+    {
+      table:         'mentions',
+      filter:        q => q.eq('org_id', target.orgId),
+      updatePayload: { read_at: null },
+      // mentions has NO insert policy — default-deny blocks even same-org clients.
+      insertPayload: { message_id: target.messageId, thread_id: target.threadId, channel_id: target.channelId, org_id: target.orgId, mentioned_user_id: attacker.userId },
+    },
+    {
+      table:         'thread_participants',
+      selectCols:    'thread_id',   // composite PK, no 'id' column
+      filter:        q => q.eq('org_id', target.orgId),
+      updatePayload: { muted: true },
+      insertPayload: { thread_id: target.threadId, user_id: attacker.userId, org_id: target.orgId, role: 'watcher' },
+    },
+    {
+      table:         'channel_members',
+      selectCols:    'channel_id',  // composite PK, no 'id' column
+      filter:        q => q.eq('org_id', target.orgId),
+      updatePayload: { role: 'member' },
+      insertPayload: { channel_id: target.channelId, user_id: attacker.userId, org_id: target.orgId, role: 'member' },
+    },
+    {
+      table:         'attachments',
+      filter:        q => q.eq('org_id', target.orgId),
+      updatePayload: { mime_type: '__iso_probe' },
+      insertPayload: { message_id: target.messageId, org_id: target.orgId, storage_path: '__iso_probe', mime_type: 'text/plain', file_size: 1, uploaded_by: attacker.userId },
     },
   ];
 }
@@ -337,8 +389,8 @@ async function main() {
   console.log(`  ✓ Tenant B: ${B_EMAIL}  (${authB.user.id})`);
   console.log();
 
-  const idsA = { orgId: FX.orgA, projectId: FX.projectA, packageId: FX.packageA, vendorId: FX.vendorA, userId: authA.user.id };
-  const idsB = { orgId: FX.orgB, projectId: FX.projectB, packageId: FX.packageB, vendorId: FX.vendorB, userId: authB.user.id };
+  const idsA = { orgId: FX.orgA, projectId: FX.projectA, packageId: FX.packageA, vendorId: FX.vendorA, userId: authA.user.id, channelId: FX.channelA, threadId: FX.threadA, messageId: FX.messageA };
+  const idsB = { orgId: FX.orgB, projectId: FX.projectB, packageId: FX.packageB, vendorId: FX.vendorB, userId: authB.user.id, channelId: FX.channelB, threadId: FX.threadB, messageId: FX.messageB };
 
   // ── Attacks: A → B ───────────────────────────────────────────────────────
   console.log('── Attack: Tenant A trying to access Tenant B data ─────');
