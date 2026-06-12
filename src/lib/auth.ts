@@ -75,11 +75,16 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  // Single-active-session gate: a device that doesn't own the current session
-  // is treated as logged out.
-  if (!(await ownsActiveSession(user.id))) return null;
+  // Single-active-session gate runs concurrently with profile assembly — the
+  // session check only gates the result, it doesn't feed into it, so there's
+  // no need to pay for two sequential round trips.
+  const [owns, authUser] = await Promise.all([
+    ownsActiveSession(user.id),
+    assembleAuthUser(user.id, user.email ?? ''),
+  ]);
+  if (!owns) return null;
 
-  return assembleAuthUser(user.id, user.email ?? '');
+  return authUser;
 }
 
 async function assembleAuthUser(userId: string, email: string): Promise<AuthUser> {

@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import { MessageSquarePlus, CheckCircle2, Clock, ArchiveX } from "lucide-react";
 import { requireUser } from "../shell";
 import { getChannel, listThreads } from "@/lib/communication/queries";
-import { createThreadAction } from "../actions";
-import SubmitButton from "../submit-button";
+import NewThreadSection from "./new-thread-section";
 import type { ThreadRow } from "@/lib/communication/queries";
 
 // ── Thread status badge ───────────────────────────────────────────────────────
@@ -51,11 +50,13 @@ export default async function ChannelPage({
   params: Promise<{ channelId: string }>;
   searchParams: Promise<{ new?: string; error?: string }>;
 }) {
-  await requireUser();
   const { channelId } = await params;
   const { new: showNew, error } = await searchParams;
 
-  const [channel, threads] = await Promise.all([
+  // Auth check and RLS-scoped queries run concurrently — RLS already guards
+  // the data, requireUser only decides whether to redirect.
+  const [, channel, threads] = await Promise.all([
+    requireUser(),
     getChannel(channelId),
     listThreads(channelId),
   ]);
@@ -66,23 +67,14 @@ export default async function ChannelPage({
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
-      {/* Channel header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900"># {channel.name}</h1>
-          {channel.description && (
-            <p className="text-sm text-slate-500 mt-0.5">{channel.description}</p>
-          )}
-        </div>
-        {!channel.archived_at && (
-          <Link
-            href={`/communication/${channelId}?new=thread`}
-            className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition shrink-0"
-          >
-            <MessageSquarePlus className="w-3.5 h-3.5" /> New Thread
-          </Link>
-        )}
-      </div>
+      {/* Channel header + instant client-side New Thread form */}
+      <NewThreadSection
+        channelId={channelId}
+        name={channel.name}
+        description={channel.description}
+        archived={!!channel.archived_at}
+        defaultOpen={showNewThread}
+      />
 
       {channel.archived_at && (
         <div className="mb-6 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 flex items-center gap-2">
@@ -94,37 +86,6 @@ export default async function ChannelPage({
       {error && (
         <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
           {decodeURIComponent(error)}
-        </div>
-      )}
-
-      {/* New thread form */}
-      {showNewThread && !channel.archived_at && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 mb-6">
-          <h2 className="text-sm font-semibold text-slate-800 mb-3">Start a new thread</h2>
-          <form action={createThreadAction} className="space-y-3">
-            <input type="hidden" name="channelId" value={channelId} />
-            <input
-              name="title"
-              required
-              maxLength={200}
-              placeholder="Thread title…"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none"
-            />
-            <div className="flex gap-2">
-              <SubmitButton
-                pendingLabel="Creating…"
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
-              >
-                Create thread
-              </SubmitButton>
-              <Link
-                href={`/communication/${channelId}`}
-                className="px-4 py-2 border border-slate-200 text-slate-700 text-sm rounded-lg hover:bg-slate-50 transition"
-              >
-                Cancel
-              </Link>
-            </div>
-          </form>
         </div>
       )}
 

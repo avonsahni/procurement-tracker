@@ -19,11 +19,13 @@ export default async function ThreadPage({
   params: Promise<{ channelId: string; threadId: string }>;
   searchParams: Promise<{ error?: string }>;
 }) {
-  const user = await requireUser();
   const { channelId, threadId } = await params;
   const { error } = await searchParams;
 
-  const [channel, thread, messages] = await Promise.all([
+  // Auth check and RLS-scoped queries run concurrently — RLS already guards
+  // the data, requireUser only decides whether to redirect.
+  const [user, channel, thread, messages] = await Promise.all([
+    requireUser(),
     getChannel(channelId),
     getThread(threadId),
     listMessages(threadId),
@@ -36,7 +38,7 @@ export default async function ThreadPage({
 
   const [profiles, orgMembers, attachmentsMap] = await Promise.all([
     getProfiles(authorIds),
-    listOrgMembers(channel.org_id),
+    listOrgMembers(user.orgId),
     listAttachmentsByMessages(messageIds),
   ]);
 

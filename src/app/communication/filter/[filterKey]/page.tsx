@@ -29,12 +29,12 @@ export default async function FilterPage({
 }: {
   params: Promise<{ filterKey: string }>;
 }) {
-  await requireUser();
   const { filterKey } = await params;
+  const userGate = requireUser(); // runs concurrently with the branch query below
 
   // mentions
   if (filterKey === "mentions") {
-    const mentions = await listUnreadMentions().catch(() => []);
+    const [, mentions] = await Promise.all([userGate, listUnreadMentions().catch(() => [])]);
     return (
       <div className="max-w-3xl mx-auto px-6 py-8">
         <div className="flex items-center gap-2 mb-6">
@@ -90,7 +90,7 @@ export default async function FilterPage({
 
   // open threads
   if (filterKey === "open") {
-    const threads = await listOpenThreads().catch(() => []);
+    const [, threads] = await Promise.all([userGate, listOpenThreads().catch(() => [])]);
     return (
       <div className="max-w-3xl mx-auto px-6 py-8">
         <div className="flex items-center gap-2 mb-6">
@@ -144,9 +144,12 @@ export default async function FilterPage({
   // project-<uuid>
   if (filterKey.startsWith("project-")) {
     const projectId = filterKey.slice("project-".length);
-    if (!projectId) notFound();
+    if (!projectId) {
+      await userGate; // settle the gate before bailing so no rejection floats
+      notFound();
+    }
 
-    const threads = await listProjectThreads(projectId).catch(() => []);
+    const [, threads] = await Promise.all([userGate, listProjectThreads(projectId).catch(() => [])]);
     return (
       <div className="max-w-3xl mx-auto px-6 py-8">
         <div className="flex items-center gap-2 mb-6">
@@ -183,5 +186,6 @@ export default async function FilterPage({
     );
   }
 
+  await userGate; // settle the gate before bailing so no rejection floats
   notFound();
 }
