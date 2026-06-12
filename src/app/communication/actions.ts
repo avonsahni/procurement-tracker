@@ -35,18 +35,46 @@ export async function postMessageAction(formData: FormData) {
 
   // Use the RLS-scoped client so all message INSERT policies enforce naturally.
   const supabase = await createServerSupabase();
-  const { error } = await supabase.from("messages").insert({
-    thread_id: threadId,
-    channel_id: channelId,
-    org_id: user.orgId,
-    author_id: user.id,
-    body,
-  });
+  const { data: inserted, error } = await supabase
+    .from("messages")
+    .insert({
+      thread_id: threadId,
+      channel_id: channelId,
+      org_id: user.orgId,
+      author_id: user.id,
+      body,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    console.error("[postMessage]", error.message);
-    // Surface the error in the URL so the page can render it
-    redirect(`/communication/${channelId}/${threadId}?error=${encodeURIComponent(error.message)}`);
+  if (error || !inserted) {
+    console.error("[postMessage]", error?.message);
+    redirect(`/communication/${channelId}/${threadId}?error=${encodeURIComponent(error?.message ?? "unknown")}`);
+  }
+
+  // Create mention records for @-mentioned users (body_rich is null in Phase 2 so the
+  // trigger won't fire — we write the rows directly via the service-role client).
+  const mentionedRaw = formData.get("mentionedUserIds") as string | null;
+  if (mentionedRaw) {
+    try {
+      const mentionedUserIds = (JSON.parse(mentionedRaw) as string[])
+        .filter((id, i, a) => a.indexOf(id) === i) // dedupe
+        .filter((id) => id !== user.id);           // don't self-mention
+
+      if (mentionedUserIds.length > 0) {
+        await admin.from("mentions").insert(
+          mentionedUserIds.map((uid) => ({
+            message_id: inserted.id,
+            thread_id: threadId,
+            channel_id: channelId,
+            org_id: user.orgId,
+            mentioned_user_id: uid,
+          }))
+        );
+      }
+    } catch {
+      // ignore malformed JSON — message is already saved
+    }
   }
 
   revalidatePath(`/communication/${channelId}/${threadId}`);

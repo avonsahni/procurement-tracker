@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Send, Pencil, ArchiveX } from "lucide-react";
+import { ChevronLeft, Pencil, ArchiveX } from "lucide-react";
 import { requireUser } from "../../shell";
-import { getChannel, getThread, listMessages, getProfiles } from "@/lib/communication/queries";
-import { postMessageAction } from "../../actions";
-import SubmitButton from "../../submit-button";
+import { getChannel, getThread, listMessages, getProfiles, listOrgMembers } from "@/lib/communication/queries";
+import ComposeBox from "../../compose-box";
 
 // ── Message bubble ────────────────────────────────────────────────────────────
 
@@ -75,9 +74,12 @@ export default async function ThreadPage({
 
   if (!channel || !thread) notFound();
 
-  // Fetch display names for all authors
+  // Fetch display names for authors, and org members for the @mention picker
   const authorIds = [...new Set(messages.map((m) => m.author_id))];
-  const profiles = await getProfiles(authorIds);
+  const [profiles, orgMembers] = await Promise.all([
+    getProfiles(authorIds),
+    listOrgMembers(channel.org_id),
+  ]);
 
   const canPost = !channel.archived_at && thread.status === "open";
 
@@ -149,29 +151,16 @@ export default async function ThreadPage({
         )}
       </div>
 
-      {/* ── Compose form ───────────────────────────────────────────── */}
+      {/* ── Compose box ────────────────────────────────────────────── */}
       {canPost ? (
         <div className="shrink-0 bg-white border-t border-slate-200 px-6 py-4">
-          <form action={postMessageAction} className="flex gap-3 items-end">
-            <input type="hidden" name="threadId" value={threadId} />
-            <input type="hidden" name="channelId" value={channelId} />
-            <textarea
-              name="body"
-              required
-              rows={2}
-              placeholder="Write a message…"
-              className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none"
-            />
-            <SubmitButton
-              pendingLabel="Sending…"
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition shrink-0"
-            >
-              <Send className="w-3.5 h-3.5" />
-              Send
-            </SubmitButton>
-          </form>
+          <ComposeBox
+            threadId={threadId}
+            channelId={channelId}
+            members={orgMembers}
+          />
           <p className="text-[10px] text-slate-400 mt-1.5">
-            Press Send to post · page refreshes after send
+            Type @ to mention someone · page refreshes after send
           </p>
         </div>
       ) : (

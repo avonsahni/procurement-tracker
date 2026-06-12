@@ -217,3 +217,28 @@ export async function getProfiles(
   }
   return map;
 }
+
+export type OrgMember = { id: string; full_name: string };
+
+/** All members of an org with display names — used for the @mention picker. */
+export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
+  const admin = createAdminSupabase();
+
+  const { data: memberships } = await admin
+    .from("organization_members")
+    .select("user_id")
+    .eq("org_id", orgId);
+
+  const userIds = (memberships ?? []).map((m: any) => m.user_id as string);
+  if (userIds.length === 0) return [];
+
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("id,full_name")
+    .in("id", userIds);
+
+  return (profiles ?? []).map((p: any) => ({
+    id: p.id as string,
+    full_name: (p.full_name as string | null) ?? `User ${(p.id as string).slice(0, 6)}`,
+  }));
+}
