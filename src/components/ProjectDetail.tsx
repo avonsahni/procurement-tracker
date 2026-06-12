@@ -68,6 +68,7 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
   const [collapsedStages, setCollapsedStages] = useState<Set<string>>(new Set());
 
   const [showAddPkg, setShowAddPkg] = useState(false);
+  const [savingPkg, setSavingPkg] = useState(false);
   const [newPkg, setNewPkg] = useState({ name: "", category: "", origin: "Domestic", currency: "INR" });
 
   const hiddenAt = useRef<number>(0);
@@ -195,10 +196,15 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
 
   // ── handlers ──────────────────────────────────────────────────────────────
   const handleAddPkg = async () => {
-    if (!newPkg.name.trim()) return;
-    await addPackage(projectId, newPkg);
-    setShowAddPkg(false);
-    loadData();
+    if (!newPkg.name.trim() || savingPkg) return;
+    setSavingPkg(true);
+    try {
+      await addPackage(projectId, newPkg);
+      setShowAddPkg(false);
+      loadData();
+    } finally {
+      setSavingPkg(false);
+    }
   };
 
   const handleDeletePkg = async (pkgId: string, e: React.MouseEvent) => {
@@ -1259,7 +1265,14 @@ export default function ProjectDetail({ projectId, initialView, onBack }: Projec
               </div>
             </div>
             <div className="mt-6 flex justify-end">
-              <button onClick={handleAddPkg} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">Create Package</button>
+              <button
+                onClick={handleAddPkg}
+                disabled={savingPkg || !newPkg.name.trim()}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition"
+              >
+                {savingPkg && <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a10 10 0 100 10h-4a8 8 0 01-8-8z"/></svg>}
+                {savingPkg ? "Creating…" : "Create Package"}
+              </button>
             </div>
           </div>
         </div>
