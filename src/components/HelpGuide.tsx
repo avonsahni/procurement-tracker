@@ -7,6 +7,7 @@ import {
   CheckCircle2, AlertCircle, Info, Lightbulb, ArrowRight,
   Shield, Building2, Tag, Zap, ClipboardList, Crown, CalendarDays,
   TrendingUp, TrendingDown, Flag, Library, Download,
+  MessageCircle, Hash, AtSign, Paperclip, Send,
 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 
@@ -32,6 +33,7 @@ const SECTIONS: Section[] = [
   { id: "analytics",   label: "Director Dashboard",     icon: BarChart3 },
   { id: "ledger",      label: "Accounting Ledger",      icon: Library },
   { id: "milestones",  label: "Milestone Detail Page",  icon: Flag },
+  { id: "teamhub",     label: "Team Hub",               icon: MessageCircle },
   { id: "editmode",    label: "Edit Mode",              icon: Lock },
   { id: "users",       label: "User Management",        icon: Shield },
   { id: "settings",    label: "Settings",               icon: Settings },
@@ -103,8 +105,8 @@ function SectionOverview() {
         specification through award, billing, on-site execution, and cash flow.
       </P>
 
-      <H3>Three flows in one app</H3>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+      <H3>Four pillars in one app</H3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <p className="text-xs font-semibold text-blue-800 mb-1">Purchasing Flow</p>
           <p className="text-[12px] text-blue-700 leading-relaxed">
@@ -126,6 +128,14 @@ function SectionOverview() {
             Record payments received (Cash Inflow) and payments made (Cash Outflow) per
             package. Totals roll up to a project Cashflow Dashboard and portfolio-level
             stat cards on the main dashboard.
+          </p>
+        </div>
+        <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+          <p className="text-xs font-semibold text-violet-800 mb-1">Team Hub</p>
+          <p className="text-[12px] text-violet-700 leading-relaxed">
+            Real-time messaging for your whole team. Channels are auto-created for every
+            project and package. @mention teammates, share files, see who's typing, and
+            keep all discussion linked to the work it belongs to.
           </p>
         </div>
       </div>
@@ -1302,6 +1312,203 @@ function SectionSettings() {
   );
 }
 
+function SectionTeamHub() {
+  const channelTypes = [
+    {
+      icon: Hash,
+      color: "text-slate-500",
+      name: "General channels",
+      bg: "bg-slate-50 border-slate-200",
+      desc: "Organisation-wide channels (e.g. #general, #site-updates). Admins create and manage these. Any member can join public general channels.",
+    },
+    {
+      icon: FolderOpen,
+      color: "text-blue-500",
+      name: "Project channels",
+      bg: "bg-blue-50 border-blue-200",
+      desc: "Auto-created when a project is discussed. Linked directly to that project — open any project page and click the chat icon to jump straight in.",
+    },
+    {
+      icon: Package,
+      color: "text-violet-500",
+      name: "Entity channels (packages & milestones)",
+      bg: "bg-violet-50 border-violet-200",
+      desc: 'Auto-created on demand. On any package detail page click the "Discuss" button — the channel opens and is permanently linked to that package.',
+    },
+    {
+      icon: MessageCircle,
+      color: "text-emerald-500",
+      name: "Direct messages",
+      bg: "bg-emerald-50 border-emerald-200",
+      desc: "Private one-to-one conversations between two team members. Visible only to the participants.",
+    },
+  ];
+
+  return (
+    <div>
+      <H2>Team Hub</H2>
+      <p className="text-xs text-slate-400 mb-4">Real-time team messaging, linked to your projects and packages</p>
+      <P>
+        Team Hub is the built-in messaging layer for your organisation. Every conversation is
+        organised into <strong>channels</strong>, each channel holds one or more <strong>threads</strong>,
+        and each thread holds the messages. Messages appear instantly — no page refresh needed.
+      </P>
+
+      <H3>Opening Team Hub</H3>
+      <P>
+        Click the <strong>Team Hub</strong> button (chat icon, blue border) in the top-right area
+        of the main Dashboard header. Team Hub opens as its own full-screen section with a sidebar
+        listing all channels you have access to.
+      </P>
+
+      <H3>Channel types</H3>
+      <div className="space-y-2 mt-2">
+        {channelTypes.map(ct => {
+          const Icon = ct.icon;
+          return (
+            <div key={ct.name} className={`rounded-xl border p-3.5 ${ct.bg}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${ct.color}`} />
+                <p className="text-xs font-semibold text-slate-800">{ct.name}</p>
+              </div>
+              <p className="text-[12px] text-slate-600 leading-relaxed">{ct.desc}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <H3>Sidebar navigation</H3>
+      <ul className="space-y-2 mt-1">
+        <Li><strong>Mentions</strong> — shows all messages where someone @mentioned you. Blue badge shows the unread count; updates live without a page refresh.</Li>
+        <Li><strong>All Open</strong> — every open thread across all channels you can access.</Li>
+        <Li><strong>Channel sections</strong> — General, Projects, Packages & Milestones, and Direct Messages are listed separately with icons to distinguish type.</Li>
+        <Li><strong>New Channel</strong> — Admin-only link at the bottom of the sidebar to create a new general channel.</Li>
+      </ul>
+
+      <H3>Threads</H3>
+      <P>
+        Each channel contains <strong>threads</strong> — named conversation topics (e.g. "Delivery
+        status", "Award decision"). Open a channel to see its thread list; click any thread to read
+        and reply.
+      </P>
+      <ol className="space-y-2 mt-1">
+        {[
+          "Open a channel from the sidebar.",
+          "Click '+ New Thread' and enter a title.",
+          "The thread opens immediately and you can start posting.",
+        ].map((s, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
+            <StepBadge n={i + 1} />
+            <span>{s}</span>
+          </li>
+        ))}
+      </ol>
+
+      <H3>Sending a message</H3>
+      <P>
+        Type in the compose box at the bottom of any open thread and click <strong>Send</strong>
+        (or press Enter with focus in the box). Your message appears in the bubble list
+        <strong> instantly</strong> — it shows with a faint "sending…" label while the server
+        confirms, then resolves to the confirmed message. There is no page reload.
+      </P>
+      <Tip>
+        The compose box clears the moment you hit Send so you can start your next message
+        immediately, even before the server has finished processing the first one.
+      </Tip>
+
+      <H3>@mention a teammate</H3>
+      <div className="flex gap-2.5 bg-blue-50 border border-blue-200 rounded-xl p-3.5 mt-3">
+        <AtSign className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+        <div className="text-sm text-blue-800 leading-relaxed space-y-1">
+          <p>Type <strong>@</strong> anywhere in your message. A dropdown appears listing all members of your organisation.</p>
+          <p>Use <kbd className="px-1 py-0.5 text-[10px] font-mono bg-blue-100 rounded">↑ ↓</kbd> to navigate and <kbd className="px-1 py-0.5 text-[10px] font-mono bg-blue-100 rounded">Enter</kbd> to pick, or click the name. The @Name token is inserted into your message.</p>
+          <p>The mentioned person sees the message in their <strong>Mentions</strong> inbox and the blue badge count increments immediately.</p>
+        </div>
+      </div>
+
+      <H3>File attachments</H3>
+      <div className="flex gap-2.5 bg-slate-50 border border-slate-200 rounded-xl p-3.5 mt-3">
+        <Paperclip className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
+        <div className="text-sm text-slate-700 leading-relaxed space-y-1">
+          <p>Click the <strong>paperclip icon</strong> to the left of the compose box.</p>
+          <p><strong>Allowed:</strong> JPG, PNG, GIF, WebP images, and PDF documents.</p>
+          <p><strong>Size limits:</strong> Images up to 5 MB (auto-compressed to JPEG before upload). PDFs up to 10 MB.</p>
+          <p>The attachment preview bar shows the filename and size. Send the message as normal — the file uploads alongside the text.</p>
+        </div>
+      </div>
+
+      <H3>Typing indicator</H3>
+      <P>
+        When someone else is composing a reply in the same thread, animated dots appear below
+        the message list with their name — just like WhatsApp. The indicator disappears
+        automatically after 3.5 seconds of inactivity.
+      </P>
+
+      <H3>Discuss button on packages</H3>
+      <P>
+        On any package detail page, click the <strong>Discuss</strong> button (chat icon, in the
+        package header). This automatically creates or opens an entity channel linked to that
+        specific package, and navigates you straight into Team Hub. All conversation about that
+        package lives in one place.
+      </P>
+
+      <H3>Creating a general channel (Admins only)</H3>
+      <ol className="space-y-2 mt-1">
+        {[
+          "Click '+ New Channel' at the bottom of the Team Hub sidebar.",
+          "Enter a channel name and optional description.",
+          "Choose Public or Private. Public channels are joinable by any team member; Private channels are invite-only.",
+          "Click Create. The channel appears in the sidebar immediately and you are added as admin.",
+        ].map((s, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600 leading-relaxed">
+            <StepBadge n={i + 1} />
+            <span>{s}</span>
+          </li>
+        ))}
+      </ol>
+
+      <H3>Joining a public channel</H3>
+      <P>
+        On the Team Hub home page (before selecting a channel), public channels you have not yet
+        joined show a <strong>Join</strong> button. Click it to become a member and add the channel
+        to your sidebar.
+      </P>
+
+      <H3>Unread mentions badge</H3>
+      <P>
+        The sidebar's <strong>Mentions</strong> row shows a live blue badge with the count of
+        unread @mentions. The count updates in real time as new mentions arrive. Click a mention
+        in the Mentions filter view to mark it read, which decrements the badge.
+      </P>
+
+      <H3>Thread statuses</H3>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+        {[
+          { label: "Open",     color: "bg-emerald-50 border-emerald-200 text-emerald-700", desc: "Thread is active — new messages can be posted." },
+          { label: "Resolved", color: "bg-slate-50 border-slate-200 text-slate-600",       desc: "Thread closed by a participant. No new replies." },
+          { label: "Closed",   color: "bg-amber-50 border-amber-200 text-amber-700",       desc: "Thread closed by an admin. Archived for reference." },
+        ].map(s => (
+          <div key={s.label} className={`rounded-xl border p-3 ${s.color}`}>
+            <p className="text-xs font-semibold mb-1">{s.label}</p>
+            <p className="text-[11px] leading-relaxed">{s.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <Note>
+        Archived channels and closed/resolved threads are read-only — all history is preserved
+        but no new messages can be posted.
+      </Note>
+
+      <Tip>
+        Team Hub channels and threads are shared across your whole organisation — everyone with
+        access to the channel can see every message. For sensitive discussions, create a Private
+        channel.
+      </Tip>
+    </div>
+  );
+}
+
 const SECTION_CONTENT: Record<string, React.ReactNode> = {
   overview:   <SectionOverview />,
   dashboard:  <SectionDashboard />,
@@ -1316,6 +1523,7 @@ const SECTION_CONTENT: Record<string, React.ReactNode> = {
   analytics:  <SectionAnalytics />,
   ledger:     <SectionLedger />,
   milestones: <SectionMilestones />,
+  teamhub:    <SectionTeamHub />,
   editmode:   <SectionEditMode />,
   users:      <SectionUsers />,
   settings:   <SectionSettings />,
