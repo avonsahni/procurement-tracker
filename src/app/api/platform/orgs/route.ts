@@ -23,13 +23,17 @@ export async function GET() {
 
   // Members, projects, storage, all auth users, and optional seat_count — in parallel.
   // seat_count is fetched separately so a missing migration column never breaks the list.
-  const [membersRes, projectsRes, storageRes, authRes, seatRes] = await Promise.all([
+  const [membersRes, projectsRes, storageRes, authRes, seatRes, numRes] = await Promise.all([
     admin.from('organization_members').select('org_id, user_id, role').in('org_id', orgIds),
     admin.from('projects').select('id, org_id').in('org_id', orgIds),
     admin.from('org_storage_bytes').select('org_id, used_bytes').in('org_id', orgIds),
     admin.auth.admin.listUsers({ perPage: 1000 }),
     (async () => {
       try { return await admin.from('organizations').select('id, seat_count').in('id', orgIds); }
+      catch { return { data: null, error: null }; }
+    })(),
+    (async () => {
+      try { return await admin.from('organizations').select('id, org_number').in('id', orgIds); }
       catch { return { data: null, error: null }; }
     })(),
   ]);
@@ -70,6 +74,12 @@ export async function GET() {
     seatCountByOrg[s.id] = (s as any).seat_count ?? null;
   }
 
+  // Org number per org — null if migration hasn't been applied yet
+  const orgNumberByOrg: Record<string, number | null> = {};
+  for (const s of (numRes as any).data || []) {
+    orgNumberByOrg[s.id] = (s as any).org_number ?? null;
+  }
+
   const result = orgs.map((org: any) => ({
     ...org,
     memberCount:  memberCountByOrg[org.id]  || 0,
@@ -77,6 +87,7 @@ export async function GET() {
     ownerEmails:  ownerEmailsByOrg[org.id]  || [],
     usedBytes:    storageByOrg[org.id]      || 0,
     seat_count:   seatCountByOrg[org.id]    ?? null,
+    org_number:   orgNumberByOrg[org.id]    ?? null,
   }));
 
   return NextResponse.json(result);
