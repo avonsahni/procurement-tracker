@@ -14,7 +14,7 @@ export async function GET(
   const admin = createAdminSupabase();
 
   // Core fields must not include optional-migration columns (e.g. seat_count).
-  const [orgRes, membersRes, projectsRes, storageRes, authRes, seatRes] = await Promise.all([
+  const [orgRes, membersRes, projectsRes, storageRes, authRes, seatRes, numRes] = await Promise.all([
     admin.from('organizations')
       .select(`id, name, plan, subscription_status, trial_ends_at,
                paused_at, paused_reason, platform_notes, created_at,
@@ -28,6 +28,10 @@ export async function GET(
     admin.auth.admin.listUsers({ perPage: 1000 }),
     (async () => {
       try { return await admin.from('organizations').select('seat_count').eq('id', orgId).maybeSingle(); }
+      catch { return { data: null, error: null }; }
+    })(),
+    (async () => {
+      try { return await admin.from('organizations').select('org_number').eq('id', orgId).maybeSingle(); }
       catch { return { data: null, error: null }; }
     })(),
   ]);
@@ -46,6 +50,7 @@ export async function GET(
   return NextResponse.json({
     ...orgRes.data,
     seat_count:   (seatRes as any).data?.seat_count ?? null,
+    org_number:   (numRes as any).data?.org_number ?? null,
     memberCount:  (membersRes.data || []).length,
     projectCount: (projectsRes.data || []).length,
     usedBytes:    Number((storageRes.data as any)?.used_bytes ?? 0),

@@ -25,7 +25,16 @@ export async function GET() {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data)  return NextResponse.json({ error: 'Organisation not found' }, { status: 404 });
 
-  return NextResponse.json(data);
+  // org_number is added by an optional migration; fetch it defensively so a
+  // missing migration never breaks this route.
+  let org_number: number | null = null;
+  try {
+    const { data: numRow } = await admin
+      .from('organizations').select('org_number').eq('id', auth.orgId).maybeSingle();
+    org_number = (numRow as any)?.org_number ?? null;
+  } catch { /* migration not applied yet */ }
+
+  return NextResponse.json({ ...(data as unknown as Record<string, unknown>), org_number });
 }
 
 // PUT /api/admin/organization — update the caller's own org registration details

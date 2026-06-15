@@ -26,6 +26,7 @@ type Status = 'trial' | 'active' | 'paused' | 'canceled';
 
 interface OrgRow {
   id: string;
+  org_number: number | null;
   name: string;
   plan: Plan;
   subscription_status: Status;
@@ -316,7 +317,12 @@ function OrgsSection({
                         </div>
                         <div>
                           <p className="font-medium text-slate-900">{org.name}</p>
-                          <p className="text-xs text-slate-400">Registered {fmtDate(org.created_at)}</p>
+                          <p className="text-xs text-slate-400">
+                            {org.org_number != null && (
+                              <span className="font-mono text-slate-500">Org ID {org.org_number} · </span>
+                            )}
+                            Registered {fmtDate(org.created_at)}
+                          </p>
                           {org.platform_notes && (
                             <p className="text-xs text-amber-600 mt-0.5 truncate max-w-[180px]">📝 {org.platform_notes}</p>
                           )}
@@ -1840,6 +1846,7 @@ function OrgDetailView({
             ) : !editingReg ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                 {([
+                  { label: 'Org ID',          value: detail?.org_number != null ? String(detail.org_number) : null },
                   { label: 'Contact Name',    value: detail?.contact_name },
                   { label: 'Contact Title',   value: detail?.contact_title },
                   { label: 'Contact Email',   value: detail?.contact_email },

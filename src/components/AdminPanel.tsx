@@ -769,6 +769,7 @@ const ORG_DETAIL_FIELDS: { key: keyof OrgDetailsForm; label: string; placeholder
 
 function OrgDetailsSection() {
   const [form, setForm] = useState<OrgDetailsForm>(EMPTY_ORG_DETAILS);
+  const [orgNumber, setOrgNumber] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -790,6 +791,7 @@ function OrgDetailsSection() {
           state_region:  d.state_region  || "",
           country:       d.country       || "",
         });
+        setOrgNumber(d.org_number ?? null);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -816,7 +818,15 @@ function OrgDetailsSection() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900">Organisation Details</h2>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-xl font-semibold text-slate-900">Organisation Details</h2>
+          {orgNumber != null && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs font-medium text-slate-600">
+              <span className="uppercase tracking-wide text-[10px] text-slate-400">Org ID</span>
+              <span className="font-mono text-slate-800">{orgNumber}</span>
+            </span>
+          )}
+        </div>
         <p className="text-sm text-slate-500 mt-0.5">Registration and contact information for your organisation. Visible to platform administrators.</p>
       </div>
 
